@@ -1,0 +1,20 @@
+*.iml
+.gradle/
+.kotlin/
+local.properties
+.idea/
+**/build/
+app/release/
+captures/
+.externalNativeBuild/
+.cxx/
+*.hprof
+hs_err_pid*.log
+replay_pid*.log
+.DS_Store
+cloud-backup-worker/.wrangler/
+.wrangler/
+cloud-backup-worker/node_modules/
+cloud-backup-worker/.dev.vars
+HKM Keystore
+release-signing.jks

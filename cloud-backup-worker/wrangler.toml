@@ -1,0 +1,9 @@
+name = "pozix-cloud-backup"
+main = "src/index.ts"
+compatibility_date = "2026-07-15"
+workers_dev = true
+
+[[d1_databases]]
+binding = "POZIX_BACKUPS"
+database_name = "pozix-backups"
+database_id = "f144ee23-a30c-4774-9288-c25f19c0bdf6"

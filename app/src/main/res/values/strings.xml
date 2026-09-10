@@ -1,0 +1,381 @@
+<resources>
+    <string name="app_name">Pozix</string>
+    
+    <!-- Bottom Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_templates">Templates</string>
+    <string name="nav_library">Library</string>
+    <string name="nav_import">Import</string>
+    <string name="nav_settings">Settings</string>
+    
+    <!-- Home Screen -->
+    <string name="home_title">Pozix</string>
+    <string name="home_subtitle">Lightweight Offline Quiz Shell</string>
+    <string name="home_how_to_use">How to Use</string>
+    <string name="home_step_1">1. Open Prompts tab</string>
+    <string name="home_step_2">2. Copy a prompt template</string>
+    <string name="home_step_3">3. Use any AI chat to generate quiz JSON</string>
+    <string name="home_step_4">4. Paste JSON in Import tab</string>
+    <string name="home_step_5">5. Return here and Start Quiz</string>
+    <string name="home_current_quiz">Current Quiz</string>
+    <string name="home_no_quiz">No quiz loaded yet</string>
+    <string name="home_no_quiz_desc">Import a quiz to get started</string>
+    <string name="home_quiz_title">Title: %s</string>
+    <string name="home_quiz_questions">Questions: %d</string>
+    <string name="home_quiz_single_choice">Single Choice: %d</string>
+    <string name="home_quiz_true_false">True/False: %d</string>
+    <string name="home_start_quiz">Start Quiz</string>
+    <string name="home_go_to_prompts">Go to Prompts</string>
+    <string name="home_go_to_import">Go to Import</string>
+    
+    <!-- Prompt Templates Screen -->
+    <string name="prompts_title">Prompt Templates</string>
+    <string name="prompts_subtitle">Copy and use with AI tools</string>
+    <string name="prompts_json_schema_title">Full Quiz JSON Structure</string>
+    <string name="prompts_json_schema_subtitle">Copy this schema or full prompt to plan topics with AI</string>
+    <string name="prompts_copy_schema">Copy JSON Schema</string>
+    <string name="prompts_copy_ai_prompt">Copy AI Planning Prompt</string>
+    <string name="prompts_schema_copied">JSON schema copied to clipboard!</string>
+    <string name="prompts_ai_prompt_copied">AI prompt template copied to clipboard!</string>
+    <string name="prompts_preset">Preset Prompts</string>
+    <string name="prompts_custom">Custom Prompt Builder</string>
+    <string name="prompts_copy">Copy</string>
+    <string name="prompts_copied">Copied!</string>
+    <string name="prompts_expand">Expand</string>
+    <string name="prompts_collapse">Collapse</string>
+    <string name="prompts_custom_topic">Enter your topic</string>
+    <string name="prompts_custom_generate">Generate Prompt</string>
+    <string name="prompts_custom_topic_hint">e.g., World History, Programming, Movies</string>
+    
+    <!-- Preset Prompt Titles -->
+    <string name="prompt_general_trivia">General Trivia</string>
+    <string name="prompt_riddles">Riddles &amp; Logic</string>
+    <string name="prompt_school">School Knowledge</string>
+    <string name="prompt_fun_mixed">Fun Mixed Quiz</string>
+    <string name="prompt_true_false">True/False Focused</string>
+    <string name="prompt_custom_theme">Custom Theme Quiz</string>
+    
+    <!-- Import Screen -->
+    <string name="import_title">Import Quiz JSON</string>
+    <string name="import_subtitle">Paste your quiz data here</string>
+    <string name="import_paste_hint">Paste quiz JSON here…</string>
+    <string name="import_validate">Validate</string>
+    <string name="import_load">Load Quiz</string>
+    <string name="import_clear">Clear</string>
+    <string name="import_paste_clipboard">Paste from Clipboard</string>
+    <string name="import_validation_result">Validation Result</string>
+    <string name="import_success">✓ Valid Quiz</string>
+    <string name="import_error">✗ Error</string>
+    <string name="import_preview_title">Preview</string>
+    <string name="import_loaded_success">Quiz loaded successfully!</string>
+    <string name="import_empty_json">Please paste JSON first</string>
+    <string name="import_save_dialog_title">Save Quiz Set</string>
+    <string name="import_save_dialog_message">Give this quiz set a name</string>
+    <string name="import_save_name_label">Quiz Set Name</string>
+    <string name="import_save_name_hint">e.g., General Trivia, Science Quiz</string>
+    <string name="import_save_and_load">Save &amp; Load</string>
+    <string name="import_save_only">Save Only</string>
+    <string name="import_skip">Skip</string>
+    <string name="import_link_title">Import from Pozix link</string>
+    <string name="import_link_description">Open a quiz set shared from another device</string>
+    <string name="import_link_open">Open</string>
+    <string name="import_link_close">Close</string>
+    <string name="import_share_link">Share link</string>
+    <string name="import_load_shared">Load shared quiz</string>
+    <string name="import_loading_shared">Loading…</string>
+    <string name="import_shared_success">Shared quiz loaded and validated</string>
+    <string name="import_shared_invalid">The link opened, but the quiz data is invalid</string>
+    <string name="import_shared_failed">Unable to load share link</string>
+    <string name="import_invalid_share_link">This is not a valid Pozix share link</string>
+    <string name="import_share_unavailable">This share link is unavailable or expired</string>
+    <string name="import_paste">Paste</string>
+    <string name="import_choose_file">Open JSON file</string>
+    <string name="import_file_loaded">Loaded file: %s</string>
+    <string name="import_file_empty">The selected file is empty</string>
+    <string name="import_file_open_failed">Unable to open the selected file</string>
+    <string name="import_file_read_error">Error reading file: %s</string>
+    <string name="import_file_too_large">File is too large (maximum 5MB)</string>
+    <string name="import_or">or</string>
+    <string name="import_source">Import Source</string>
+    <string name="settings_appearance_section">Appearance</string>
+    <string name="settings_ai_section">AI Providers</string>
+    <string name="settings_gemini_api_key_desc">Used to generate customized quiz sets in AI Chat</string>
+    <string name="settings_version_info">Pozix v%s</string>
+    <string name="settings_cloud_security_badge">End-to-End Encrypted</string>
+    
+    <!-- Saved Quiz Sets Screen -->
+    <string name="saved_quiz_sets_title">Quiz Library</string>
+    <string name="saved_quiz_sets_subtitle">Your saved quiz collections</string>
+    <string name="saved_quiz_sets_empty">No saved quiz sets yet</string>
+    <string name="saved_quiz_sets_empty_hint">Import and save quiz sets to build your library</string>
+    <string name="saved_quiz_sets_play">Play Quiz</string>
+    <string name="saved_quiz_sets_rename">Rename</string>
+    <string name="saved_quiz_sets_delete">Delete</string>
+    <string name="saved_quiz_sets_questions">Questions</string>
+    <string name="saved_quiz_sets_single_choice">Single</string>
+    <string name="saved_quiz_sets_true_false">T/F</string>
+    <string name="saved_quiz_sets_last_played">Last played: %s</string>
+    <string name="saved_quiz_sets_delete_title">Delete Quiz Set?</string>
+    <string name="saved_quiz_sets_delete_message">Are you sure you want to delete "%s"? This cannot be undone.</string>
+    <string name="saved_quiz_sets_delete_confirm">Delete</string>
+    <string name="saved_quiz_sets_rename_title">Rename Quiz Set</string>
+    <string name="saved_quiz_sets_name_label">Name</string>
+    <string name="saved_quiz_sets_rename_confirm">Rename</string>
+    <string name="saved_quiz_sets_completed">Completed</string>
+    <string name="saved_quiz_sets_in_progress">In progress</string>
+    <string name="saved_quiz_sets_not_started">Not started</string>
+    <string name="saved_quiz_sets_play_again">Play again</string>
+    <string name="saved_quiz_sets_resume">Resume</string>
+    <string name="saved_quiz_sets_quiz">Quiz</string>
+    <string name="saved_quiz_sets_share">Share</string>
+    <string name="saved_quiz_sets_sharing">Sharing</string>
+    <string name="saved_quiz_sets_share_title">Quiz share link</string>
+    <string name="saved_quiz_sets_share_error_title">Unable to share</string>
+    <string name="saved_quiz_sets_copy_link">Copy link</string>
+    <string name="saved_quiz_sets_question_count">%d questions</string>
+    <string name="saved_quiz_sets_type_count">%1$d SC · %2$d TF</string>
+    <string name="saved_quiz_sets_invalid">This quiz set is no longer valid</string>
+    <string name="saved_quiz_sets_share_failed">Unable to share this quiz set</string>
+    <string name="saved_quiz_sets_share_expiry">This public link expires automatically after 30 days.</string>
+
+    <!-- Preview -->
+    <string name="preview_warning_title">Preview Mode</string>
+    <string name="preview_warning_message">This preview will show ALL questions AND their correct answers.\n\nIf you want to test yourself, please use Play instead.</string>
+    <string name="preview_warning_confirm">I Understand, Show Preview</string>
+    <string name="preview_button">Preview</string>
+    <string name="preview_title">Quiz Preview</string>
+
+    <!-- Home -->
+    <string name="home_start_test">Test Mode</string>
+
+    <!-- Exam / Test Mode -->
+    <string name="exam_test_mode">Test Mode</string>
+    <string name="exam_setup_title">Test Setup</string>
+    <string name="exam_time_limit">Time Limit</string>
+    <string name="exam_shuffle_questions">Shuffle Questions</string>
+    <string name="exam_shuffle_answers">Shuffle Answers</string>
+    <string name="exam_info_questions">Questions</string>
+    <string name="exam_info_time">Time</string>
+    <string name="exam_info_max_score">Max Score</string>
+    <string name="exam_start">Start Test</string>
+    <string name="exam_submit">Submit</string>
+    <string name="exam_submit_confirm_title">Submit Test?</string>
+    <string name="exam_submit_confirm_message">Are you sure you want to submit your test? You cannot change your answers after submitting.</string>
+    <string name="exam_unanswered_warning">%d questions unanswered!</string>
+    <string name="exam_palette_title">Question Navigator</string>
+    <string name="exam_result_title">Test Results</string>
+    <string name="exam_result_time">Time</string>
+    <string name="exam_result_correct">Correct</string>
+    <string name="exam_result_wrong">Wrong</string>
+    <string name="exam_result_unanswered">%d questions unanswered</string>
+    <string name="exam_result_breakdown">Score Breakdown</string>
+    <string name="exam_show_review">Show Detailed Review</string>
+    <string name="exam_hide_review">Hide Detailed Review</string>
+    <string name="exam_retry">Try Again</string>
+    <string name="back_to_library">Back to Library</string>
+    <string name="loading">Loading…</string>
+    <string name="error_loading_quiz">Error loading quiz</string>
+    <string name="exam_flag_review">Review later</string>
+    <string name="exam_clear_answer">Clear answer</string>
+    <string name="exam_palette_current">Current</string>
+    <string name="exam_palette_flagged">Flagged</string>
+    <string name="exam_palette_answered">Answered</string>
+    <string name="exam_palette_unanswered">Unanswered</string>
+    <string name="exam_save_exit_title">Save test and exit?</string>
+    <string name="exam_save_exit_message">Your answers, current question, flags and remaining time will be kept on this device.</string>
+    <string name="exam_save_exit_action">Save &amp; exit</string>
+    <string name="exam_keep_taking">Keep taking test</string>
+    <string name="exam_resume_title">Continue saved test?</string>
+    <string name="exam_resume_message">Pozix found an unfinished test with %d answered questions.</string>
+    <string name="exam_resume_action">Continue</string>
+    <string name="exam_restart_action">Restart</string>
+    <string name="exam_minutes">%d min</string>
+    <string name="exam_three_hours">3 hours</string>
+    <string name="exam_previous">Previous</string>
+    <string name="exam_next">Next</string>
+    <string name="exam_palette">Question navigator</string>
+    <string name="exam_result_grade">Grade %s</string>
+    <string name="exam_result_correct_of">%1$d of %2$d correct</string>
+    <string name="exam_result_skipped">Skipped</string>
+    <string name="exam_result_unanswered_label">Unanswered</string>
+    
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_vi">Tiếng Việt</string>
+    <string name="settings_font">Font</string>
+    <string name="settings_font_default">Default</string>
+    <string name="settings_font_custom1">Custom Font 1</string>
+    <string name="settings_font_custom2">Custom Font 2</string>
+    <string name="settings_font_custom3">Custom Font 3</string>
+    <string name="settings_quiz_preferences">Quiz Preferences</string>
+    <string name="settings_shuffle_questions">Shuffle Questions</string>
+    <string name="settings_shuffle_answers">Shuffle Answer Order</string>
+    <string name="settings_show_explanation">Show Explanation After Answer</string>
+    <string name="settings_shuffle_questions_desc">Randomize question order</string>
+    <string name="settings_shuffle_answers_desc">Randomize answer choices</string>
+    <string name="settings_show_explanation_desc">Show explanation after answering</string>
+    <string name="settings_about">About</string>
+    <string name="settings_developed_by">Developed by Khanh Minh</string>
+    <string name="settings_api_key_configured">Configured (••••••••)</string>
+    <string name="settings_api_key_not_configured">Not configured</string>
+    <string name="settings_api_key_configure">Configure</string>
+    <string name="settings_api_key_edit">Edit</string>
+    <string name="settings_select_language">Select Language</string>
+    <string name="settings_select_font">Select Font</string>
+    <string name="settings_save">Save</string>
+
+    <!-- Backup & Restore -->
+    <string name="settings_backup_restore">Backup &amp; Restore</string>
+    <string name="settings_export_backup">Export Backup</string>
+    <string name="settings_import_backup">Import Backup</string>
+    <string name="settings_restore_confirm_title">Restore Backup?</string>
+    <string name="settings_restore_confirm_message">This snapshot contains %1$d quiz sets and %2$d progress records.\n\nRestoring replaces the current library, progress, active quiz, preferences and unfinished test.</string>
+    <string name="settings_restore_confirm">Restore</string>
+    <string name="backup_on_device_title">On-device backup</string>
+    <string name="backup_on_device_description">Export or restore a portable JSON snapshot without using the internet.</string>
+    <string name="backup_export">Export</string>
+    <string name="backup_restore">Restore</string>
+    <string name="backup_export_success">Backup file exported</string>
+    <string name="backup_export_failed">Unable to export the backup file</string>
+    <string name="backup_import_failed">Unable to read the selected backup file</string>
+    <string name="backup_invalid">This backup is invalid or unsupported</string>
+    <string name="backup_restore_success">Backup restored successfully</string>
+    <string name="backup_restore_failed">Restore failed because the backup data is invalid</string>
+    <string name="cloud_backup_title">Encrypted cloud backup</string>
+    <string name="cloud_backup_description">Protected by your recovery token and password.</string>
+    <string name="cloud_no_token">No token yet. Pozix will create one with your first backup.</string>
+    <string name="cloud_new_token">New</string>
+    <string name="cloud_backup_action">Back up</string>
+    <string name="cloud_restore_action">Restore</string>
+    <string name="cloud_backup_sheet_title">Password-protected backup</string>
+    <string name="cloud_restore_sheet_title">Restore encrypted backup</string>
+    <string name="cloud_backup_first_description">Pozix will generate a recovery token. Save both the token and password.</string>
+    <string name="cloud_backup_update_description">This safely replaces the encrypted payload stored for your current token.</string>
+    <string name="cloud_restore_description">Enter the recovery token and password used when the backup was created.</string>
+    <string name="cloud_recovery_token">Recovery token</string>
+    <string name="cloud_copy_token">Copy recovery token</string>
+    <string name="cloud_password">Password</string>
+    <string name="cloud_password_too_short">Password must contain at least 8 characters</string>
+    <string name="cloud_confirm_password">Confirm password</string>
+    <string name="cloud_start_backup">Start encrypted backup</string>
+    <string name="cloud_decrypt_backup">Decrypt backup</string>
+    <string name="cloud_backup_success">Encrypted cloud backup completed</string>
+    <string name="cloud_backup_failed">Cloud backup failed</string>
+    <string name="cloud_restore_failed">Cloud restore failed</string>
+    <string name="cloud_invalid_credentials">The recovery token or password is incorrect</string>
+    <string name="cloud_backup_not_found">No cloud backup was found for this token</string>
+    <string name="cloud_rate_limited">Too many requests. Please wait a minute and try again.</string>
+    <string name="cloud_token_forgotten">A new token will be created with the next cloud backup</string>
+    <string name="cloud_new_token_confirm_title">Create a new token?</string>
+    <string name="cloud_new_token_confirm_message">Pozix will forget this token on the device. The remote backup will remain encrypted, so make sure you copied the token before continuing.</string>
+    <string name="cloud_new_token_confirm_action">Forget token</string>
+    
+    <!-- Quiz Player Screen -->
+    <string name="quiz_question_progress">Question %1$d of %2$d</string>
+    <string name="quiz_score">Score: %d</string>
+    <string name="quiz_timer">Time: %s</string>
+    <string name="quiz_true">True</string>
+    <string name="quiz_false">False</string>
+    <string name="quiz_next">Next</string>
+    <string name="quiz_continue">Continue</string>
+    <string name="quiz_explanation">Explanation</string>
+    <string name="quiz_correct">Correct!</string>
+    <string name="quiz_incorrect">Incorrect</string>
+    <string name="quiz_finish">Finish Quiz</string>
+    <string name="quiz_exit_title">Exit Quiz?</string>
+    <string name="quiz_exit_message">Your progress will be saved</string>
+    <string name="quiz_exit_confirm">Exit</string>
+    <string name="quiz_exit_cancel">Cancel</string>
+    <string name="quiz_loading">Loading…</string>
+    <string name="quiz_error">Error loading quiz</string>
+    <string name="quiz_go_back">Go Back</string>
+    <string name="quiz_back">Back</string>
+    
+    <!-- Quiz Result -->
+    <string name="result_title">Quiz Complete!</string>
+    <string name="result_score">Your Score</string>
+    <string name="result_score_value">%1$d / %2$d</string>
+    <string name="result_percentage">%d%%</string>
+    <string name="result_replay">Play Again</string>
+    <string name="result_home">Back to Home</string>
+    
+    <!-- Gemini API Settings -->
+    <string name="settings_gemini_api_key">Gemini API Key</string>
+    <string name="settings_gemini_api_key_label">API Key</string>
+    <string name="settings_gemini_api_key_hint">Enter your Gemini API key</string>
+
+    <!-- Quiz player (previously hardcoded) -->
+    <string name="quiz_quit_title">Quit Quiz?</string>
+    <string name="quiz_quit_message">Are you sure you want to quit? Your progress will be saved.</string>
+    <string name="quiz_quit">Quit</string>
+    <string name="quiz_next_question">NEXT QUESTION</string>
+    <string name="quiz_see_results">SEE RESULTS</string>
+    <string name="quiz_stat_question">QUESTION</string>
+    <string name="quiz_stat_score">SCORE</string>
+    <string name="quiz_stat_time">TIME</string>
+    <string name="exam_setup_summary">%1$d questions • Max 10.0 points</string>
+    
+    <!-- AI Chat Screen -->
+    <string name="nav_ai_chat">AI Chat</string>
+    <string name="ai_chat_title">AI Quiz Assistant</string>
+    <string name="ai_chat_subtitle">Create customized quiz sets with AI</string>
+    <string name="ai_chat_input_placeholder">Ask AI to generate a quiz…</string>
+    <string name="ai_chat_welcome_desc">Generate comprehensive, custom quiz sets in seconds.</string>
+    <string name="ai_chat_no_key_title">Gemini API Key Required</string>
+    <string name="ai_chat_no_key_desc">To unlock the AI Quiz Assistant, please configure your Gemini API Key in Settings first. This is a premium feature that uses your own API key to generate quizzes.</string>
+    <string name="ai_chat_no_key_button">Go to Settings</string>
+    <string name="ai_chat_key_setup_success">API Key configured successfully!</string>
+    <string name="ai_chat_suggest_1">Create a 10-question quiz about World History</string>
+    <string name="ai_chat_suggest_2">Create a 5-question English Grammar test with explanations</string>
+    <string name="ai_chat_suggest_3">Make a true/false quiz about Science &amp; Nature</string>
+    <string name="ai_chat_loading">AI is thinking…</string>
+    <string name="ai_chat_import_card_title">Generated Quiz: %s</string>
+    <string name="ai_chat_import_card_desc">Contains %1$d questions (%2$d single choice, %3$d true/false)</string>
+    <string name="ai_chat_btn_import_play">Import &amp; Play</string>
+    <string name="ai_chat_btn_save">Save to Library</string>
+    <string name="ai_chat_btn_saved">Saved ✓</string>
+    <string name="ai_chat_import_success">Quiz imported successfully!</string>
+    <string name="ai_chat_import_error">Failed to parse quiz JSON. Please ask the AI to try again.</string>
+    
+    <!-- AI Providers (BYOK) -->
+    <string name="settings_ai_providers_desc">Bring your own key. Any OpenAI-compatible API.</string>
+    <string name="ai_provider_active">Active</string>
+    <string name="ai_provider_set_active">Set active</string>
+    <string name="ai_provider_add">Add provider</string>
+    <string name="ai_provider_edit">Edit provider</string>
+    <string name="ai_provider_delete">Delete</string>
+    <string name="ai_provider_delete_title">Delete provider?</string>
+    <string name="ai_provider_delete_message">Remove "%s" from your providers? Chat history is kept.</string>
+    <string name="ai_provider_name">Name</string>
+    <string name="ai_provider_name_hint">e.g. OpenAI, OpenRouter, Local Ollama</string>
+    <string name="ai_provider_base_url">Base URL</string>
+    <string name="ai_provider_base_url_hint">https://api.openai.com/v1</string>
+    <string name="ai_provider_api_key">API key</string>
+    <string name="ai_provider_api_key_hint">sk-… (empty for local servers)</string>
+    <string name="ai_provider_model">Model ID</string>
+    <string name="ai_provider_model_hint">e.g. gpt-4o-mini</string>
+    <string name="ai_provider_fetch_models">Fetch models</string>
+    <string name="ai_provider_models_loading">Loading models…</string>
+    <string name="ai_provider_models_empty">No models found. Check the Base URL.</string>
+    <string name="ai_provider_pick_model">Pick a model</string>
+    <string name="ai_provider_save">Save provider</string>
+    <string name="ai_provider_invalid">Fill in name, a valid http(s) Base URL and model ID.</string>
+    <string name="ai_provider_manage">Manage</string>
+    <string name="ai_provider_no_providers">No AI providers yet</string>
+    <string name="ai_chat_no_provider_title">No AI provider yet</string>
+    <string name="ai_chat_no_provider_desc">Add your own provider (Base URL + API key + model) to start generating quizzes. Works with OpenAI, OpenRouter, Gemini, Ollama and any OpenAI-compatible API.</string>
+    <string name="ai_chat_no_provider_button">Open AI Providers</string>
+    <string name="ai_chat_provider_not_configured">No AI provider configured. Add one in Settings first.</string>
+    <string name="ai_chat_switch_provider">Switch provider</string>
+    
+    <!-- Home screen Banner -->
+    <string name="home_ai_chat_banner_title">AI Quiz Generator</string>
+    <string name="home_ai_chat_banner_desc">Chat with AI to create and import custom quiz sets instantly</string>
+    
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+</resources>

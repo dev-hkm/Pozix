@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pozix</string>
+    
+    <!-- Bottom Navigation -->
+    <string name="nav_home">Trang chủ</string>
+    <string name="nav_templates">Mẫu</string>
+    <string name="nav_library">Thư viện</string>
+    <string name="nav_import">Nhập</string>
+    <string name="nav_settings">Cài đặt</string>
+    
+    <!-- Home Screen -->
+    <string name="home_title">Pozix</string>
+    <string name="home_subtitle">Ứng dụng Quiz nhẹ, hoạt động offline</string>
+    <string name="home_how_to_use">Cách sử dụng</string>
+    <string name="home_step_1">1. Mở tab Gợi ý</string>
+    <string name="home_step_2">2. Sao chép một mẫu prompt</string>
+    <string name="home_step_3">3. Dùng bất kỳ AI chat nào để tạo quiz JSON</string>
+    <string name="home_step_4">4. Dán JSON vào tab Nhập</string>
+    <string name="home_step_5">5. Quay lại đây và Bắt đầu Quiz</string>
+    <string name="home_current_quiz">Quiz hiện tại</string>
+    <string name="home_no_quiz">Chưa có quiz nào</string>
+    <string name="home_no_quiz_desc">Nhập một quiz để bắt đầu</string>
+    <string name="home_quiz_title">Tiêu đề: %s</string>
+    <string name="home_quiz_questions">Câu hỏi: %d</string>
+    <string name="home_quiz_single_choice">Trắc nghiệm: %d</string>
+    <string name="home_quiz_true_false">Đúng/Sai: %d</string>
+    <string name="home_start_quiz">Bắt đầu Quiz</string>
+    <string name="home_go_to_prompts">Đến Gợi ý</string>
+    <string name="home_go_to_import">Đến Nhập</string>
+    
+    <!-- Prompt Templates Screen -->
+    <string name="prompts_title">Mẫu Prompt</string>
+    <string name="prompts_subtitle">Sao chép và dùng với AI</string>
+    <string name="prompts_json_schema_title">Cấu trúc JSON chuẩn để Import</string>
+    <string name="prompts_json_schema_subtitle">Sao chép cấu trúc này gửi cho AI để cùng lên plan &amp; topic</string>
+    <string name="prompts_copy_schema">Sao chép JSON mẫu</string>
+    <string name="prompts_copy_ai_prompt">Sao chép Prompt gửi AI</string>
+    <string name="prompts_schema_copied">Đã sao chép cấu trúc JSON!</string>
+    <string name="prompts_ai_prompt_copied">Đã sao chép Prompt gửi AI!</string>
+    <string name="prompts_preset">Prompt có sẵn</string>
+    <string name="prompts_custom">Tạo Prompt tùy chỉnh</string>
+    <string name="prompts_copy">Sao chép</string>
+    <string name="prompts_copied">Đã sao chép!</string>
+    <string name="prompts_expand">Mở rộng</string>
+    <string name="prompts_collapse">Thu gọn</string>
+    <string name="prompts_custom_topic">Nhập chủ đề của bạn</string>
+    <string name="prompts_custom_generate">Tạo Prompt</string>
+    <string name="prompts_custom_topic_hint">vd: Lịch sử thế giới, Lập trình, Phim ảnh</string>
+    
+    <!-- Preset Prompt Titles -->
+    <string name="prompt_general_trivia">Kiến thức tổng hợp</string>
+    <string name="prompt_riddles">Câu đố &amp; Logic</string>
+    <string name="prompt_school">Kiến thức học đường</string>
+    <string name="prompt_fun_mixed">Quiz vui nhộn</string>
+    <string name="prompt_true_false">Tập trung Đúng/Sai</string>
+    <string name="prompt_custom_theme">Quiz chủ đề tùy chỉnh</string>
+    
+    <!-- Import Screen -->
+    <string name="import_title">Nhập Quiz JSON</string>
+    <string name="import_subtitle">Dán dữ liệu quiz vào đây</string>
+    <string name="import_paste_hint">Dán quiz JSON vào đây…</string>
+    <string name="import_validate">Kiểm tra</string>
+    <string name="import_load">Tải Quiz</string>
+    <string name="import_clear">Xóa</string>
+    <string name="import_paste_clipboard">Dán từ Clipboard</string>
+    <string name="import_validation_result">Kết quả kiểm tra</string>
+    <string name="import_success">✓ Quiz hợp lệ</string>
+    <string name="import_error">✗ Lỗi</string>
+    <string name="import_preview_title">Xem trước</string>
+    <string name="import_loaded_success">Đã tải quiz thành công!</string>
+    <string name="import_empty_json">Vui lòng dán JSON trước</string>
+    <string name="import_save_dialog_title">Lưu Bộ Quiz</string>
+    <string name="import_save_dialog_message">Đặt tên cho bộ quiz này</string>
+    <string name="import_save_name_label">Tên Bộ Quiz</string>
+    <string name="import_save_name_hint">vd: Kiến thức tổng hợp, Quiz Khoa học</string>
+    <string name="import_save_and_load">Lưu &amp; Tải</string>
+    <string name="import_save_only">Chỉ Lưu</string>
+    <string name="import_skip">Bỏ qua</string>
+    <string name="import_link_title">Nhập từ liên kết Pozix</string>
+    <string name="import_link_description">Mở bộ câu hỏi được chia sẻ từ thiết bị khác</string>
+    <string name="import_link_open">Mở</string>
+    <string name="import_link_close">Đóng</string>
+    <string name="import_share_link">Liên kết chia sẻ</string>
+    <string name="import_load_shared">Tải bộ câu hỏi</string>
+    <string name="import_loading_shared">Đang tải…</string>
+    <string name="import_shared_success">Đã tải và kiểm tra bộ câu hỏi được chia sẻ</string>
+    <string name="import_shared_invalid">Liên kết mở được nhưng dữ liệu bộ câu hỏi không hợp lệ</string>
+    <string name="import_shared_failed">Không thể tải liên kết chia sẻ</string>
+    <string name="import_invalid_share_link">Đây không phải liên kết chia sẻ Pozix hợp lệ</string>
+    <string name="import_share_unavailable">Liên kết chia sẻ không tồn tại hoặc đã hết hạn</string>
+    <string name="import_paste">Dán</string>
+    <string name="import_choose_file">Mở tệp JSON</string>
+    <string name="import_file_loaded">Đã tải tệp: %s</string>
+    <string name="import_file_empty">Tệp đã chọn trống</string>
+    <string name="import_file_open_failed">Không thể mở tệp đã chọn</string>
+    <string name="import_file_read_error">Lỗi đọc tệp: %s</string>
+    <string name="import_file_too_large">Tệp quá lớn (tối đa 5MB)</string>
+    <string name="import_or">hoặc</string>
+    <string name="import_source">Nguồn nhập</string>
+    <string name="settings_appearance_section">Giao diện &amp; Ngôn ngữ</string>
+    <string name="settings_ai_section">Nhà cung cấp AI</string>
+    <string name="settings_gemini_api_key_desc">Dùng để tạo bộ câu hỏi tự động trong AI Chat</string>
+    <string name="settings_version_info">Pozix v%s</string>
+    <string name="settings_cloud_security_badge">Mã hóa đầu cuối</string>
+    
+    <!-- Saved Quiz Sets Screen -->
+    <string name="saved_quiz_sets_title">Thư viện Quiz</string>
+    <string name="saved_quiz_sets_subtitle">Bộ sưu tập quiz đã lưu</string>
+    <string name="saved_quiz_sets_empty">Chưa có bộ quiz nào</string>
+    <string name="saved_quiz_sets_empty_hint">Nhập và lưu các bộ quiz để xây dựng thư viện</string>
+    <string name="saved_quiz_sets_play">Chơi Quiz</string>
+    <string name="saved_quiz_sets_rename">Đổi tên</string>
+    <string name="saved_quiz_sets_delete">Xóa</string>
+    <string name="saved_quiz_sets_questions">Câu hỏi</string>
+    <string name="saved_quiz_sets_single_choice">Trắc nghiệm</string>
+    <string name="saved_quiz_sets_true_false">Đ/S</string>
+    <string name="saved_quiz_sets_last_played">Chơi lần cuối: %s</string>
+    <string name="saved_quiz_sets_delete_title">Xóa Bộ Quiz?</string>
+    <string name="saved_quiz_sets_delete_message">Bạn có chắc muốn xóa "%s"? Không thể hoàn tác.</string>
+    <string name="saved_quiz_sets_delete_confirm">Xóa</string>
+    <string name="saved_quiz_sets_rename_title">Đổi tên Bộ Quiz</string>
+    <string name="saved_quiz_sets_name_label">Tên</string>
+    <string name="saved_quiz_sets_rename_confirm">Đổi tên</string>
+    <string name="saved_quiz_sets_completed">Đã hoàn thành</string>
+    <string name="saved_quiz_sets_in_progress">Đang làm</string>
+    <string name="saved_quiz_sets_not_started">Chưa bắt đầu</string>
+    <string name="saved_quiz_sets_play_again">Chơi lại</string>
+    <string name="saved_quiz_sets_resume">Tiếp tục</string>
+    <string name="saved_quiz_sets_quiz">Quiz</string>
+    <string name="saved_quiz_sets_share">Chia sẻ</string>
+    <string name="saved_quiz_sets_sharing">Đang tạo</string>
+    <string name="saved_quiz_sets_share_title">Liên kết chia sẻ bộ câu hỏi</string>
+    <string name="saved_quiz_sets_share_error_title">Không thể chia sẻ</string>
+    <string name="saved_quiz_sets_copy_link">Sao chép liên kết</string>
+    <string name="saved_quiz_sets_question_count">%d câu hỏi</string>
+    <string name="saved_quiz_sets_type_count">%1$d TN · %2$d Đ/S</string>
+    <string name="saved_quiz_sets_invalid">Bộ câu hỏi này không còn hợp lệ</string>
+    <string name="saved_quiz_sets_share_failed">Không thể chia sẻ bộ câu hỏi này</string>
+    <string name="saved_quiz_sets_share_expiry">Liên kết công khai này sẽ tự hết hạn sau 30 ngày.</string>
+
+    <!-- Preview -->
+    <string name="preview_warning_title">Chế độ Xem trước</string>
+    <string name="preview_warning_message">Chế độ xem trước sẽ hiển thị TẤT CẢ câu hỏi VÀ đáp án đúng.\n\nNếu bạn muốn tự kiểm tra, hãy dùng Chơi Quiz thay vì xem trước.</string>
+    <string name="preview_warning_confirm">Tôi hiểu, Xem trước</string>
+    <string name="preview_button">Xem trước</string>
+    <string name="preview_title">Xem trước Quiz</string>
+
+    <!-- Home -->
+    <string name="home_start_test">Chế độ Thử Thách</string>
+
+    <!-- Exam / Test Mode -->
+    <string name="exam_test_mode">Thử Thách</string>
+    <string name="exam_setup_title">Cài đặt Thử Thách</string>
+    <string name="exam_time_limit">Thời gian</string>
+    <string name="exam_shuffle_questions">Xáo trộn Câu hỏi</string>
+    <string name="exam_shuffle_answers">Xáo trộn Đáp án</string>
+    <string name="exam_info_questions">Câu hỏi</string>
+    <string name="exam_info_time">Thời gian</string>
+    <string name="exam_info_max_score">Điểm tối đa</string>
+    <string name="exam_start">Bắt đầu Thử Thách</string>
+    <string name="exam_submit">Nộp bài</string>
+    <string name="exam_submit_confirm_title">Nộp bài?</string>
+    <string name="exam_submit_confirm_message">Bạn có chắc muốn nộp bài? Không thể thay đổi đáp án sau khi nộp.</string>
+    <string name="exam_unanswered_warning">%d câu chưa trả lời!</string>
+    <string name="exam_palette_title">Điều hướng Câu hỏi</string>
+    <string name="exam_result_title">Kết quả Thử Thách</string>
+    <string name="exam_result_time">Thời gian</string>
+    <string name="exam_result_correct">Đúng</string>
+    <string name="exam_result_wrong">Sai</string>
+    <string name="exam_result_unanswered">%d câu chưa trả lời</string>
+    <string name="exam_result_breakdown">Phân tích Điểm</string>
+    <string name="exam_show_review">Xem lại Chi tiết</string>
+    <string name="exam_hide_review">Ẩn Chi tiết</string>
+    <string name="exam_retry">Thử lại</string>
+    <string name="back_to_library">Quay lại Thư viện</string>
+    <string name="loading">Đang tải…</string>
+    <string name="error_loading_quiz">Không thể tải bộ câu hỏi</string>
+    <string name="exam_flag_review">Đánh dấu xem lại</string>
+    <string name="exam_clear_answer">Xóa đáp án</string>
+    <string name="exam_palette_current">Hiện tại</string>
+    <string name="exam_palette_flagged">Đã đánh dấu</string>
+    <string name="exam_palette_answered">Đã trả lời</string>
+    <string name="exam_palette_unanswered">Chưa trả lời</string>
+    <string name="exam_save_exit_title">Lưu bài và thoát?</string>
+    <string name="exam_save_exit_message">Đáp án, câu hiện tại, câu đã đánh dấu và thời gian còn lại sẽ được giữ trên thiết bị.</string>
+    <string name="exam_save_exit_action">Lưu &amp; thoát</string>
+    <string name="exam_keep_taking">Tiếp tục làm bài</string>
+    <string name="exam_resume_title">Tiếp tục bài đã lưu?</string>
+    <string name="exam_resume_message">Pozix tìm thấy một bài chưa hoàn thành với %d câu đã trả lời.</string>
+    <string name="exam_resume_action">Tiếp tục</string>
+    <string name="exam_restart_action">Làm lại</string>
+    <string name="exam_minutes">%d phút</string>
+    <string name="exam_three_hours">3 giờ</string>
+    <string name="exam_previous">Câu trước</string>
+    <string name="exam_next">Câu sau</string>
+    <string name="exam_palette">Điều hướng câu hỏi</string>
+    <string name="exam_result_grade">Xếp loại %s</string>
+    <string name="exam_result_correct_of">Đúng %1$d/%2$d câu</string>
+    <string name="exam_result_skipped">Bỏ qua</string>
+    <string name="exam_result_unanswered_label">Chưa trả lời</string>
+    
+    <!-- Settings Screen -->
+    <string name="settings_title">Cài đặt</string>
+    <string name="settings_language">Ngôn ngữ</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_vi">Tiếng Việt</string>
+    <string name="settings_font">Phông chữ</string>
+    <string name="settings_font_default">Mặc định</string>
+    <string name="settings_font_custom1">Phông tùy chỉnh 1</string>
+    <string name="settings_font_custom2">Phông tùy chỉnh 2</string>
+    <string name="settings_font_custom3">Phông tùy chỉnh 3</string>
+    <string name="settings_quiz_preferences">Tùy chọn Quiz</string>
+    <string name="settings_shuffle_questions">Xáo trộn câu hỏi</string>
+    <string name="settings_shuffle_answers">Xáo trộn thứ tự đáp án</string>
+    <string name="settings_show_explanation">Hiện giải thích sau khi trả lời</string>
+    <string name="settings_shuffle_questions_desc">Xáo trộn thứ tự câu hỏi</string>
+    <string name="settings_shuffle_answers_desc">Xáo trộn thứ tự đáp án</string>
+    <string name="settings_show_explanation_desc">Hiện giải thích sau khi trả lời</string>
+    <string name="settings_about">Giới thiệu</string>
+    <string name="settings_developed_by">Phát triển bởi Khanh Minh</string>
+    <string name="settings_api_key_configured">Đã thiết lập (••••••••)</string>
+    <string name="settings_api_key_not_configured">Chưa thiết lập</string>
+    <string name="settings_api_key_configure">Thiết lập</string>
+    <string name="settings_api_key_edit">Chỉnh sửa</string>
+    <string name="settings_select_language">Chọn ngôn ngữ</string>
+    <string name="settings_select_font">Chọn phông chữ</string>
+    <string name="settings_save">Lưu</string>
+
+    <!-- Backup & Restore -->
+    <string name="settings_backup_restore">Sao lưu &amp; Khôi phục</string>
+    <string name="settings_export_backup">Sao lưu ra file</string>
+    <string name="settings_import_backup">Khôi phục từ file</string>
+    <string name="settings_restore_confirm_title">Khôi phục dữ liệu?</string>
+    <string name="settings_restore_confirm_message">Bản sao lưu gồm %1$d bộ quiz và %2$d bản ghi tiến trình.\n\nKhôi phục sẽ thay thế thư viện, tiến trình, quiz hiện tại, tùy chọn và bài kiểm tra chưa hoàn thành.</string>
+    <string name="settings_restore_confirm">Khôi phục</string>
+    <string name="backup_on_device_title">Sao lưu trên thiết bị</string>
+    <string name="backup_on_device_description">Xuất hoặc khôi phục bản sao JSON mà không cần Internet.</string>
+    <string name="backup_export">Xuất file</string>
+    <string name="backup_restore">Khôi phục</string>
+    <string name="backup_export_success">Đã xuất file sao lưu</string>
+    <string name="backup_export_failed">Không thể xuất file sao lưu</string>
+    <string name="backup_import_failed">Không thể đọc file sao lưu đã chọn</string>
+    <string name="backup_invalid">Bản sao lưu không hợp lệ hoặc không được hỗ trợ</string>
+    <string name="backup_restore_success">Đã khôi phục bản sao lưu</string>
+    <string name="backup_restore_failed">Không thể khôi phục vì dữ liệu sao lưu không hợp lệ</string>
+    <string name="cloud_backup_title">Sao lưu cloud đã mã hóa</string>
+    <string name="cloud_backup_description">Được bảo vệ bằng token khôi phục và mật khẩu.</string>
+    <string name="cloud_no_token">Chưa có token. Pozix sẽ tạo token trong lần sao lưu đầu tiên.</string>
+    <string name="cloud_new_token">Token mới</string>
+    <string name="cloud_backup_action">Sao lưu</string>
+    <string name="cloud_restore_action">Khôi phục</string>
+    <string name="cloud_backup_sheet_title">Sao lưu có mật khẩu</string>
+    <string name="cloud_restore_sheet_title">Khôi phục bản sao đã mã hóa</string>
+    <string name="cloud_backup_first_description">Pozix sẽ tạo token khôi phục. Hãy lưu cả token lẫn mật khẩu.</string>
+    <string name="cloud_backup_update_description">Bản dữ liệu mã hóa của token hiện tại sẽ được thay thế an toàn.</string>
+    <string name="cloud_restore_description">Nhập token khôi phục và mật khẩu đã dùng khi tạo bản sao lưu.</string>
+    <string name="cloud_recovery_token">Token khôi phục</string>
+    <string name="cloud_copy_token">Sao chép token khôi phục</string>
+    <string name="cloud_password">Mật khẩu</string>
+    <string name="cloud_password_too_short">Mật khẩu phải có ít nhất 8 ký tự</string>
+    <string name="cloud_confirm_password">Xác nhận mật khẩu</string>
+    <string name="cloud_start_backup">Bắt đầu sao lưu mã hóa</string>
+    <string name="cloud_decrypt_backup">Giải mã bản sao lưu</string>
+    <string name="cloud_backup_success">Đã sao lưu mã hóa lên cloud</string>
+    <string name="cloud_backup_failed">Sao lưu cloud thất bại</string>
+    <string name="cloud_restore_failed">Khôi phục cloud thất bại</string>
+    <string name="cloud_invalid_credentials">Token khôi phục hoặc mật khẩu không đúng</string>
+    <string name="cloud_backup_not_found">Không tìm thấy bản sao cloud cho token này</string>
+    <string name="cloud_rate_limited">Có quá nhiều yêu cầu. Hãy đợi một phút rồi thử lại.</string>
+    <string name="cloud_token_forgotten">Token mới sẽ được tạo trong lần sao lưu cloud tiếp theo</string>
+    <string name="cloud_new_token_confirm_title">Tạo token mới?</string>
+    <string name="cloud_new_token_confirm_message">Pozix sẽ quên token này trên thiết bị. Bản sao từ xa vẫn được mã hóa, vì vậy hãy chắc chắn ngài đã sao chép token trước khi tiếp tục.</string>
+    <string name="cloud_new_token_confirm_action">Quên token</string>
+    
+    <!-- Quiz Player Screen -->
+    <string name="quiz_question_progress">Câu %1$d / %2$d</string>
+    <string name="quiz_score">Điểm: %d</string>
+    <string name="quiz_timer">Thời gian: %s</string>
+    <string name="quiz_true">Đúng</string>
+    <string name="quiz_false">Sai</string>
+    <string name="quiz_next">Tiếp theo</string>
+    <string name="quiz_continue">Tiếp tục</string>
+    <string name="quiz_explanation">Giải thích</string>
+    <string name="quiz_correct">Chính xác!</string>
+    <string name="quiz_incorrect">Sai rồi</string>
+    <string name="quiz_finish">Hoàn thành Quiz</string>
+    <string name="quiz_exit_title">Thoát Quiz?</string>
+    <string name="quiz_exit_message">Tiến trình của bạn sẽ được lưu</string>
+    <string name="quiz_exit_confirm">Thoát</string>
+    <string name="quiz_exit_cancel">Hủy</string>
+    <string name="quiz_loading">Đang tải…</string>
+    <string name="quiz_error">Lỗi tải quiz</string>
+    <string name="quiz_go_back">Quay lại</string>
+    <string name="quiz_back">Quay lại</string>
+    
+    <!-- Quiz Result -->
+    <string name="result_title">Hoàn thành Quiz!</string>
+    <string name="result_score">Điểm của bạn</string>
+    <string name="result_score_value">%1$d / %2$d</string>
+    <string name="result_percentage">%d%%</string>
+    <string name="result_replay">Chơi lại</string>
+    <string name="result_home">Về Trang chủ</string>
+    
+    <!-- Gemini API Settings -->
+    <string name="settings_gemini_api_key">Khóa Gemini API Key</string>
+    <string name="settings_gemini_api_key_label">API Key</string>
+    <string name="settings_gemini_api_key_hint">Nhập Gemini API key của bạn</string>
+
+    <!-- Quiz player (previously hardcoded) -->
+    <string name="quiz_quit_title">Thoát Quiz?</string>
+    <string name="quiz_quit_message">Bạn có chắc muốn thoát? Tiến trình sẽ được lưu.</string>
+    <string name="quiz_quit">Thoát</string>
+    <string name="quiz_next_question">CÂU TIẾP THEO</string>
+    <string name="quiz_see_results">XEM KẾT QUẢ</string>
+    <string name="quiz_stat_question">CÂU HỎI</string>
+    <string name="quiz_stat_score">ĐIỂM</string>
+    <string name="quiz_stat_time">GIỜ</string>
+    <string name="exam_setup_summary">%1$d câu hỏi • Tối đa 10.0 điểm</string>
+    
+    <!-- AI Chat Screen -->
+    <string name="nav_ai_chat">AI Chat</string>
+    <string name="ai_chat_title">Trợ lý AI Quiz</string>
+    <string name="ai_chat_subtitle">Tự thiết kế bộ câu hỏi bằng trí tuệ nhân tạo</string>
+    <string name="ai_chat_input_placeholder">Yêu cầu AI tạo bộ câu hỏi…</string>
+    <string name="ai_chat_welcome_desc">Tạo bộ quiz tùy chỉnh, đầy đủ chỉ trong vài giây.</string>
+    <string name="ai_chat_no_key_title">Yêu cầu Gemini API Key</string>
+    <string name="ai_chat_no_key_desc">Để mở khóa Trợ lý AI Quiz, vui lòng cấu hình Gemini API Key của bạn trong Cài đặt trước. Đây là tính năng nâng cao sử dụng khóa API của riêng bạn để tạo quiz.</string>
+    <string name="ai_chat_no_key_button">Đến Cài đặt</string>
+    <string name="ai_chat_key_setup_success">Đã cấu hình API Key thành công!</string>
+    <string name="ai_chat_suggest_1">Tạo 10 câu hỏi trắc nghiệm về Lịch sử Thế giới</string>
+    <string name="ai_chat_suggest_2">Tạo 5 câu trắc nghiệm Ngữ pháp tiếng Anh kèm giải thích</string>
+    <string name="ai_chat_suggest_3">Tạo bộ câu hỏi Đúng/Sai về Khoa học &amp; Tự nhiên</string>
+    <string name="ai_chat_loading">AI đang suy nghĩ…</string>
+    <string name="ai_chat_import_card_title">Bộ Quiz đã tạo: %s</string>
+    <string name="ai_chat_import_card_desc">Gồm %1$d câu hỏi (%2$d trắc nghiệm, %3$d đúng/sai)</string>
+    <string name="ai_chat_btn_import_play">Nhập &amp; Chơi ngay</string>
+    <string name="ai_chat_btn_save">Lưu vào Thư viện</string>
+    <string name="ai_chat_btn_saved">Đã lưu ✓</string>
+    <string name="ai_chat_import_success">Đã nhập bộ quiz thành công!</string>
+    <string name="ai_chat_import_error">Không thể đọc JSON câu hỏi. Vui lòng yêu cầu AI thử lại.</string>
+    
+    <!-- Home screen Banner -->
+    <string name="home_ai_chat_banner_title">Tạo Quiz bằng AI</string>
+    <string name="home_ai_chat_banner_desc">Trò chuyện với AI để tạo và nhập bộ đề tùy chỉnh ngay lập tức</string>
+    
+    <!-- AI Providers (BYOK) -->
+    <string name="settings_ai_providers_desc">Dùng key của bạn. Mọi API tương thích OpenAI.</string>
+    <string name="ai_provider_active">Đang dùng</string>
+    <string name="ai_provider_set_active">Chọn dùng</string>
+    <string name="ai_provider_add">Thêm provider</string>
+    <string name="ai_provider_edit">Sửa provider</string>
+    <string name="ai_provider_delete">Xóa</string>
+    <string name="ai_provider_delete_title">Xóa provider?</string>
+    <string name="ai_provider_delete_message">Gỡ "%s" khỏi danh sách? Lịch sử chat được giữ lại.</string>
+    <string name="ai_provider_name">Tên</string>
+    <string name="ai_provider_name_hint">vd: OpenAI, OpenRouter, Ollama local</string>
+    <string name="ai_provider_base_url">Base URL</string>
+    <string name="ai_provider_base_url_hint">https://api.openai.com/v1</string>
+    <string name="ai_provider_api_key">API key</string>
+    <string name="ai_provider_api_key_hint">sk-… (bỏ trống nếu server local)</string>
+    <string name="ai_provider_model">Model ID</string>
+    <string name="ai_provider_model_hint">vd: gpt-4o-mini</string>
+    <string name="ai_provider_fetch_models">Tải danh sách model</string>
+    <string name="ai_provider_models_loading">Đang tải models…</string>
+    <string name="ai_provider_models_empty">Không tìm thấy model. Kiểm tra lại Base URL.</string>
+    <string name="ai_provider_pick_model">Chọn model</string>
+    <string name="ai_provider_save">Lưu provider</string>
+    <string name="ai_provider_invalid">Nhập tên, Base URL http(s) hợp lệ và model ID.</string>
+    <string name="ai_provider_manage">Quản lý</string>
+    <string name="ai_provider_no_providers">Chưa có AI provider nào</string>
+    <string name="ai_chat_no_provider_title">Chưa có AI provider</string>
+    <string name="ai_chat_no_provider_desc">Thêm provider của bạn (Base URL + API key + model) để bắt đầu tạo quiz. Hỗ trợ OpenAI, OpenRouter, Gemini, Ollama và mọi API tương thích OpenAI.</string>
+    <string name="ai_chat_no_provider_button">Mở AI Providers</string>
+    <string name="ai_chat_provider_not_configured">Chưa cấu hình AI provider. Hãy thêm một provider trong Cài đặt trước.</string>
+    <string name="ai_chat_switch_provider">Đổi provider</string>
+    
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="cancel">Hủy</string>
+    <string name="close">Đóng</string>
+</resources>
