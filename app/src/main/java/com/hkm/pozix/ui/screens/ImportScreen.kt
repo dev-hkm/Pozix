@@ -21,34 +21,35 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,7 +63,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,11 +77,40 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hkm.pozix.R
 import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.viewmodel.ImportViewModel
 import com.hkm.pozix.viewmodel.ValidationState
+
+private const val SAMPLE_STEM_JSON = """{
+  "title": "Toán & KHTN Mẫu",
+  "description": "Đề trắc nghiệm mẫu có công thức LaTeX và Code",
+  "language": "vi",
+  "questions": [
+    {
+      "type": "single_choice",
+      "question": "Cho hàm số ${'$'}f(x) = x \cdot \ln x${'$'} với ${'$'}x > 0${'$'}. Đạo hàm ${'$'}f'(x)${'$'} bằng:",
+      "options": [
+        "${'$'}f'(x) = \ln x + 1${'$'}",
+        "${'$'}f'(x) = \frac{1}{x}${'$'}",
+        "${'$'}f'(x) = 1${'$'}",
+        "${'$'}f'(x) = \ln x${'$'}"
+      ],
+      "correctIndex": 0,
+      "explanation": "Áp dụng công thức đạo hàm tích ${'$'}(uv)' = u'v + uv'${'$'}: ${'$'}f'(x) = 1 \cdot \ln x + x \cdot \frac{1}{x} = \ln x + 1${'$'}."
+    },
+    {
+      "type": "true_false",
+      "question": "Phương trình bậc hai ${'$'}ax^2 + bx + c = 0${'$'} (${'$'}a \neq 0${'$'}) có nghiệm khi biệt thức ${'$'}\Delta = b^2 - 4ac \ge 0${'$'}.",
+      "correctAnswer": true,
+      "explanation": "Khi ${'$'}\Delta \ge 0${'$'}, phương trình luôn có ít nhất một nghiệm thực."
+    }
+  ]
+}"""
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -92,7 +121,6 @@ fun ImportScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    val scope = rememberCoroutineScope()
     var showLinkImport by remember { mutableStateOf(false) }
 
     // JSON file picker launcher
@@ -108,12 +136,13 @@ fun ImportScreen(
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Main scrollable content
+        // Main scrollable content with generous bottom clearance for the floating BottomNavBar
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 112.dp),
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Header
@@ -192,6 +221,28 @@ fun ImportScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+            }
+
+            // Sample JSON Template Chip
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                FilterChip(
+                    selected = false,
+                    onClick = {
+                        HapticUtil.selectionTick(context)
+                        viewModel.updateJsonText(SAMPLE_STEM_JSON)
+                    },
+                    label = { Text("Tải mẫu JSON Toán / KHTN", fontSize = 12.sp) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.DataObject,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
             }
 
             // Imported File Banner
@@ -547,55 +598,42 @@ fun ImportScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // =========================================================================
-        // PERSISTENT BOTTOM ACTION BAR (IME & Navigation Inset Aware)
-        // Stays right above the soft keyboard when keyboard opens.
-        // =========================================================================
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .windowInsetsPadding(
-                    WindowInsets.ime.union(WindowInsets.navigationBars)
-                )
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            Surface(
+            // Action Buttons Card (In-flow, never obscured by BottomNavBar!)
+            Card(
                 modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                ),
                 shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                tonalElevation = 6.dp,
-                shadowElevation = 8.dp,
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Clear button (compact, icon + short label)
+                    // Clear button
                     OutlinedButton(
                         onClick = {
                             viewModel.clearJson()
                             HapticUtil.toggle(context)
                         },
-                        modifier = Modifier.height(46.dp),
+                        modifier = Modifier.height(48.dp),
                         shape = RoundedCornerShape(14.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Clear,
                             contentDescription = stringResource(R.string.import_clear),
                             modifier = Modifier.size(18.dp)
                         )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.import_clear), fontWeight = FontWeight.Medium)
                     }
 
                     // Validate button
@@ -609,7 +647,7 @@ fun ImportScreen(
                         enabled = uiState.jsonText.isNotBlank() && !uiState.isLoading,
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp),
+                            .height(48.dp),
                         shape = RoundedCornerShape(14.dp)
                     ) {
                         Text(
@@ -619,7 +657,7 @@ fun ImportScreen(
                         )
                     }
 
-                    // Load / Save button (active only when valid)
+                    // Load / Save button
                     Button(
                         onClick = {
                             viewModel.showSaveDialog()
@@ -628,7 +666,7 @@ fun ImportScreen(
                         enabled = uiState.validationState is ValidationState.Success && !uiState.isLoading,
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp),
+                            .height(48.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
@@ -651,74 +689,166 @@ fun ImportScreen(
         }
     }
 
-    // Save Dialog
+    // Fully Responsive & Polished Save Dialog (No layout breaks!)
     if (uiState.showSaveDialog) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { viewModel.hideSaveDialog() },
-            title = {
-                Text(text = stringResource(R.string.import_save_dialog_title), fontWeight = FontWeight.Bold)
-            },
-            text = {
-                Column {
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 6.dp,
+                shadowElevation = 10.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(22.dp)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Dialog Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.SaveAlt,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = stringResource(R.string.import_save_dialog_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                HapticUtil.selectionTick(context)
+                                viewModel.hideSaveDialog()
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.close),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
                     Text(
                         text = stringResource(R.string.import_save_dialog_message),
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(bottom = 14.dp)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    // Rename Text Field
                     OutlinedTextField(
                         value = uiState.quizSetName,
                         onValueChange = { viewModel.updateQuizSetName(it) },
                         label = { Text(stringResource(R.string.import_save_name_label)) },
                         placeholder = { Text(stringResource(R.string.import_save_name_hint)) },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Button(
-                        onClick = {
-                            HapticUtil.success(context)
-                            viewModel.saveAndLoadQuiz(onQuizLoaded)
-                        },
-                        enabled = uiState.quizSetName.trim().isNotEmpty(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.import_save_and_load), fontWeight = FontWeight.Bold)
-                    }
-                    FilledTonalButton(
-                        onClick = {
-                            HapticUtil.actionConfirm(context)
-                            viewModel.saveOnlyQuiz {
-                                // Stay on import screen
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            if (uiState.quizSetName.isNotBlank()) {
+                                IconButton(onClick = { viewModel.updateQuizSetName("") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
-                        },
-                        enabled = uiState.quizSetName.trim().isNotEmpty(),
-                        shape = RoundedCornerShape(12.dp)
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // Dialog Actions Vertical Stack
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(stringResource(R.string.import_save_only), fontWeight = FontWeight.SemiBold)
+                        Button(
+                            onClick = {
+                                HapticUtil.success(context)
+                                viewModel.saveAndLoadQuiz(onQuizLoaded)
+                            },
+                            enabled = uiState.quizSetName.trim().isNotEmpty(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(stringResource(R.string.import_save_and_load), fontWeight = FontWeight.Bold)
+                        }
+
+                        FilledTonalButton(
+                            onClick = {
+                                HapticUtil.actionConfirm(context)
+                                viewModel.saveOnlyQuiz {}
+                            },
+                            enabled = uiState.quizSetName.trim().isNotEmpty(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(stringResource(R.string.import_save_only), fontWeight = FontWeight.SemiBold)
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    HapticUtil.actionConfirm(context)
+                                    viewModel.loadQuizWithoutSaving(onQuizLoaded)
+                                }
+                            ) {
+                                Text(stringResource(R.string.import_skip))
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    HapticUtil.selectionTick(context)
+                                    viewModel.hideSaveDialog()
+                                }
+                            ) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        }
                     }
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        HapticUtil.actionConfirm(context)
-                        viewModel.loadQuizWithoutSaving(onQuizLoaded)
-                    }
-                ) {
-                    Text(stringResource(R.string.import_skip))
                 }
             }
-        )
+        }
     }
 }
 
@@ -749,98 +879,88 @@ class JsonSyntaxHighlightTransformation(
                         while (i < json.length) {
                             if (json[i] == '\\' && !escaped) {
                                 escaped = true
-                            } else if (json[i] == '"' && !escaped) {
                                 i++
-                                break
-                            } else {
-                                escaped = false
+                                continue
                             }
+                            if (json[i] == '"' && !escaped) {
+                                break
+                            }
+                            escaped = false
                             i++
                         }
+                        val end = if (i < json.length) i + 1 else json.length
                         
-                        // Check if this is a key (followed by :) or a value
-                        var j = i
-                        while (j < json.length && (json[j] == ' ' || json[j] == '\t' || json[j] == '\n' || json[j] == '\r')) {
-                            j++
+                        // Check if this is a key (followed by colon)
+                        var nextNonWs = end
+                        while (nextNonWs < json.length && json[nextNonWs].isWhitespace()) {
+                            nextNonWs++
                         }
-                        val isKey = j < json.length && json[j] == ':'
+                        val isKey = nextNonWs < json.length && json[nextNonWs] == ':'
                         
                         addStyle(
-                            SpanStyle(
+                            style = SpanStyle(
                                 color = if (isKey) keyColor else stringColor,
                                 fontWeight = if (isKey) FontWeight.Bold else FontWeight.Normal
                             ),
-                            start,
-                            i
+                            start = start,
+                            end = end
                         )
-                        continue
                     }
                     
-                    // Numbers
+                    // Number detection
                     char.isDigit() || (char == '-' && i + 1 < json.length && json[i + 1].isDigit()) -> {
                         val start = i
-                        if (char == '-') i++
-                        while (i < json.length && (json[i].isDigit() || json[i] == '.')) {
+                        i++
+                        while (i < json.length && (json[i].isDigit() || json[i] == '.' || json[i] == 'e' || json[i] == 'E' || json[i] == '+' || json[i] == '-')) {
                             i++
                         }
                         addStyle(
-                            SpanStyle(color = numberColor, fontWeight = FontWeight.Medium),
-                            start,
-                            i
+                            style = SpanStyle(color = numberColor),
+                            start = start,
+                            end = i
                         )
                         continue
                     }
                     
-                    // Booleans
-                    json.startsWith("true", i) -> {
-                        addStyle(
-                            SpanStyle(color = booleanColor, fontWeight = FontWeight.Bold),
-                            i,
-                            i + 4
-                        )
-                        i += 4
-                        continue
-                    }
-                    json.startsWith("false", i) -> {
-                        addStyle(
-                            SpanStyle(color = booleanColor, fontWeight = FontWeight.Bold),
-                            i,
-                            i + 5
-                        )
-                        i += 5
-                        continue
-                    }
-                    
-                    // Null
-                    json.startsWith("null", i) -> {
-                        addStyle(
-                            SpanStyle(color = nullColor, fontWeight = FontWeight.Bold),
-                            i,
-                            i + 4
-                        )
-                        i += 4
+                    // Boolean (true/false) and null
+                    char.isLetter() -> {
+                        val start = i
+                        while (i < json.length && json[i].isLetter()) {
+                            i++
+                        }
+                        val word = json.substring(start, i)
+                        when (word) {
+                            "true", "false" -> {
+                                addStyle(
+                                    style = SpanStyle(color = booleanColor, fontWeight = FontWeight.Bold),
+                                    start = start,
+                                    end = i
+                                )
+                            }
+                            "null" -> {
+                                addStyle(
+                                    style = SpanStyle(color = nullColor, fontWeight = FontWeight.Bold),
+                                    start = start,
+                                    end = i
+                                )
+                            }
+                        }
                         continue
                     }
                     
-                    // Structural characters
-                    char in "{}[],:".toCharArray() -> {
+                    // Punctuation braces, brackets, colon, comma
+                    char in "{}[],:" -> {
                         addStyle(
-                            SpanStyle(color = punctuationColor, fontWeight = FontWeight.Normal),
-                            i,
-                            i + 1
+                            style = SpanStyle(color = punctuationColor, fontWeight = FontWeight.Bold),
+                            start = i,
+                            end = i + 1
                         )
-                        i++
-                        continue
-                    }
-                    
-                    // Default (whitespace, etc.)
-                    else -> {
-                        i++
                     }
                 }
+                i++
             }
         }
-
+        
         return TransformedText(annotatedString, OffsetMapping.Identity)
     }
 }

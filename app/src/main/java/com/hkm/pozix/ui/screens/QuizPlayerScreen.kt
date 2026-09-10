@@ -717,7 +717,7 @@ fun AnswerCard(
             borderColor = MaterialTheme.colorScheme.tertiary
             badgeBg = MaterialTheme.colorScheme.tertiary
             badgeTxt = MaterialTheme.colorScheme.onTertiary
-            iconTint = MaterialTheme.colorScheme.tertiary
+            iconTint = Color(0xFFFFB300)
             alpha = 1f
         }
         showResult && !isSelected && isCorrect != true -> {
@@ -846,8 +846,8 @@ fun AnswerCard(
                         !isSelected && isCorrect == true -> Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
-                            tint = iconTint,
-                            modifier = Modifier.size(18.dp)
+                            tint = Color(0xFFFFB300),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

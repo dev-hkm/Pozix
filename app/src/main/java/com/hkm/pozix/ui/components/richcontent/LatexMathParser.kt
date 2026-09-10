@@ -10,11 +10,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 
 /**
- * High-performance parser that converts LaTeX math, inline code, and markdown syntax
- * into rich Jetpack Compose [AnnotatedString] using mathematical Unicode typography.
+ * Robust, high-performance LaTeX and STEM mathematical parser for Pozix.
+ * Converts LaTeX formulas, fractions, Greek letters, roots, symbols, and formatting
+ * into beautiful Jetpack Compose [AnnotatedString] with mathematical typography.
  *
- * This provides instantaneous 120 FPS rendering for math in questions, options, and lists
- * without any WebView overhead or layout distortion.
+ * Ensures 120 FPS buttery smooth scrolling in lists, question cards, and answer options
+ * with zero layout distortion or broken tags.
  */
 object LatexMathParser {
 
@@ -37,7 +38,7 @@ object LatexMathParser {
         "\\pm" to "±", "\\mp" to "∓", "\\times" to "×", "\\div" to "÷",
         "\\cdot" to "·", "\\neq" to "≠", "\\ne" to "≠",
         "\\leq" to "≤", "\\le" to "≤", "\\geq" to "≥", "\\ge" to "≥",
-        "\\approx" to "≈", "\\equiv" to "≡", "\\sim" to "∼", "\\cong" to "≅",
+        "\\approx" to "≈", "\\equiv" to "≡", "\\cong" to "≅", "\\sim" to "∼",
         "\\in" to "∈", "\\notin" to "∉", "\\subset" to "⊂", "\\subseteq" to "⊆",
         "\\supset" to "⊃", "\\supseteq" to "⊇", "\\cup" to "∪", "\\cap" to "∩",
         "\\setminus" to "∖", "\\emptyset" to "∅", "\\varnothing" to "∅",
@@ -51,14 +52,26 @@ object LatexMathParser {
         "\\int" to "∫", "\\iint" to "∬", "\\iiint" to "∭", "\\oint" to "∮",
         "\\sum" to "∑", "\\prod" to "∏",
         "\\uparrow" to "↑", "\\downarrow" to "↓",
-        "\\dots" to "…", "\\cdots" to "…", "\\ldots" to "…",
-        "\\quad" to "  ", "\\qquad" to "    ", "\\," to " ", "\\;" to " "
+        "\\dots" to "…", "\\cdots" to "…", "\\ldots" to "…", "\\vdots" to "⋮", "\\ddots" to "⋱",
+        "\\quad" to "  ", "\\qquad" to "    ", "\\," to " ", "\\;" to " ", "\\:" to " ", "\\!" to "",
+        "\\prime" to "′",
+        "\\mathbb{R}" to "ℝ", "\\mathbb{N}" to "ℕ", "\\mathbb{Z}" to "ℤ",
+        "\\mathbb{Q}" to "ℚ", "\\mathbb{C}" to "ℂ"
+    )
+
+    private val FUNCTIONS = listOf(
+        "\\sin", "\\cos", "\\tan", "\\cot", "\\sec", "\\csc",
+        "\\arcsin", "\\arccos", "\\arctan",
+        "\\ln", "\\log", "\\lg", "\\exp",
+        "\\lim", "\\det", "\\gcd", "\\deg", "\\dim",
+        "\\max", "\\min", "\\sup", "\\inf"
     )
 
     private val SUPERSCRIPT_MAP = mapOf(
         '0' to '⁰', '1' to '¹', '2' to '²', '3' to '³', '4' to '⁴',
         '5' to '⁵', '6' to '⁶', '7' to '⁷', '8' to '⁸', '9' to '⁹',
         '+' to '⁺', '-' to '⁻', '=' to '⁼', '(' to '⁽', ')' to '⁾',
+        '/' to 'ᐟ',
         'a' to 'ᵃ', 'b' to 'ᵇ', 'c' to 'ᶜ', 'd' to 'ᵈ', 'e' to 'ᵉ',
         'f' to 'ᶠ', 'g' to 'ᵍ', 'h' to 'ʰ', 'i' to 'ⁱ', 'j' to 'ʲ',
         'k' to 'ᵏ', 'l' to 'ˡ', 'm' to 'ᵐ', 'n' to 'ⁿ', 'o' to 'ᵒ',
@@ -91,6 +104,7 @@ object LatexMathParser {
     /**
      * Parse text containing Markdown formatting (bold, italic, inline code)
      * and LaTeX inline math (`$...$` or `\(...\)`) into an [AnnotatedString].
+     * If the text contains unescaped LaTeX macros without `$`, it auto-detects and formats them.
      */
     fun parseToAnnotatedString(
         rawText: String,
@@ -137,6 +151,17 @@ object LatexMathParser {
                     }
                 }
 
+                // Check for \[ ... \] display math
+                if (i + 1 < len && rawText[i] == '\\' && rawText[i + 1] == '[') {
+                    val closeIdx = rawText.indexOf("\\]", i + 2)
+                    if (closeIdx != -1) {
+                        val mathContent = rawText.substring(i + 2, closeIdx)
+                        appendMathFormatted(mathContent)
+                        i = closeIdx + 2
+                        continue
+                    }
+                }
+
                 // Check for inline code `...`
                 if (rawText[i] == '`') {
                     val closeIdx = rawText.indexOf('`', i + 1)
@@ -162,7 +187,6 @@ object LatexMathParser {
                     if (closeIdx != -1) {
                         val boldContent = rawText.substring(i + 2, closeIdx)
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                            // Recursively format inner math if any
                             append(parseToAnnotatedString(boldContent, codeBgColor, codeTextColor))
                         }
                         i = closeIdx + 2
@@ -183,6 +207,16 @@ object LatexMathParser {
                     }
                 }
 
+                // Check if current position starts an unescaped LaTeX macro (e.g. \dfrac, \frac, \sqrt, \alpha)
+                if (rawText[i] == '\\' && i + 1 < len && rawText[i + 1].isLetter()) {
+                    val segment = rawText.substring(i)
+                    val formatted = formatMathString(segment)
+                    if (formatted != segment) {
+                        appendMathFormatted(segment)
+                        break
+                    }
+                }
+
                 append(rawText[i])
                 i++
             }
@@ -192,58 +226,51 @@ object LatexMathParser {
     /**
      * Format a LaTeX math snippet into readable Unicode text with proper styles.
      */
-    private fun AnnotatedString.Builder.appendMathFormatted(math: String) {
-        val cleanMath = math.trim()
-        var text = cleanMath
+    fun AnnotatedString.Builder.appendMathFormatted(math: String) {
+        val cleanText = formatMathString(math)
+        appendMathWithItalicVariables(cleanText)
+    }
 
-        // Handle \text{...} or \mathrm{...}
-        text = text.replace(Regex("""\\(text|mathrm|mathbf)\{([^}]+)\}""")) { match ->
-            match.groupValues[2]
+    /**
+     * Core math string formatter that converts LaTeX expressions into Unicode math string.
+     */
+    fun formatMathString(math: String): String {
+        var text = math.trim()
+
+        // 1. Delimiters: \left and \right
+        text = text.replace("\\left(", "(")
+            .replace("\\right)", ")")
+            .replace("\\left[", "[")
+            .replace("\\right]", "]")
+            .replace("\\left\\{", "{")
+            .replace("\\right\\}", "}")
+            .replace("\\left|", "|")
+            .replace("\\right|", "|")
+            .replace("\\left.", "")
+            .replace("\\right.", "")
+            .replace("\\{", "{")
+            .replace("\\}", "}")
+            .replace("\\|", "‖")
+
+        // 2. Text / styling macros
+        text = text.replace(Regex("""\\(?:text|mathrm|mathbf|mathit|textbf)\{([^}]+)\}""")) { match ->
+            match.groupValues[1]
         }
 
-        // Handle \ce{...} chemical equations
+        // 3. Chemical equations \ce{...}
         text = text.replace(Regex("""\\ce\{([^}]+)\}""")) { match ->
             formatChemistry(match.groupValues[1])
         }
 
-        // Handle \vec{...}
-        text = text.replace(Regex("""\\vec\{([a-zA-Z]+)\}""")) { match ->
-            "${match.groupValues[1]}⃗"
+        // 4. Fractions inside superscripts: ^{ \frac{a}{b} } or ^\frac a b -> ^{a/b}
+        text = text.replace(Regex("""\^\{\s*\\(?:d?frac|tfrac|cfrac)\{([^}]+)\}\{([^}]+)\}\s*\}""")) { match ->
+            "^{${match.groupValues[1]}/${match.groupValues[2]}}"
         }
-        text = text.replace(Regex("""\\vec\s+([a-zA-Z])""")) { match ->
-            "${match.groupValues[1]}⃗"
-        }
-
-        // Handle \sqrt[n]{x} or \sqrt{x}
-        text = text.replace(Regex("""\\sqrt\[(\d+)\]\{([^}]+)\}""")) { match ->
-            val root = when (match.groupValues[1]) {
-                "3" -> "∛"
-                "4" -> "∜"
-                else -> "${match.groupValues[1]}√"
-            }
-            "$root(${match.groupValues[2]})"
-        }
-        text = text.replace(Regex("""\\sqrt\{([^}]+)\}""")) { match ->
-            "√(${match.groupValues[1]})"
+        text = text.replace(Regex("""\^\\(?:d?frac|tfrac|cfrac)\s*([0-9a-zA-Z])\s*([0-9a-zA-Z])""")) { match ->
+            "^{${match.groupValues[1]}/${match.groupValues[2]}}"
         }
 
-        // Handle \frac{a}{b}
-        text = text.replace(Regex("""\\frac\{([^}]+)\}\{([^}]+)\}""")) { match ->
-            val num = match.groupValues[1].trim()
-            val den = match.groupValues[2].trim()
-            val common = COMMON_FRACTIONS["$num/$den"]
-            if (common != null) {
-                common
-            } else if (num.length == 1 && den.length == 1 && num[0] in SUPERSCRIPT_MAP && den[0] in SUBSCRIPT_MAP) {
-                "${SUPERSCRIPT_MAP[num[0]]}⁄${SUBSCRIPT_MAP[den[0]]}"
-            } else {
-                val numFmt = if (num.contains(' ') || num.contains('+') || num.contains('-')) "($num)" else num
-                val denFmt = if (den.contains(' ') || den.contains('+') || den.contains('-')) "($den)" else den
-                "$numFmt/$denFmt"
-            }
-        }
-
-        // Replace symbols & Greek letters
+        // 5. Greek letters & Symbols (resolve early so \Delta, \pi inside roots/fractions format cleanly)
         for ((key, value) in GREEK_MAP) {
             text = text.replace(key, value)
         }
@@ -251,7 +278,36 @@ object LatexMathParser {
             text = text.replace(key, value)
         }
 
-        // Replace superscripts: ^{...} or ^x
+        // 6. Fractions: \dfrac, \frac, \tfrac, \cfrac (with balanced braces)
+        text = parseFractions(text)
+
+        // 7. Roots: \sqrt[n]{x} or \sqrt{x} (with balanced braces)
+        text = parseRoots(text)
+
+        // 8. Vectors and accents
+        text = text.replace(Regex("""\\vec\{([a-zA-Z0-9]+)\}""")) { match ->
+            "${match.groupValues[1]}⃗"
+        }
+        text = text.replace(Regex("""\\vec\s+([a-zA-Z0-9])""")) { match ->
+            "${match.groupValues[1]}⃗"
+        }
+        text = text.replace(Regex("""\\overline\{([a-zA-Z0-9]+)\}""")) { match ->
+            match.groupValues[1].map { "$it\u0305" }.joinToString("")
+        }
+        text = text.replace(Regex("""\\bar\{([a-zA-Z0-9]+)\}""")) { match ->
+            "${match.groupValues[1]}\u0304"
+        }
+        text = text.replace(Regex("""\\hat\{([a-zA-Z0-9]+)\}""")) { match ->
+            "${match.groupValues[1]}\u0302"
+        }
+
+        // 9. Math functions (sin, cos, ln, log, etc.)
+        for (fn in FUNCTIONS) {
+            val fnName = fn.substring(1)
+            text = text.replace(Regex("""\\${fnName}(?![a-zA-Z])""")) { "$fnName " }
+        }
+
+        // 10. Superscripts: ^{...} or ^x
         text = text.replace(Regex("""\^\{([^}]+)\}""")) { match ->
             toSuperscript(match.groupValues[1])
         }
@@ -259,7 +315,7 @@ object LatexMathParser {
             toSuperscript(match.groupValues[1])
         }
 
-        // Replace subscripts: _{...} or _x
+        // 11. Subscripts: _{...} or _x
         text = text.replace(Regex("""_\{([^}]+)\}""")) { match ->
             toSubscript(match.groupValues[1])
         }
@@ -267,14 +323,148 @@ object LatexMathParser {
             toSubscript(match.groupValues[1])
         }
 
-        // Strip remaining lone LaTeX slashes for unhandled harmless macros
+        // 11. Clean up remaining unhandled LaTeX command prefixes
         text = text.replace(Regex("""\\([a-zA-Z]+)""")) { match ->
             match.groupValues[1]
         }
         text = text.replace("{", "").replace("}", "")
 
-        // Append formatted text with italicized single-letter math variables
-        appendMathWithItalicVariables(text)
+        // Normalize spaces around operators
+        text = text.replace(Regex("""\s+"""), " ")
+
+        return text.trim()
+    }
+
+    /**
+     * Recursively parse and format all fraction macros: \dfrac, \frac, \tfrac, \cfrac
+     */
+    fun parseFractions(input: String): String {
+        var text = input
+        val fracRegex = Regex("""\\(?:dfrac|frac|tfrac|cfrac)""")
+        var match = fracRegex.find(text)
+        var safetyCounter = 0
+
+        while (match != null && safetyCounter++ < 50) {
+            val fracStart = match.range.first
+            var cursor = match.range.last + 1
+            // Skip optional spaces
+            while (cursor < text.length && text[cursor].isWhitespace()) cursor++
+
+            if (cursor >= text.length) break
+
+            // Extract numerator
+            val numResult = extractArgument(text, cursor) ?: break
+            val numStr = numResult.first
+            cursor = numResult.second
+
+            // Skip optional spaces
+            while (cursor < text.length && text[cursor].isWhitespace()) cursor++
+            if (cursor >= text.length) break
+
+            // Extract denominator
+            val denResult = extractArgument(text, cursor) ?: break
+            val denStr = denResult.first
+            val fracEnd = denResult.second
+
+            // Format numerator and denominator recursively
+            val formattedNum = parseFractions(numStr).trim()
+            val formattedDen = parseFractions(denStr).trim()
+
+            val formattedFrac = formatFraction(formattedNum, formattedDen)
+            text = text.substring(0, fracStart) + formattedFrac + text.substring(fracEnd)
+
+            match = fracRegex.find(text)
+        }
+        return text
+    }
+
+    private fun extractArgument(text: String, start: Int): Pair<String, Int>? {
+        if (start >= text.length) return null
+        if (text[start] == '{') {
+            var depth = 0
+            val sb = StringBuilder()
+            for (i in start until text.length) {
+                when (text[i]) {
+                    '{' -> {
+                        if (depth > 0) sb.append('{')
+                        depth++
+                    }
+                    '}' -> {
+                        depth--
+                        if (depth == 0) return Pair(sb.toString(), i + 1)
+                        sb.append('}')
+                    }
+                    else -> sb.append(text[i])
+                }
+            }
+            return null
+        } else {
+            // Single non-whitespace token (e.g. \frac 1 2 or \frac12)
+            return Pair(text[start].toString(), start + 1)
+        }
+    }
+
+    private fun formatFraction(num: String, den: String): String {
+        val cleanNum = num.trim()
+        val cleanDen = den.trim()
+
+        val common = COMMON_FRACTIONS["$cleanNum/$cleanDen"]
+        if (common != null) return common
+
+        val numNeedsParens = cleanNum.contains(' ') || cleanNum.contains('+') || cleanNum.contains('-') || cleanNum.contains('/')
+        val denNeedsParens = cleanDen.contains(' ') || cleanDen.contains('+') || cleanDen.contains('-') || cleanDen.contains('/')
+
+        val numFmt = if (numNeedsParens) "($cleanNum)" else cleanNum
+        val denFmt = if (denNeedsParens) "($cleanDen)" else cleanDen
+
+        return "$numFmt/$denFmt"
+    }
+
+    /**
+     * Recursively parse and format roots: \sqrt[n]{x} or \sqrt{x}
+     */
+    fun parseRoots(input: String): String {
+        var text = input
+        val sqrtRegex = Regex("""\\sqrt""")
+        var match = sqrtRegex.find(text)
+        var safetyCounter = 0
+
+        while (match != null && safetyCounter++ < 50) {
+            val start = match.range.first
+            var cursor = match.range.last + 1
+            while (cursor < text.length && text[cursor].isWhitespace()) cursor++
+
+            var rootIndex = ""
+            if (cursor < text.length && text[cursor] == '[') {
+                val closeBracket = text.indexOf(']', cursor + 1)
+                if (closeBracket != -1) {
+                    rootIndex = text.substring(cursor + 1, closeBracket).trim()
+                    cursor = closeBracket + 1
+                    while (cursor < text.length && text[cursor].isWhitespace()) cursor++
+                }
+            }
+
+            val argResult = extractArgument(text, cursor) ?: break
+            val inner = parseRoots(argResult.first).trim()
+            val end = argResult.second
+
+            val rootSymbol = when (rootIndex) {
+                "3" -> "∛"
+                "4" -> "∜"
+                "" -> "√"
+                else -> toSuperscript(rootIndex) + "√"
+            }
+
+            val formatted = if (inner.length == 1 && inner[0].isLetterOrDigit()) {
+                "$rootSymbol$inner"
+            } else {
+                "$rootSymbol($inner)"
+            }
+
+            text = text.substring(0, start) + formatted + text.substring(end)
+            match = sqrtRegex.find(text)
+        }
+        return text
     }
 
     private fun AnnotatedString.Builder.appendMathWithItalicVariables(text: String) {
@@ -282,7 +472,7 @@ object LatexMathParser {
         while (i < text.length) {
             val c = text[i]
             // Italicize single-letter variables like x, y, z, m, n, a, b, c in math expressions
-            val isMathVar = c in 'a'..'z' || c in 'A'..'Z'
+            val isMathVar = (c in 'a'..'z' || c in 'A'..'Z')
             val prevIsLetter = i > 0 && text[i - 1].isLetter()
             val nextIsLetter = i + 1 < text.length && text[i + 1].isLetter()
 
@@ -297,7 +487,7 @@ object LatexMathParser {
         }
     }
 
-    private fun toSuperscript(str: String): String {
+    fun toSuperscript(str: String): String {
         val sb = StringBuilder()
         for (c in str) {
             sb.append(SUPERSCRIPT_MAP[c] ?: c)
@@ -305,7 +495,7 @@ object LatexMathParser {
         return sb.toString()
     }
 
-    private fun toSubscript(str: String): String {
+    fun toSubscript(str: String): String {
         val sb = StringBuilder()
         for (c in str) {
             sb.append(SUBSCRIPT_MAP[c] ?: c)

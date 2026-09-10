@@ -383,6 +383,7 @@
     <!-- Home screen Banner -->
     <string name="home_ai_chat_banner_title">AI Quiz Generator</string>
     <string name="home_ai_chat_banner_desc">Chat with AI to create and import custom quiz sets instantly</string>
+    <string name="ai_chat_suggestions_header">Suggestions</string>
     
     <!-- Common -->
     <string name="ok">OK</string>

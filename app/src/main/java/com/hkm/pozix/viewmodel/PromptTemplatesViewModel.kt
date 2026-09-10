@@ -97,7 +97,10 @@ Yêu cầu:
 - single_choice phải có 2-6 lựa chọn
 - correctIndex phải hợp lệ (bắt đầu từ 0)
 - Câu hỏi phải rõ ràng và có thể trả lời được
-- Với môn Toán, Lý, Hóa: Luôn dùng LaTeX chuẩn ($...$ cho inline math, $$...$$ cho block math, escape ký tự gạch chéo ngược như \\frac, \\sqrt) trong đề bài, lựa chọn và lời giải.
+- Với môn Toán, Lý, Hóa: BẮT BUỘC dùng cú pháp LaTeX chuẩn và đóng gói công thức trong dấu đô la ${'$'}...${'$'} (inline) hoặc ${'$'}${'$'}...${'$'}${'$'} (display).
+  * Phân số: Phải có ngoặc nhọn đầy đủ: \\frac{a}{b} hoặc \\dfrac{a}{b} (Ví dụ: "${'$'}f'(x) = \\frac{1}{x}${'$'}", KHÔNG ĐƯỢC viết thiếu ngoặc như dfrac1x).
+  * Ký hiệu toán học: \\cdot (nhân), \\sqrt{x} (căn), \\int_{a}^{b} (tích phân), \\lim_{x \\to 0} (giới hạn), \\ln x, \\sin x, x^2, x_1.
+  * Trong chuỗi JSON, ký tự gạch chéo ngược phải escape thành 2 gạch: \\\\frac, \\\\sqrt, \\\\cdot.
 - Với môn Tin học / Lập trình: Dùng markdown code block (```python, ```cpp, ```java...) cho đoạn code và `code` cho mã inline.
 - Tránh trùng lặp
 - Giữ cho nội dung chuẩn xác và có tính giáo dục
@@ -134,7 +137,10 @@ Requirements:
 - single_choice must have 2-6 options
 - correctIndex must be valid (0-based)
 - Questions should be clear and answerable
-- For STEM (Math, Physics, Chem): Always use standard LaTeX ($...$ inline, $$...$$ display, escape backslashes like \\frac, \\sqrt).
+- For STEM (Math, Physics, Chem): MUST use standard LaTeX syntax enclosed in ${'$'}...${'$'} (inline) or ${'$'}${'$'}...${'$'}${'$'} (display).
+  * Fractions: Always wrap in curly braces: \\frac{a}{b} or \\dfrac{a}{b} (e.g. "${'$'}f'(x) = \\frac{1}{x}${'$'}", NEVER omit braces like dfrac1x).
+  * Symbols: \\cdot (dot), \\sqrt{x} (root), \\int_{a}^{b} (integral), \\lim_{x \\to 0} (limit), \\ln x, \\sin x, x^2, x_1.
+  * In JSON, escape all backslashes as double backslashes: \\\\frac, \\\\sqrt, \\\\cdot.
 - For Computer Science: Use markdown code blocks (```python, ```cpp...) for multi-line code and `code` for inline code.
 - Avoid duplicates
 - Keep it educational and accurate

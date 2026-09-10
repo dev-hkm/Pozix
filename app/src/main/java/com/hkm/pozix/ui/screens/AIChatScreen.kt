@@ -1,13 +1,19 @@
 package com.hkm.pozix.ui.screens
 
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -15,34 +21,42 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.ChatMessage
+import com.hkm.pozix.data.model.ChatSession
 import com.hkm.pozix.data.model.QuizValidationResult
+import com.hkm.pozix.ui.components.richcontent.RichContentText
 import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.util.QuizJsonParser
 import com.hkm.pozix.viewmodel.AIChatUiState
 import com.hkm.pozix.viewmodel.AIChatViewModel
 import com.hkm.pozix.viewmodel.ImportStatus
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +70,20 @@ fun AIChatScreen(
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
+
     var showProviderPicker by remember { mutableStateOf(false) }
+    var showHistorySheet by remember { mutableStateOf(false) }
+    var previewImageFilePath by remember { mutableStateOf<String?>(null) }
+    var textInput by remember { mutableStateOf("") }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            HapticUtil.lightTap(context)
+            viewModel.attachImage(it)
+        }
+    }
 
     // Refresh active provider when returning from Settings.
     LaunchedEffect(Unit) { viewModel.refreshProviders() }
@@ -91,8 +118,8 @@ fun AIChatScreen(
                 title = {
                     Column {
                         Text(
-                            text = stringResource(R.string.ai_chat_title),
-                            style = MaterialTheme.typography.titleLarge,
+                            text = uiState.currentSessionTitle.ifBlank { stringResource(R.string.ai_chat_title) },
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
                         )
@@ -111,12 +138,35 @@ fun AIChatScreen(
                         onNavigateBack()
                     }) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
                 },
                 actions = {
+                    // Chat History Button
+                    IconButton(onClick = {
+                        HapticUtil.lightTap(context)
+                        showHistorySheet = true
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = "Lịch sử trò chuyện"
+                        )
+                    }
+
+                    // New Chat Button
+                    IconButton(onClick = {
+                        HapticUtil.lightTap(context)
+                        viewModel.startNewChat()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.AddComment,
+                            contentDescription = "Đoạn chat mới"
+                        )
+                    }
+
+                    // Switch Provider
                     if (uiState.providers.size > 1) {
                         IconButton(onClick = {
                             HapticUtil.lightTap(context)
@@ -128,6 +178,8 @@ fun AIChatScreen(
                             )
                         }
                     }
+
+                    // Clear Current Chat
                     IconButton(onClick = {
                         HapticUtil.lightTap(context)
                         viewModel.clearChat()
@@ -152,7 +204,6 @@ fun AIChatScreen(
                 .background(MaterialTheme.colorScheme.background)
         ) {
             if (uiState.activeProvider == null) {
-                // Provider Setup Screen/Card
                 ProviderSetupCard(
                     onNavigateToSettings = onNavigateToSettings,
                     modifier = Modifier
@@ -160,152 +211,219 @@ fun AIChatScreen(
                         .padding(24.dp)
                 )
             } else {
-                // Chat conversation screen
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Chat messages list
-                    LazyColumn(
-                        state = listState,
+                    // Chat Messages List
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxWidth(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                            .fillMaxWidth()
                     ) {
                         if (uiState.messages.isEmpty()) {
-                            item {
-                                ChatWelcomeSection(
-                                    onSuggestionClick = { suggestion ->
-                                        HapticUtil.lightTap(context)
-                                        viewModel.sendMessage(suggestion)
-                                    }
-                                )
-                            }
+                            ChatWelcomeSection(
+                                onSuggestionClick = { suggestion ->
+                                    HapticUtil.lightTap(context)
+                                    viewModel.sendMessage(suggestion)
+                                }
+                            )
                         } else {
-                            items(uiState.messages) { message ->
-                                ChatBubbleItem(
-                                    message = message,
-                                    onImportPlay = { json ->
-                                        HapticUtil.lightTap(context)
-                                        viewModel.importQuizSet(json, onPlayQuiz)
-                                    },
-                                    onSaveLibrary = { json ->
-                                        HapticUtil.lightTap(context)
-                                        viewModel.saveQuizSetOnly(json)
-                                    }
-                                )
-                            }
-                        }
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
+                            ) {
+                                items(uiState.messages) { message ->
+                                    ChatBubbleItem(
+                                        message = message,
+                                        onImageClick = { previewImageFilePath = it },
+                                        onImportPlay = { json ->
+                                            HapticUtil.lightTap(context)
+                                            viewModel.importQuizSet(json, onPlayQuiz)
+                                        },
+                                        onSaveLibrary = { json ->
+                                            HapticUtil.lightTap(context)
+                                            viewModel.saveQuizSetOnly(json)
+                                        }
+                                    )
+                                }
 
-                        if (uiState.isLoading) {
-                            item {
-                                LoadingBubbleItem()
+                                if (uiState.isLoading) {
+                                    item {
+                                        LoadingBubbleItem()
+                                    }
+                                }
                             }
                         }
                     }
-                }
 
-                // Floating Pill Input Box
-                var textInput by remember { mutableStateOf("") }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                shape = RoundedCornerShape(24.dp)
-                            ),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    // Input Section
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 3.dp
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .windowInsetsPadding(WindowInsets.navigationBars)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
-                            TextField(
-                                value = textInput,
-                                onValueChange = { textInput = it },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(start = 12.dp),
-                                placeholder = {
-                                    Text(
-                                        text = stringResource(R.string.ai_chat_input_placeholder),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1
-                                    )
-                                },
-                                minLines = 1,
-                                maxLines = 4,
-                                keyboardOptions = KeyboardOptions(
-                                    imeAction = ImeAction.Send,
-                                    keyboardType = KeyboardType.Text
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onSend = {
-                                        if (textInput.isNotBlank() && !uiState.isLoading) {
+                            // Pending Images Preview Row
+                            if (uiState.pendingImages.isNotEmpty()) {
+                                LazyRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(uiState.pendingImages) { path ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(68.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                                        ) {
+                                            val bitmap = remember(path) {
+                                                try {
+                                                    BitmapFactory.decodeFile(path)?.asImageBitmap()
+                                                } catch (_: Exception) {
+                                                    null
+                                                }
+                                            }
+                                            if (bitmap != null) {
+                                                Image(
+                                                    bitmap = bitmap,
+                                                    contentDescription = "Preview",
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .clickable { previewImageFilePath = path },
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    HapticUtil.lightTap(context)
+                                                    viewModel.removePendingImage(path)
+                                                },
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .size(24.dp)
+                                                    .padding(2.dp)
+                                                    .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Remove",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Input Controls Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Image Attachment Button
+                                IconButton(
+                                    onClick = {
+                                        HapticUtil.lightTap(context)
+                                        imagePickerLauncher.launch("image/*")
+                                    },
+                                    modifier = Modifier.size(44.dp)
+                                ) {
+                                    if (uiState.isAttachingImage) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(22.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.AddPhotoAlternate,
+                                            contentDescription = "Đính kèm ảnh",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                // Text Input Field
+                                TextField(
+                                    value = textInput,
+                                    onValueChange = { textInput = it },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 4.dp),
+                                    placeholder = {
+                                        Text(
+                                            text = if (uiState.pendingImages.isNotEmpty()) "Nhập yêu cầu giải/tạo đề từ ảnh..."
+                                            else stringResource(R.string.ai_chat_input_placeholder),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1
+                                        )
+                                    },
+                                    minLines = 1,
+                                    maxLines = 4,
+                                    keyboardOptions = KeyboardOptions(
+                                        imeAction = ImeAction.Send,
+                                        keyboardType = KeyboardType.Text
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onSend = {
+                                            if ((textInput.isNotBlank() || uiState.pendingImages.isNotEmpty()) && !uiState.isLoading) {
+                                                HapticUtil.lightTap(context)
+                                                viewModel.sendMessage(textInput.trim())
+                                                textInput = ""
+                                                keyboardController?.hide()
+                                            }
+                                        }
+                                    ),
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        disabledContainerColor = Color.Transparent,
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent
+                                    ),
+                                    textStyle = MaterialTheme.typography.bodyMedium
+                                )
+
+                                val canSend = (textInput.isNotBlank() || uiState.pendingImages.isNotEmpty()) && !uiState.isLoading
+
+                                IconButton(
+                                    onClick = {
+                                        if (canSend) {
                                             HapticUtil.lightTap(context)
                                             viewModel.sendMessage(textInput.trim())
                                             textInput = ""
                                             keyboardController?.hide()
                                         }
-                                    }
-                                ),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    disabledContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent
-                                ),
-                                textStyle = MaterialTheme.typography.bodyMedium
-                            )
-
-                            IconButton(
-                                onClick = {
-                                    if (textInput.isNotBlank() && !uiState.isLoading) {
-                                        HapticUtil.lightTap(context)
-                                        viewModel.sendMessage(textInput.trim())
-                                        textInput = ""
-                                        keyboardController?.hide()
-                                    }
-                                },
-                                enabled = textInput.isNotBlank() && !uiState.isLoading,
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .background(
-                                        color = if (textInput.isNotBlank() && !uiState.isLoading) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.surfaceVariant
-                                        },
-                                        shape = CircleShape
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Send,
-                                    contentDescription = "Send",
-                                    tint = if (textInput.isNotBlank() && !uiState.isLoading) {
-                                        MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                     },
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                    enabled = canSend,
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .background(
+                                            color = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                            shape = CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Send,
+                                        contentDescription = "Send",
+                                        tint = if (canSend) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -314,6 +432,36 @@ fun AIChatScreen(
         }
     }
 
+    // Full Image Preview Dialog
+    if (previewImageFilePath != null) {
+        FullImagePreviewDialog(
+            filePath = previewImageFilePath!!,
+            onDismiss = { previewImageFilePath = null }
+        )
+    }
+
+    // Chat History Bottom Sheet
+    if (showHistorySheet) {
+        ChatHistoryBottomSheet(
+            sessions = uiState.sessions,
+            currentSessionId = uiState.currentSessionId,
+            onSelectSession = { id ->
+                HapticUtil.lightTap(context)
+                viewModel.loadSession(id)
+            },
+            onNewChat = {
+                HapticUtil.lightTap(context)
+                viewModel.startNewChat()
+            },
+            onDeleteSession = { id ->
+                HapticUtil.lightTap(context)
+                viewModel.deleteSession(id)
+            },
+            onDismiss = { showHistorySheet = false }
+        )
+    }
+
+    // Provider Picker Dialog
     if (showProviderPicker && uiState.providers.size > 1) {
         ProviderPickerDialog(
             providers = uiState.providers,
@@ -326,6 +474,192 @@ fun AIChatScreen(
             onDismiss = { showProviderPicker = false }
         )
     }
+}
+
+@Composable
+fun FullImagePreviewDialog(
+    filePath: String,
+    onDismiss: () -> Unit
+) {
+    val bitmap = remember(filePath) {
+        try {
+            BitmapFactory.decodeFile(filePath)?.asImageBitmap()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = "Full Preview",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 440.dp)
+                            .clip(RoundedCornerShape(14.dp)),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Text(
+                        text = "Không thể tải ảnh",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChatHistoryBottomSheet(
+    sessions: List<ChatSession>,
+    currentSessionId: String?,
+    onSelectSession: (String) -> Unit,
+    onNewChat: () -> Unit,
+    onDeleteSession: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 36.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Lịch sử trò chuyện",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                FilledTonalButton(
+                    onClick = {
+                        onNewChat()
+                        onDismiss()
+                    },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Chat mới", fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (sessions.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Chưa có cuộc trò chuyện nào",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 440.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(sessions, key = { it.id }) { session ->
+                        val isCurrent = session.id == currentSessionId
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable {
+                                    onSelectSession(session.id)
+                                    onDismiss()
+                                },
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            border = if (isCurrent) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isCurrent) Icons.Default.ChatBubble else Icons.Default.ChatBubbleOutline,
+                                    contentDescription = null,
+                                    tint = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = session.title,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = "${session.messages.size} tin nhắn • ${formatSessionDate(session.updatedAt)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { onDeleteSession(session.id) },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = "Xóa",
+                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatSessionDate(timestamp: Long): String {
+    val sdf = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+    return sdf.format(Date(timestamp))
 }
 
 @Composable
@@ -395,7 +729,7 @@ fun ProviderPickerDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.material3.AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.ai_chat_switch_provider), fontWeight = FontWeight.Bold) },
         text = {
@@ -443,7 +777,7 @@ fun ChatWelcomeSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 32.dp),
+            .padding(vertical = 32.dp, horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
@@ -459,7 +793,7 @@ fun ChatWelcomeSection(
             text = "Pozix AI Assistant",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -472,31 +806,41 @@ fun ChatWelcomeSection(
             modifier = Modifier.padding(horizontal = 24.dp)
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
-        // Suggestions
+        Text(
+            text = stringResource(R.string.ai_chat_suggestions_header),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        val suggestions = listOf(
+            stringResource(R.string.ai_chat_suggest_1),
+            stringResource(R.string.ai_chat_suggest_2),
+            stringResource(R.string.ai_chat_suggest_3),
+            "Giải chi tiết bài toán đạo hàm và tích phân kèm công thức LaTeX",
+            "Tạo bài thi trắc nghiệm 10 câu Hóa học hữu cơ"
+        )
+
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            listOf(
-                R.string.ai_chat_suggest_1,
-                R.string.ai_chat_suggest_2,
-                R.string.ai_chat_suggest_3
-            ).forEach { suggestResId ->
-                val text = stringResource(suggestResId)
+            suggestions.forEach { text ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onSuggestionClick(text) },
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ),
-                    border = BoxBorder(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -522,6 +866,7 @@ fun ChatWelcomeSection(
 @Composable
 fun ChatBubbleItem(
     message: ChatMessage,
+    onImageClick: (String) -> Unit,
     onImportPlay: (String) -> Unit,
     onSaveLibrary: (String) -> Unit
 ) {
@@ -556,7 +901,37 @@ fun ChatBubbleItem(
             modifier = Modifier.weight(1f, fill = false),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
         ) {
-            // Text Bubble
+            // Attached Images Thumbnails
+            if (message.imagePaths.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier.padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(message.imagePaths) { imgPath ->
+                        val bitmap = remember(imgPath) {
+                            try {
+                                BitmapFactory.decodeFile(imgPath)?.asImageBitmap()
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap,
+                                contentDescription = "Image",
+                                modifier = Modifier
+                                    .size(140.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+                                    .clickable { onImageClick(imgPath) },
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Text Bubble with LaTeX & Markdown support
             val bubbleBg = if (isUser) {
                 MaterialTheme.colorScheme.primary
             } else {
@@ -579,7 +954,6 @@ fun ChatBubbleItem(
                     .background(bubbleBg)
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                // Filter out the JSON block from display text so the user doesn't see raw JSON in bubble
                 val displayText = remember(message.text) {
                     if (jsonBlock != null) {
                         val withoutFence = message.text.substringBefore("```json").trim()
@@ -591,9 +965,9 @@ fun ChatBubbleItem(
                 }
 
                 if (displayText.isNotBlank()) {
-                    Text(
+                    RichContentText(
                         text = displayText,
-                        color = textColor,
+                        textColor = textColor,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -662,7 +1036,7 @@ fun InteractiveQuizCard(
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                
+
                 Text(
                     text = stringResource(
                         R.string.ai_chat_import_card_desc,
@@ -772,23 +1146,16 @@ fun LoadingBubbleItem() {
     }
 }
 
-fun BoxBorder(color: Color) = BorderStroke(1.dp, color)
-
-// Helper function to extract JSON block from text
 private fun extractJsonBlock(text: String): String? {
-    // Look for standard ```json ... ``` markdown
     val regex = """```json\s+([\s\S]*?)\s*```""".toRegex()
     val matchResult = regex.find(text)
     if (matchResult != null) {
         return matchResult.groupValues[1].trim()
     }
-    
-    // Fallback: look for outer curly braces
     val start = text.indexOf('{')
     val end = text.lastIndexOf('}')
     if (start != -1 && end != -1 && end > start) {
         val possibleJson = text.substring(start, end + 1).trim()
-        // Simple sanity check if it looks like a quiz json
         if (possibleJson.contains("\"title\"") && possibleJson.contains("\"questions\"")) {
             return possibleJson
         }

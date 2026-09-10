@@ -384,6 +384,7 @@
     <string name="ai_reasoning_low">Thấp</string>
     <string name="ai_reasoning_medium">Trung bình</string>
     <string name="ai_reasoning_high">Cao</string>
+    <string name="ai_chat_suggestions_header">Gợi ý câu hỏi</string>
     
     <!-- Common -->
     <string name="ok">OK</string>

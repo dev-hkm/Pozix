@@ -6,5 +6,6 @@ import kotlinx.serialization.Serializable
 data class ChatMessage(
     val role: String, // "user" or "model"
     val text: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val imagePaths: List<String> = emptyList()
 )

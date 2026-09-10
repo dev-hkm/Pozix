@@ -118,8 +118,17 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
     while (currentIndex < length) {
         // Check for code block ```lang ... ```
         val codeStart = input.indexOf("```", currentIndex)
-        // Check for display math $$ ... $$
-        val mathStart = input.indexOf("$$", currentIndex)
+        // Check for display math $$ ... $$ or \[ ... \]
+        val mathStart1 = input.indexOf("$$", currentIndex)
+        val mathStart2 = input.indexOf("\\[", currentIndex)
+        val mathStart = when {
+            mathStart1 != -1 && mathStart2 != -1 -> minOf(mathStart1, mathStart2)
+            mathStart1 != -1 -> mathStart1
+            else -> mathStart2
+        }
+        val isBracketMath = mathStart != -1 && mathStart == mathStart2
+        val mathDelimiterLen = if (isBracketMath) 2 else 2
+        val mathClosingDelimiter = if (isBracketMath) "\\]" else "$$"
 
         // Find the earliest delimiter
         val hasCode = codeStart != -1
@@ -171,16 +180,16 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
                 }
             }
 
-            val mathEnd = input.indexOf("$$", mathStart + 2)
+            val mathEnd = input.indexOf(mathClosingDelimiter, mathStart + mathDelimiterLen)
             if (mathEnd != -1) {
-                val math = input.substring(mathStart + 2, mathEnd).trim()
+                val math = input.substring(mathStart + mathDelimiterLen, mathEnd).trim()
                 if (math.isNotEmpty()) {
                     blocks.add(ContentBlock.MathDisplay(latex = math))
                 }
-                currentIndex = mathEnd + 2
+                currentIndex = mathEnd + mathDelimiterLen
             } else {
                 // Unclosed math block
-                val math = input.substring(mathStart + 2).trim()
+                val math = input.substring(mathStart + mathDelimiterLen).trim()
                 if (math.isNotEmpty()) {
                     blocks.add(ContentBlock.MathDisplay(latex = math))
                 }

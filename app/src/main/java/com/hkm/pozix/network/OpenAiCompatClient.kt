@@ -1,12 +1,22 @@
 package com.hkm.pozix.network
 
 import com.hkm.pozix.data.model.ChatMessage
+import com.hkm.pozix.util.ChatImageStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -58,11 +68,34 @@ object OpenAiCompatClient {
 
             val messages = buildList {
                 if (!systemInstructionText.isNullOrBlank()) {
-                    add(ChatMsg(role = "system", content = systemInstructionText))
+                    add(ChatMsgRequest(role = "system", content = JsonPrimitive(systemInstructionText)))
                 }
                 history.forEach { msg ->
                     val role = if (msg.role == "user") "user" else "assistant"
-                    add(ChatMsg(role = role, content = msg.text))
+                    if (msg.imagePaths.isEmpty()) {
+                        add(ChatMsgRequest(role = role, content = JsonPrimitive(msg.text)))
+                    } else {
+                        val parts = buildJsonArray {
+                            if (msg.text.isNotBlank()) {
+                                add(buildJsonObject {
+                                    put("type", "text")
+                                    put("text", msg.text)
+                                })
+                            }
+                            for (path in msg.imagePaths) {
+                                val dataUrl = ChatImageStorage.fileToBase64DataUrl(path)
+                                if (dataUrl != null) {
+                                    add(buildJsonObject {
+                                        put("type", "image_url")
+                                        put("image_url", buildJsonObject {
+                                            put("url", dataUrl)
+                                        })
+                                    })
+                                }
+                            }
+                        }
+                        add(ChatMsgRequest(role = role, content = parts))
+                    }
                 }
             }
 
@@ -102,7 +135,7 @@ object OpenAiCompatClient {
                         IOException("Unexpected response format: ${e.message}")
                     )
                 }
-                val text = parsed.choices?.firstOrNull()?.message?.content
+                val text = parsed.choices?.firstOrNull()?.message?.extractText()
                 if (text.isNullOrBlank()) {
                     val err = parsed.error?.message
                     return@withContext Result.failure(
@@ -180,15 +213,15 @@ object OpenAiCompatClient {
 }
 
 @Serializable
-private data class ChatMsg(
+private data class ChatMsgRequest(
     val role: String,
-    val content: String
+    val content: JsonElement
 )
 
 @Serializable
 private data class ChatRequest(
     val model: String,
-    val messages: List<ChatMsg>,
+    val messages: List<ChatMsgRequest>,
     val stream: Boolean = false,
     @SerialName("reasoning_effort") val reasoningEffort: String? = null
 )
@@ -201,8 +234,29 @@ private data class ChatResponse(
 
 @Serializable
 private data class Choice(
-    val message: ChatMsg? = null
+    val message: ChatMsgResponse? = null
 )
+
+@Serializable
+private data class ChatMsgResponse(
+    val role: String? = null,
+    val content: JsonElement? = null
+) {
+    fun extractText(): String? {
+        val c = content ?: return null
+        return when (c) {
+            is JsonPrimitive -> c.contentOrNull
+            is JsonArray -> {
+                c.mapNotNull { item ->
+                    if (item is JsonObject) {
+                        item["text"]?.jsonPrimitive?.contentOrNull
+                    } else null
+                }.joinToString("\n").takeIf { it.isNotBlank() }
+            }
+            else -> null
+        }
+    }
+}
 
 @Serializable
 private data class ApiError(
