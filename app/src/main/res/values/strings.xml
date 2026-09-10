@@ -177,6 +177,8 @@
     <string name="error_loading_quiz">Error loading quiz</string>
     <string name="exam_flag_review">Review later</string>
     <string name="exam_clear_answer">Clear answer</string>
+    <string name="exam_palette_all">All</string>
+    <string name="exam_palette_empty">No questions found</string>
     <string name="exam_palette_current">Current</string>
     <string name="exam_palette_flagged">Flagged</string>
     <string name="exam_palette_answered">Answered</string>
@@ -369,6 +371,14 @@
     <string name="ai_chat_no_provider_button">Open AI Providers</string>
     <string name="ai_chat_provider_not_configured">No AI provider configured. Add one in Settings first.</string>
     <string name="ai_chat_switch_provider">Switch provider</string>
+    
+    <!-- Reasoning Effort -->
+    <string name="ai_provider_reasoning_effort">Reasoning Effort</string>
+    <string name="ai_provider_reasoning_effort_desc">Control thinking depth for reasoning models (o1, o3-mini, Gemini Thinking, DeepSeek R1)</string>
+    <string name="ai_reasoning_default">Default</string>
+    <string name="ai_reasoning_low">Low</string>
+    <string name="ai_reasoning_medium">Medium</string>
+    <string name="ai_reasoning_high">High</string>
     
     <!-- Home screen Banner -->
     <string name="home_ai_chat_banner_title">AI Quiz Generator</string>

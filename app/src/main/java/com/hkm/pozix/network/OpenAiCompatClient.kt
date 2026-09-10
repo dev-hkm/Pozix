@@ -3,6 +3,7 @@ package com.hkm.pozix.network
 import com.hkm.pozix.data.model.ChatMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -29,6 +30,7 @@ object OpenAiCompatClient {
         ignoreUnknownKeys = true
         coerceInputValues = true
         isLenient = true
+        encodeDefaults = false
     }
 
     private val client = OkHttpClient.Builder()
@@ -44,7 +46,8 @@ object OpenAiCompatClient {
         apiKey: String,
         model: String,
         history: List<ChatMessage>,
-        systemInstructionText: String? = null
+        systemInstructionText: String? = null,
+        reasoningEffort: String? = null
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val root = baseUrl.trim().trimEnd('/')
@@ -63,7 +66,17 @@ object OpenAiCompatClient {
                 }
             }
 
-            val bodyJson = json.encodeToString(ChatRequest(model = model, messages = messages))
+            val validReasoning = reasoningEffort?.trim()?.lowercase()?.takeIf {
+                it in listOf("low", "medium", "high")
+            }
+
+            val bodyJson = json.encodeToString(
+                ChatRequest(
+                    model = model,
+                    messages = messages,
+                    reasoningEffort = validReasoning
+                )
+            )
             val request = Request.Builder()
                 .url("$root/chat/completions")
                 .post(bodyJson.toRequestBody(mediaType))
@@ -176,7 +189,8 @@ private data class ChatMsg(
 private data class ChatRequest(
     val model: String,
     val messages: List<ChatMsg>,
-    val stream: Boolean = false
+    val stream: Boolean = false,
+    @SerialName("reasoning_effort") val reasoningEffort: String? = null
 )
 
 @Serializable

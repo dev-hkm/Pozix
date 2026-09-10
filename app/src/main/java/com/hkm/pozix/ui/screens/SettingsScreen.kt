@@ -52,6 +52,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -87,6 +88,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.AiProvider
@@ -879,6 +881,15 @@ fun SettingsScreen(
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1
                                 )
+                                if (!provider.reasoningEffort.isNullOrBlank() && provider.reasoningEffort != "default") {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Reasoning: ${provider.reasoningEffort.replaceFirstChar { it.uppercase() }}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                             if (isActive) {
                                 Icon(
@@ -1194,6 +1205,7 @@ fun AiProviderEditorSheet(
     var modelsLoading by remember { mutableStateOf(false) }
     var models by remember { mutableStateOf<List<String>>(emptyList()) }
     var showModelPicker by remember { mutableStateOf(false) }
+    var reasoningEffort by remember { mutableStateOf(initial.reasoningEffort ?: "default") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1330,6 +1342,45 @@ fun AiProviderEditorSheet(
                 }
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = stringResource(R.string.ai_provider_reasoning_effort),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = stringResource(R.string.ai_provider_reasoning_effort_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                val reasoningOptions = listOf(
+                    "default" to stringResource(R.string.ai_reasoning_default),
+                    "low" to stringResource(R.string.ai_reasoning_low),
+                    "medium" to stringResource(R.string.ai_reasoning_medium),
+                    "high" to stringResource(R.string.ai_reasoning_high)
+                )
+                for ((key, label) in reasoningOptions) {
+                    val selected = reasoningEffort == key
+                    FilterChip(
+                        selected = selected,
+                        onClick = {
+                            reasoningEffort = key
+                            HapticUtil.selectionTick(context)
+                        },
+                        label = { Text(label, fontSize = 11.sp, maxLines = 1) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
             if (error.isNotBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -1367,7 +1418,8 @@ fun AiProviderEditorSheet(
                                 name = name.trim(),
                                 baseUrl = normalized,
                                 apiKey = apiKey.trim(),
-                                modelId = modelId.trim()
+                                modelId = modelId.trim(),
+                                reasoningEffort = reasoningEffort.takeIf { it != "default" }
                             )
                         )
                     },

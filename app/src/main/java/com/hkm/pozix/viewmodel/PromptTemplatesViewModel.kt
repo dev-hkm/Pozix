@@ -97,8 +97,10 @@ Yêu cầu:
 - single_choice phải có 2-6 lựa chọn
 - correctIndex phải hợp lệ (bắt đầu từ 0)
 - Câu hỏi phải rõ ràng và có thể trả lời được
+- Với môn Toán, Lý, Hóa: Luôn dùng LaTeX chuẩn ($...$ cho inline math, $$...$$ cho block math, escape ký tự gạch chéo ngược như \\frac, \\sqrt) trong đề bài, lựa chọn và lời giải.
+- Với môn Tin học / Lập trình: Dùng markdown code block (```python, ```cpp, ```java...) cho đoạn code và `code` cho mã inline.
 - Tránh trùng lặp
-- Giữ cho nội dung vui và có tính giáo dục
+- Giữ cho nội dung chuẩn xác và có tính giáo dục
             """.trimIndent()
         } else {
             """
@@ -132,8 +134,10 @@ Requirements:
 - single_choice must have 2-6 options
 - correctIndex must be valid (0-based)
 - Questions should be clear and answerable
+- For STEM (Math, Physics, Chem): Always use standard LaTeX ($...$ inline, $$...$$ display, escape backslashes like \\frac, \\sqrt).
+- For Computer Science: Use markdown code blocks (```python, ```cpp...) for multi-line code and `code` for inline code.
 - Avoid duplicates
-- Keep it fun and educational
+- Keep it educational and accurate
             """.trimIndent()
         }
     }

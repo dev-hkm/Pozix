@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Preview
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
+import com.hkm.pozix.ui.components.richcontent.RichContentText
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Share
@@ -815,7 +816,7 @@ fun QuizPreviewDialog(
                         text = title,
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     if (description.isNotBlank()) {
@@ -858,12 +859,13 @@ fun PreviewQuestionItem(index: Int, question: Question) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Surface(
             modifier = Modifier.wrapContentHeight(),
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-            shape = RoundedCornerShape(12.dp)
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(14.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.Top
             ) {
                 Surface(
                     modifier = Modifier.size(28.dp),
@@ -880,12 +882,13 @@ fun PreviewQuestionItem(index: Int, question: Question) {
                     }
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Text(
+                RichContentText(
                     text = question.question,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    lineHeight = 24.sp
+                    textColor = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 24.sp,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -925,26 +928,36 @@ fun PreviewQuestionItem(index: Int, question: Question) {
             Spacer(modifier = Modifier.height(10.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(10.dp)
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f))
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.Top
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lightbulb,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.tertiary
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = question.explanation ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        lineHeight = 20.sp
-                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.quiz_explanation),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        RichContentText(
+                            text = question.explanation ?: "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textColor = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = 20.sp
+                        )
+                    }
                 }
             }
         }
@@ -956,17 +969,17 @@ fun PreviewOptionItem(letter: String, text: String, isCorrect: Boolean) {
     val backgroundColor = if (isCorrect) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        MaterialTheme.colorScheme.surfaceContainer
     }
     val textColor = if (isCorrect) {
         MaterialTheme.colorScheme.onPrimaryContainer
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        MaterialTheme.colorScheme.onSurface
     }
     val badgeColor = if (isCorrect) {
         MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val badgeTextColor = if (isCorrect) {
         MaterialTheme.colorScheme.onPrimary
@@ -981,7 +994,7 @@ fun PreviewOptionItem(letter: String, text: String, isCorrect: Boolean) {
         border = if (isCorrect) {
             androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
         } else {
-            null
+            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         }
     ) {
         Row(
@@ -1003,18 +1016,19 @@ fun PreviewOptionItem(letter: String, text: String, isCorrect: Boolean) {
                 }
             }
             Spacer(modifier = Modifier.width(10.dp))
-            Text(
+            RichContentText(
                 text = text,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
-                color = textColor,
-                fontWeight = if (isCorrect) FontWeight.Bold else FontWeight.Normal
+                textColor = textColor,
+                fontWeight = if (isCorrect) FontWeight.Bold else FontWeight.Normal,
+                inlineOnly = true
             )
             if (isCorrect) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = stringResource(R.string.quiz_correct),
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = stringResource(R.string.quiz_correct),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )

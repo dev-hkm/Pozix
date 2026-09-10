@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import com.hkm.pozix.ui.components.richcontent.RichContentText
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -591,13 +592,14 @@ fun ExamPlayingContent(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 220.dp)
+                            .heightIn(max = 260.dp)
                             .padding(horizontal = 16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
                         ),
-                        shape = RoundedCornerShape(18.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        shape = RoundedCornerShape(20.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Column(
                             modifier = Modifier
@@ -605,30 +607,58 @@ fun ExamPlayingContent(
                                 .verticalScroll(rememberScrollState())
                                 .padding(16.dp)
                         ) {
-                            Surface(
-                                modifier = Modifier.size(32.dp),
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = RoundedCornerShape(8.dp)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
                                     Text(
-                                        text = "Q${safeIndex + 1}",
+                                        text = "Q${safeIndex + 1} / $totalQuestions",
                                         color = MaterialTheme.colorScheme.onPrimary,
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        maxLines = 1
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
+
+                                if (safeIndex in state.flaggedQuestions) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Flag,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = stringResource(R.string.exam_flag_review),
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
+                            Spacer(modifier = Modifier.height(10.dp))
+                            RichContentText(
                                 text = question.question,
-                                modifier = Modifier.fillMaxWidth(),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Bold,
-                                lineHeight = 27.sp,
-                                textAlign = TextAlign.Start
+                                textColor = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                lineHeight = 26.sp,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
@@ -688,36 +718,152 @@ fun ExamPlayingContent(
         }
 
         if (state.showSubmitConfirm) {
-            val unanswered = state.questions.indices.count { it !in state.answers }
+            val total = state.questions.size
+            val answered = state.answers.size
+            val unanswered = total - answered
+            val flagged = state.flaggedQuestions.size
+
             AlertDialog(
-                onDismissRequest = onCancelSubmit,
+                onDismissRequest = {
+                    HapticUtil.selectionTick(context)
+                    onCancelSubmit()
+                },
+                icon = {
+                    Icon(
+                        imageVector = if (unanswered > 0) Icons.Default.Warning else Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = if (unanswered > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                },
                 title = {
                     Text(
                         text = stringResource(R.string.exam_submit_confirm_title),
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                 },
                 text = {
-                    Column {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Text(
                             text = stringResource(R.string.exam_submit_confirm_message),
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "$answered/$total",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.exam_palette_answered),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                color = if (unanswered > 0) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "$unanswered",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (unanswered > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.exam_palette_unanswered),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (unanswered > 0) MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "$flagged",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.exam_palette_flagged),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+
                         if (unanswered > 0) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = stringResource(R.string.exam_unanswered_warning, unanswered),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = stringResource(R.string.exam_unanswered_warning, unanswered),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.error,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                     }
                 },
                 confirmButton = {
                     Button(
                         onClick = {
-                            HapticUtil.lightTap(context)
+                            HapticUtil.confirm(context)
                             onConfirmSubmit()
                         }
                     ) {
@@ -725,7 +871,12 @@ fun ExamPlayingContent(
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = onCancelSubmit) {
+                    TextButton(
+                        onClick = {
+                            HapticUtil.selectionTick(context)
+                            onCancelSubmit()
+                        }
+                    ) {
                         Text(stringResource(R.string.cancel))
                     }
                 }
@@ -788,7 +939,18 @@ fun ExamTimerBar(remainingMillis: Long, totalMillis: Long, isWarning: Boolean) {
     val minutes = (remainingMillis / 1000) / 60
     val seconds = (remainingMillis / 1000) % 60
     val timeText = String.format("%02d:%02d", minutes, seconds)
-    val progress = remainingMillis.toFloat() / totalMillis.coerceAtLeast(1)
+    val progress = (remainingMillis.toFloat() / totalMillis.coerceAtLeast(1)).coerceIn(0f, 1f)
+
+    val infiniteTransition = rememberInfiniteTransition(label = "timerPulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -801,37 +963,47 @@ fun ExamTimerBar(remainingMillis: Long, totalMillis: Long, isWarning: Boolean) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Timer,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = timeText,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = 1.sp
-                )
-                if (isWarning) {
-                    Spacer(modifier = Modifier.width(6.dp))
+            Surface(
+                color = if (isWarning) MaterialTheme.colorScheme.errorContainer.copy(alpha = pulseAlpha)
+                else MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(16.dp),
+                border = if (isWarning) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error) else null
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Warning,
+                        imageVector = Icons.Default.Timer,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.error
+                        modifier = Modifier.size(18.dp),
+                        tint = if (isWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = timeText,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        letterSpacing = 1.sp
+                    )
+                    if (isWarning) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(3.dp)
+                    .height(4.dp)
                     .clip(RoundedCornerShape(2.dp)),
                 color = if (isWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -930,7 +1102,7 @@ fun ExamAnswerCard(
             .wrapContentHeight()
             .scale(scale)
             .clickable {
-                HapticUtil.lightTap(context)
+                HapticUtil.answerSelected(context)
                 onClick()
             },
         color = bgColor,
@@ -958,13 +1130,14 @@ fun ExamAnswerCard(
                 }
             }
             Spacer(modifier = Modifier.width(10.dp))
-            Text(
+            RichContentText(
                 text = text,
                 modifier = Modifier.weight(1f),
-                color = textColor,
+                textColor = textColor,
                 fontSize = fontSize,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                lineHeight = lineHeight
+                lineHeight = lineHeight,
+                inlineOnly = true
             )
             AnimatedVisibility(
                 visible = isSelected,
@@ -1054,13 +1227,27 @@ fun ExamQuestionPalette(
     onGoTo: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    var selectedFilter by remember { mutableIntStateOf(0) } // 0: All, 1: Unanswered, 2: Flagged
+
+    val unansweredCount = questions.indices.count { it !in answers }
+    val flaggedCount = flaggedQuestions.size
+
+    val displayedIndices = remember(selectedFilter, questions.size, answers, flaggedQuestions) {
+        when (selectedFilter) {
+            1 -> questions.indices.filter { it !in answers }
+            2 -> questions.indices.filter { it in flaggedQuestions }
+            else -> questions.indices.toList()
+        }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
+                .fillMaxWidth(0.92f)
                 .wrapContentHeight(),
             shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surface,
@@ -1077,15 +1264,58 @@ fun ExamQuestionPalette(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                    IconButton(
+                        onClick = {
+                            HapticUtil.selectionTick(context)
+                            onDismiss()
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = stringResource(R.string.close)
+                            contentDescription = stringResource(R.string.close),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Filter tabs
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedFilter == 0,
+                        onClick = {
+                            HapticUtil.selectionTick(context)
+                            selectedFilter = 0
+                        },
+                        label = { Text("${stringResource(R.string.exam_palette_all)} (${questions.size})", fontSize = 12.sp) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = selectedFilter == 1,
+                        onClick = {
+                            HapticUtil.selectionTick(context)
+                            selectedFilter = 1
+                        },
+                        label = { Text("${stringResource(R.string.exam_palette_unanswered)} ($unansweredCount)", fontSize = 12.sp) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = selectedFilter == 2,
+                        onClick = {
+                            HapticUtil.selectionTick(context)
+                            selectedFilter = 2
+                        },
+                        label = { Text("${stringResource(R.string.exam_palette_flagged)} ($flaggedCount)", fontSize = 12.sp) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -1119,57 +1349,77 @@ fun ExamQuestionPalette(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(5),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.heightIn(max = 320.dp)
-                ) {
-                    items(questions.size) { index ->
-                        val isAnswered = index in answers
-                        val isCurrent = index == currentIndex
-                        val isFlagged = index in flaggedQuestions
+                if (displayedIndices.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.exam_palette_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(5),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.heightIn(max = 320.dp)
+                    ) {
+                        items(displayedIndices.size) { i ->
+                            val index = displayedIndices[i]
+                            val isAnswered = index in answers
+                            val isCurrent = index == currentIndex
+                            val isFlagged = index in flaggedQuestions
 
-                        val bgColor = when {
-                            isCurrent -> MaterialTheme.colorScheme.primary
-                            isFlagged -> MaterialTheme.colorScheme.tertiaryContainer
-                            isAnswered -> MaterialTheme.colorScheme.primaryContainer
-                            else -> MaterialTheme.colorScheme.surfaceVariant
-                        }
-                        val txtColor = when {
-                            isCurrent -> MaterialTheme.colorScheme.onPrimary
-                            isFlagged -> MaterialTheme.colorScheme.onTertiaryContainer
-                            isAnswered -> MaterialTheme.colorScheme.onPrimaryContainer
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        }
+                            val bgColor = when {
+                                isCurrent -> MaterialTheme.colorScheme.primary
+                                isFlagged -> MaterialTheme.colorScheme.tertiaryContainer
+                                isAnswered -> MaterialTheme.colorScheme.primaryContainer
+                                else -> MaterialTheme.colorScheme.surfaceVariant
+                            }
+                            val txtColor = when {
+                                isCurrent -> MaterialTheme.colorScheme.onPrimary
+                                isFlagged -> MaterialTheme.colorScheme.onTertiaryContainer
+                                isAnswered -> MaterialTheme.colorScheme.onPrimaryContainer
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
 
-                        Surface(
-                            modifier = Modifier
-                                .aspectRatio(1f)
-                                .clickable { onGoTo(index) },
-                            color = bgColor,
-                            shape = RoundedCornerShape(10.dp),
-                            border = if (isCurrent) androidx.compose.foundation.BorderStroke(
-                                2.dp, MaterialTheme.colorScheme.primary
-                            ) else null
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "${index + 1}",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = txtColor
-                                )
-                                if (isFlagged) {
-                                    Icon(
-                                        imageVector = Icons.Default.Flag,
-                                        contentDescription = null,
-                                        tint = txtColor,
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(4.dp)
-                                            .size(11.dp)
+                            Surface(
+                                modifier = Modifier
+                                    .aspectRatio(1f)
+                                    .clickable {
+                                        HapticUtil.navigationChange(context)
+                                        onGoTo(index)
+                                    },
+                                color = bgColor,
+                                shape = RoundedCornerShape(12.dp),
+                                border = if (isCurrent) androidx.compose.foundation.BorderStroke(
+                                    2.dp, MaterialTheme.colorScheme.primary
+                                ) else null,
+                                shadowElevation = if (isCurrent) 4.dp else 0.dp
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "${index + 1}",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = txtColor
                                     )
+                                    if (isFlagged) {
+                                        Icon(
+                                            imageVector = Icons.Default.Flag,
+                                            contentDescription = null,
+                                            tint = if (isCurrent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.tertiary,
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(4.dp)
+                                                .size(11.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

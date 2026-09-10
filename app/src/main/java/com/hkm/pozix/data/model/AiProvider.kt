@@ -9,7 +9,8 @@ data class AiProvider(
     val name: String,
     val baseUrl: String,
     val apiKey: String,
-    val modelId: String
+    val modelId: String,
+    val reasoningEffort: String? = null
 ) {
     /** Normalized base URL without trailing slash, e.g. https://api.openai.com/v1 */
     fun normalizedBaseUrl(): String = baseUrl.trim().trimEnd('/')

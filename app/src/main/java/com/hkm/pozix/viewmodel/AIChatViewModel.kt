@@ -69,9 +69,16 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         
         Rules:
         1. Always output valid JSON inside the markdown code block.
-        2. Never use emojis in the quiz content (title, description, question, options, explanation). You may use emojis in conversational chit-chat, but NEVER inside the JSON quiz object.
-        3. Keep the tone friendly, encouraging, and helpful.
-        4. Support generating between 5 to 20 questions based on user preference.
+        2. Never use emojis inside the JSON quiz object. Keep the quiz professional and clean.
+        3. Support generating between 5 to 25 questions based on user preference.
+        4. STEM formatting (Math, Physics, Chemistry, Computer Science):
+           - For mathematical, physical, or chemical formulas in questions, options, and explanations: ALWAYS format them using standard LaTeX syntax.
+              * Inline math: Enclose in single dollar signs `${'$'} ... ${'$'}` (e.g. `${'$'}y = ax^2 + bx + c${'$'}`, `${'$'}\\Delta = b^2 - 4ac${'$'}`, `${'$'}x = \\frac{-b \\pm \\sqrt{\\Delta}}{2a}${'$'}`).
+              * Display / block math: Enclose in double dollar signs `${'$'}${'$'} ... ${'$'}${'$'}` on separate lines.
+              * Chemistry: Use `\\text{...}` or `\\ce{...}` (e.g. `${'$'}\\text{Fe} + 2\\text{HCl} \\to \\text{FeCl}_2 + \\text{H}_2\\uparrow${'$'}`).
+              * Important: In JSON strings, make sure backslashes are properly escaped (e.g. `\\\\frac{a}{b}`, `\\\\alpha`, `\\\\sqrt{x}`).
+           - For Computer Science / Programming questions: Include multi-line code snippets inside the `question` or `explanation` string using markdown code blocks with the language tag (e.g. ```python ... ```, ```cpp ... ```, ```java ... ```) and backticks (` `code` `) for inline code.
+        5. Keep the conversational tone encouraging, smart, and helpful.
     """.trimIndent()
 
     init {
@@ -140,7 +147,8 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 apiKey = provider.apiKey,
                 model = provider.modelId,
                 history = currentMessages,
-                systemInstructionText = systemInstruction
+                systemInstructionText = systemInstruction,
+                reasoningEffort = provider.reasoningEffort
             )
 
             result.fold(

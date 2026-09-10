@@ -99,6 +99,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.Question
 import com.hkm.pozix.ui.components.QuizResultDialog
+import com.hkm.pozix.ui.components.richcontent.RichContentText
 import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.viewmodel.QuizPlayerViewModel
 import com.hkm.pozix.viewmodel.QuizState
@@ -500,19 +501,21 @@ fun AdaptiveQuestionCard(
                 }
             }
 
-            Text(
-                text = questionText,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 200.dp)
+                    .heightIn(max = 240.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(top = 40.dp),
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 27.sp,
-                textAlign = TextAlign.Start
-            )
+                    .padding(top = 40.dp)
+            ) {
+                RichContentText(
+                    text = questionText,
+                    textColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 26.sp
+                )
+            }
         }
     }
 }
@@ -815,16 +818,14 @@ fun AnswerCard(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                Text(
+                RichContentText(
                     text = text,
                     modifier = Modifier.weight(1f),
-                    color = txtColor,
+                    textColor = txtColor,
                     fontSize = fontSize,
                     fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Start,
                     lineHeight = lineHeight,
-                    maxLines = 8,
-                    overflow = TextOverflow.Ellipsis
+                    inlineOnly = true
                 )
 
                 if (showResult) {
@@ -873,10 +874,11 @@ fun AnswerCard(
                             tint = txtColor.copy(alpha = 0.7f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
+                        RichContentText(
                             text = explanation ?: "",
+                            modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
-                            color = txtColor.copy(alpha = 0.8f),
+                            textColor = txtColor.copy(alpha = 0.9f),
                             lineHeight = 18.sp
                         )
                     }

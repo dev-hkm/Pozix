@@ -178,6 +178,8 @@
     <string name="error_loading_quiz">Không thể tải bộ câu hỏi</string>
     <string name="exam_flag_review">Đánh dấu xem lại</string>
     <string name="exam_clear_answer">Xóa đáp án</string>
+    <string name="exam_palette_all">Tất cả</string>
+    <string name="exam_palette_empty">Không có câu hỏi nào</string>
     <string name="exam_palette_current">Hiện tại</string>
     <string name="exam_palette_flagged">Đã đánh dấu</string>
     <string name="exam_palette_answered">Đã trả lời</string>
@@ -374,6 +376,14 @@
     <string name="ai_chat_no_provider_button">Mở AI Providers</string>
     <string name="ai_chat_provider_not_configured">Chưa cấu hình AI provider. Hãy thêm một provider trong Cài đặt trước.</string>
     <string name="ai_chat_switch_provider">Đổi provider</string>
+    
+    <!-- Reasoning Effort -->
+    <string name="ai_provider_reasoning_effort">Mức độ suy luận (Reasoning)</string>
+    <string name="ai_provider_reasoning_effort_desc">Tùy chỉnh độ sâu suy luận cho model reasoning (o1, o3-mini, Gemini Thinking, DeepSeek R1...)</string>
+    <string name="ai_reasoning_default">Mặc định</string>
+    <string name="ai_reasoning_low">Thấp</string>
+    <string name="ai_reasoning_medium">Trung bình</string>
+    <string name="ai_reasoning_high">Cao</string>
     
     <!-- Common -->
     <string name="ok">OK</string>
