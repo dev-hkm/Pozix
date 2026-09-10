@@ -14,7 +14,6 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 private val Context.aiProvidersDataStore: DataStore<Preferences> by preferencesDataStore(name = "ai_providers")
-private val Context.legacySettingsStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class AiProviderRepository(private val context: Context) {
 
@@ -22,7 +21,6 @@ class AiProviderRepository(private val context: Context) {
 
     private val PROVIDERS_KEY = stringPreferencesKey("providers_json")
     private val ACTIVE_ID_KEY = stringPreferencesKey("active_provider_id")
-    private val LEGACY_GEMINI_KEY = stringPreferencesKey("gemini_api_key")
 
     fun getProviders(): Flow<List<AiProvider>> =
         context.aiProvidersDataStore.data.map { prefs ->
@@ -79,7 +77,7 @@ class AiProviderRepository(private val context: Context) {
     suspend fun migrateLegacyGeminiKeyIfNeeded() {
         val providers = getProviders().first()
         if (providers.isNotEmpty()) return
-        val legacyKey = context.legacySettingsStore.data.map { it[LEGACY_GEMINI_KEY].orEmpty() }.first()
+        val legacyKey = SettingsRepository(context).getGeminiApiKey().first()
         if (legacyKey.isBlank()) return
         val provider = AiProvider(
             name = "Gemini",

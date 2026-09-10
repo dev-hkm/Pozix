@@ -10,6 +10,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -164,7 +165,7 @@ fun SavedQuizSetsScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 112.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         items(uiState.quizSets, key = { it.id }) { quizSet ->
@@ -431,7 +432,8 @@ fun PremiumQuizCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.48f),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         tonalElevation = 2.dp,
         shadowElevation = 0.dp
     ) {
@@ -461,8 +463,8 @@ fun PremiumQuizCard(
                                 text = quizSet.name,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                maxLines = 1,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                             if (quizSet.isCompleted) {
@@ -487,7 +489,7 @@ fun PremiumQuizCard(
                                     quizSet.questionCount
                                 ),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
@@ -497,7 +499,7 @@ fun PremiumQuizCard(
                                     quizSet.trueFalseCount
                                 ),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             )
                         }
                     }
@@ -509,7 +511,7 @@ fun PremiumQuizCard(
                         Icon(
                             imageVector = Icons.Default.ExpandMore,
                             contentDescription = if (isExpanded) "Collapse" else "Expand",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.rotate(rotation)
                         )
                     }
@@ -528,14 +530,14 @@ fun PremiumQuizCard(
                         Text(
                             text = progressState,
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = "${quizSet.progressPercentage.coerceAtMost(100f).toInt()}%",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f),
-                            fontWeight = FontWeight.SemiBold
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                     
@@ -546,7 +548,7 @@ fun PremiumQuizCard(
                             .fillMaxWidth()
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     ) {
                         Box(
                             modifier = Modifier
@@ -573,7 +575,7 @@ fun PremiumQuizCard(
                         Text(
                             text = quizSet.description,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -586,7 +588,7 @@ fun PremiumQuizCard(
                                 formatTimestamp(quizSet.lastUsedTimestamp)
                             ),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -714,7 +716,8 @@ private fun QuizCardAction(
             .clip(RoundedCornerShape(16.dp))
             .clickable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
+        color = if (destructive) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
