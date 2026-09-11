@@ -104,6 +104,9 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
              * If the user wants solutions: provide step-by-step mathematical reasoning and solutions formatted in standard LaTeX.
              * If the user wants a quiz: convert the questions from the file/image into the Pozix Quiz JSON schema.
         6. Keep the conversational tone encouraging, smart, and helpful.
+        7. Code & Markup formatting in conversation:
+           - ALWAYS wrap any programming code snippets, HTML, XML, JSON, SQL, Python, Java, C++, JavaScript, or scripts inside standard markdown code blocks with the language specifier (e.g. ```html ... ```, ```python ... ```, ```json ... ```) or inline backticks (`code`).
+           - NEVER output raw unescaped HTML tags (such as <div>, <span>, <table>, <script>) directly in your conversational text unless wrapped in a markdown code block or formatted as standard Markdown tables (`| Column 1 | Column 2 |`).
     """.trimIndent()
 
     init {

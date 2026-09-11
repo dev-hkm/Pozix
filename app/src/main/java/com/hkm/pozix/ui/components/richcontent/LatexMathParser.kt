@@ -113,16 +113,25 @@ object LatexMathParser {
     ): AnnotatedString {
         if (rawText.isBlank()) return AnnotatedString("")
 
+        val cleanText = rawText
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+            .replace("&apos;", "'")
+
         return buildAnnotatedString {
             var i = 0
-            val len = rawText.length
+            val len = cleanText.length
 
             while (i < len) {
                 // Check for display math $$...$$
-                if (i + 1 < len && rawText[i] == '$' && rawText[i + 1] == '$') {
-                    val closeIdx = rawText.indexOf("$$", i + 2)
+                if (i + 1 < len && cleanText[i] == '$' && cleanText[i + 1] == '$') {
+                    val closeIdx = cleanText.indexOf("$$", i + 2)
                     if (closeIdx != -1) {
-                        val mathContent = rawText.substring(i + 2, closeIdx)
+                        val mathContent = cleanText.substring(i + 2, closeIdx)
                         appendMathFormatted(mathContent)
                         i = closeIdx + 2
                         continue
@@ -130,10 +139,10 @@ object LatexMathParser {
                 }
 
                 // Check for inline math $...$
-                if (rawText[i] == '$' && (i == 0 || rawText[i - 1] != '\\')) {
-                    val closeIdx = rawText.indexOf('$', i + 1)
+                if (cleanText[i] == '$' && (i == 0 || cleanText[i - 1] != '\\')) {
+                    val closeIdx = cleanText.indexOf('$', i + 1)
                     if (closeIdx != -1 && closeIdx > i + 1) {
-                        val mathContent = rawText.substring(i + 1, closeIdx)
+                        val mathContent = cleanText.substring(i + 1, closeIdx)
                         appendMathFormatted(mathContent)
                         i = closeIdx + 1
                         continue
@@ -141,10 +150,10 @@ object LatexMathParser {
                 }
 
                 // Check for \( ... \) inline math
-                if (i + 1 < len && rawText[i] == '\\' && rawText[i + 1] == '(') {
-                    val closeIdx = rawText.indexOf("\\)", i + 2)
+                if (i + 1 < len && cleanText[i] == '\\' && cleanText[i + 1] == '(') {
+                    val closeIdx = cleanText.indexOf("\\)", i + 2)
                     if (closeIdx != -1) {
-                        val mathContent = rawText.substring(i + 2, closeIdx)
+                        val mathContent = cleanText.substring(i + 2, closeIdx)
                         appendMathFormatted(mathContent)
                         i = closeIdx + 2
                         continue
@@ -152,10 +161,10 @@ object LatexMathParser {
                 }
 
                 // Check for \[ ... \] display math
-                if (i + 1 < len && rawText[i] == '\\' && rawText[i + 1] == '[') {
-                    val closeIdx = rawText.indexOf("\\]", i + 2)
+                if (i + 1 < len && cleanText[i] == '\\' && cleanText[i + 1] == '[') {
+                    val closeIdx = cleanText.indexOf("\\]", i + 2)
                     if (closeIdx != -1) {
-                        val mathContent = rawText.substring(i + 2, closeIdx)
+                        val mathContent = cleanText.substring(i + 2, closeIdx)
                         appendMathFormatted(mathContent)
                         i = closeIdx + 2
                         continue
@@ -163,10 +172,10 @@ object LatexMathParser {
                 }
 
                 // Check for inline code `...`
-                if (rawText[i] == '`') {
-                    val closeIdx = rawText.indexOf('`', i + 1)
+                if (cleanText[i] == '`') {
+                    val closeIdx = cleanText.indexOf('`', i + 1)
                     if (closeIdx != -1) {
-                        val codeContent = rawText.substring(i + 1, closeIdx)
+                        val codeContent = cleanText.substring(i + 1, closeIdx)
                         withStyle(
                             SpanStyle(
                                 fontFamily = FontFamily.Monospace,
@@ -181,11 +190,108 @@ object LatexMathParser {
                     }
                 }
 
-                // Check for bold **...**
-                if (i + 1 < len && rawText[i] == '*' && rawText[i + 1] == '*') {
-                    val closeIdx = rawText.indexOf("**", i + 2)
+                // Check for <br>, <br/>, <br />
+                if (cleanText.startsWith("<br>", i, ignoreCase = true)) {
+                    append("\n")
+                    i += 4
+                    continue
+                }
+                if (cleanText.startsWith("<br/>", i, ignoreCase = true)) {
+                    append("\n")
+                    i += 5
+                    continue
+                }
+                if (cleanText.startsWith("<br />", i, ignoreCase = true)) {
+                    append("\n")
+                    i += 6
+                    continue
+                }
+
+                // Check for <strong>...</strong> or <b>...</b>
+                if (cleanText.startsWith("<strong>", i, ignoreCase = true)) {
+                    val closeIdx = cleanText.indexOf("</strong>", i + 8, ignoreCase = true)
                     if (closeIdx != -1) {
-                        val boldContent = rawText.substring(i + 2, closeIdx)
+                        val strongContent = cleanText.substring(i + 8, closeIdx)
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                            append(parseToAnnotatedString(strongContent, codeBgColor, codeTextColor))
+                        }
+                        i = closeIdx + 9
+                        continue
+                    }
+                }
+                if (cleanText.startsWith("<b>", i, ignoreCase = true)) {
+                    val closeIdx = cleanText.indexOf("</b>", i + 3, ignoreCase = true)
+                    if (closeIdx != -1) {
+                        val boldContent = cleanText.substring(i + 3, closeIdx)
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                            append(parseToAnnotatedString(boldContent, codeBgColor, codeTextColor))
+                        }
+                        i = closeIdx + 4
+                        continue
+                    }
+                }
+
+                // Check for <em>...</em> or <i>...</i>
+                if (cleanText.startsWith("<em>", i, ignoreCase = true)) {
+                    val closeIdx = cleanText.indexOf("</em>", i + 4, ignoreCase = true)
+                    if (closeIdx != -1) {
+                        val emContent = cleanText.substring(i + 4, closeIdx)
+                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                            append(parseToAnnotatedString(emContent, codeBgColor, codeTextColor))
+                        }
+                        i = closeIdx + 5
+                        continue
+                    }
+                }
+                if (cleanText.startsWith("<i>", i, ignoreCase = true)) {
+                    val closeIdx = cleanText.indexOf("</i>", i + 3, ignoreCase = true)
+                    if (closeIdx != -1) {
+                        val italicContent = cleanText.substring(i + 3, closeIdx)
+                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                            append(parseToAnnotatedString(italicContent, codeBgColor, codeTextColor))
+                        }
+                        i = closeIdx + 4
+                        continue
+                    }
+                }
+
+                // Check for <code>...</code>
+                if (cleanText.startsWith("<code>", i, ignoreCase = true)) {
+                    val closeIdx = cleanText.indexOf("</code>", i + 6, ignoreCase = true)
+                    if (closeIdx != -1) {
+                        val codeContent = cleanText.substring(i + 6, closeIdx)
+                        withStyle(
+                            SpanStyle(
+                                fontFamily = FontFamily.Monospace,
+                                background = codeBgColor,
+                                color = codeTextColor
+                            )
+                        ) {
+                            append(" $codeContent ")
+                        }
+                        i = closeIdx + 7
+                        continue
+                    }
+                }
+
+                // Strip generic HTML container tags like <div ...>, </div>, <span ...>, </span>, <p ...>, </p>
+                if (cleanText[i] == '<') {
+                    val closeTag = cleanText.indexOf('>', i)
+                    if (closeTag != -1 && closeTag - i < 200) {
+                        val tagContent = cleanText.substring(i + 1, closeTag).trim().lowercase()
+                        val tagName = tagContent.substringBefore(" ").substringBefore("/")
+                        if (tagName in listOf("div", "span", "p", "/div", "/span", "/p", "table", "/table", "tr", "/tr", "td", "/td", "th", "/th", "tbody", "/tbody", "thead", "/thead")) {
+                            i = closeTag + 1
+                            continue
+                        }
+                    }
+                }
+
+                // Check for bold **...**
+                if (i + 1 < len && cleanText[i] == '*' && cleanText[i + 1] == '*') {
+                    val closeIdx = cleanText.indexOf("**", i + 2)
+                    if (closeIdx != -1) {
+                        val boldContent = cleanText.substring(i + 2, closeIdx)
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
                             append(parseToAnnotatedString(boldContent, codeBgColor, codeTextColor))
                         }
@@ -195,10 +301,10 @@ object LatexMathParser {
                 }
 
                 // Check for italic *...* (single asterisk)
-                if (rawText[i] == '*' && (i + 1 >= len || rawText[i + 1] != '*')) {
-                    val closeIdx = rawText.indexOf('*', i + 1)
-                    if (closeIdx != -1 && closeIdx > i + 1 && (closeIdx + 1 >= len || rawText[closeIdx + 1] != '*')) {
-                        val italicContent = rawText.substring(i + 1, closeIdx)
+                if (cleanText[i] == '*' && (i + 1 >= len || cleanText[i + 1] != '*')) {
+                    val closeIdx = cleanText.indexOf('*', i + 1)
+                    if (closeIdx != -1 && closeIdx > i + 1 && (closeIdx + 1 >= len || cleanText[closeIdx + 1] != '*')) {
+                        val italicContent = cleanText.substring(i + 1, closeIdx)
                         withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
                             append(parseToAnnotatedString(italicContent, codeBgColor, codeTextColor))
                         }
@@ -208,8 +314,8 @@ object LatexMathParser {
                 }
 
                 // Check if current position starts an unescaped LaTeX macro (e.g. \dfrac, \frac, \sqrt, \alpha)
-                if (rawText[i] == '\\' && i + 1 < len && rawText[i + 1].isLetter()) {
-                    val segment = rawText.substring(i)
+                if (cleanText[i] == '\\' && i + 1 < len && cleanText[i + 1].isLetter()) {
+                    val segment = cleanText.substring(i)
                     val formatted = formatMathString(segment)
                     if (formatted != segment) {
                         appendMathFormatted(segment)
@@ -217,7 +323,7 @@ object LatexMathParser {
                     }
                 }
 
-                append(rawText[i])
+                append(cleanText[i])
                 i++
             }
         }

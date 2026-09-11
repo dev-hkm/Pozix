@@ -308,7 +308,66 @@ private fun parseMarkdownText(text: String): List<ContentBlock> {
 }
 
 /**
- * Split text into Paragraphs/Headings/Lists, Code Blocks, and Display Math blocks.
+ * Parse an HTML table string (<table>...</table>) into a structured [ContentBlock.Table].
+ */
+private fun parseHtmlTable(tableHtml: String): ContentBlock.Table? {
+    val trRegex = Regex("""<tr[^>]*>(.*?)</tr>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    val cellRegex = Regex("""<(?:th|td)[^>]*>(.*?)</(?:th|td)>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    val thRegex = Regex("""<th[^>]*>(.*?)</th>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    val tagStripRegex = Regex("""<[^>]+>""")
+
+    fun cleanCell(html: String): String {
+        return html.replace(tagStripRegex, "")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+            .replace("&apos;", "'")
+            .trim()
+    }
+
+    var headers: List<String> = emptyList()
+    val rows = mutableListOf<List<String>>()
+
+    for (trMatch in trRegex.findAll(tableHtml)) {
+        val trContent = trMatch.groupValues[1]
+        val cells = cellRegex.findAll(trContent).map { cleanCell(it.groupValues[1]) }.toList()
+        if (cells.isEmpty()) continue
+
+        val hasTh = thRegex.containsMatchIn(trContent)
+        if (hasTh && headers.isEmpty()) {
+            headers = cells
+        } else if (headers.isEmpty()) {
+            // First row without th, tentatively treat as header
+            headers = cells
+        } else {
+            rows.add(cells)
+        }
+    }
+
+    if (headers.isEmpty() && rows.isNotEmpty()) {
+        headers = rows.removeAt(0)
+    }
+
+    if (headers.isEmpty() && rows.isEmpty()) return null
+
+    val colCount = maxOf(headers.size, rows.maxOfOrNull { it.size } ?: 0)
+    val paddedHeaders = if (headers.size < colCount) {
+        headers + List(colCount - headers.size) { "" }
+    } else headers
+
+    val paddedRows = rows.map { r ->
+        if (r.size < colCount) r + List(colCount - r.size) { "" } else r
+    }
+
+    val alignments = List(colCount) { TextAlign.Start }
+    return ContentBlock.Table(headers = paddedHeaders, rows = paddedRows, alignments = alignments)
+}
+
+/**
+ * Split text into Paragraphs/Headings/Lists, Code Blocks, Display Math blocks, and HTML Tables.
  */
 internal fun parseContentBlocks(input: String): List<ContentBlock> {
     val blocks = mutableListOf<ContentBlock>()
@@ -330,11 +389,18 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
         val mathDelimiterLen = 2
         val mathClosingDelimiter = if (isBracketMath) "\\]" else "$$"
 
-        // Find the earliest delimiter
-        val hasCode = codeStart != -1
-        val hasMath = mathStart != -1
+        // Check for HTML table <table ...> ... </table>
+        val tableStart = input.indexOf("<table", currentIndex, ignoreCase = true)
+        val tableClose = if (tableStart != -1) input.indexOf("</table>", tableStart, ignoreCase = true) else -1
+        val hasTable = tableStart != -1 && tableClose != -1
 
-        if (!hasCode && !hasMath) {
+        // Find earliest delimiter among code, math, and html table
+        val validPositions = mutableListOf<Pair<Int, String>>()
+        if (codeStart != -1) validPositions.add(codeStart to "code")
+        if (mathStart != -1) validPositions.add(mathStart to "math")
+        if (hasTable) validPositions.add(tableStart to "table")
+
+        if (validPositions.isEmpty()) {
             // Remainder is text (paragraphs, headings, lists)
             val remaining = input.substring(currentIndex).trim()
             if (remaining.isNotEmpty()) {
@@ -343,57 +409,66 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
             break
         }
 
-        if (hasCode && (!hasMath || codeStart < mathStart)) {
-            // Process leading text before code block
-            if (codeStart > currentIndex) {
-                val leading = input.substring(currentIndex, codeStart).trim()
-                if (leading.isNotEmpty()) {
-                    blocks.addAll(parseMarkdownText(leading))
+        val earliest = validPositions.minByOrNull { it.first }!!
+        val earliestType = earliest.second
+        val earliestPos = earliest.first
+
+        // Process leading text before the block
+        if (earliestPos > currentIndex) {
+            val leading = input.substring(currentIndex, earliestPos).trim()
+            if (leading.isNotEmpty()) {
+                blocks.addAll(parseMarkdownText(leading))
+            }
+        }
+
+        when (earliestType) {
+            "code" -> {
+                val codeContentStart = input.indexOf('\n', codeStart + 3)
+                val lang = if (codeContentStart != -1 && codeContentStart > codeStart + 3) {
+                    input.substring(codeStart + 3, codeContentStart).trim()
+                } else ""
+
+                val searchFrom = if (codeContentStart != -1) codeContentStart + 1 else codeStart + 3
+                val codeEnd = input.indexOf("```", searchFrom)
+
+                if (codeEnd != -1) {
+                    val code = input.substring(searchFrom, codeEnd).trimEnd()
+                    blocks.add(ContentBlock.Code(code = code, language = lang))
+                    currentIndex = codeEnd + 3
+                } else {
+                    // Unclosed code block
+                    val code = input.substring(searchFrom).trimEnd()
+                    blocks.add(ContentBlock.Code(code = code, language = lang))
+                    break
                 }
             }
-
-            // Find end of code block
-            val codeContentStart = input.indexOf('\n', codeStart + 3)
-            val lang = if (codeContentStart != -1 && codeContentStart > codeStart + 3) {
-                input.substring(codeStart + 3, codeContentStart).trim()
-            } else ""
-
-            val searchFrom = if (codeContentStart != -1) codeContentStart + 1 else codeStart + 3
-            val codeEnd = input.indexOf("```", searchFrom)
-
-            if (codeEnd != -1) {
-                val code = input.substring(searchFrom, codeEnd).trimEnd()
-                blocks.add(ContentBlock.Code(code = code, language = lang))
-                currentIndex = codeEnd + 3
-            } else {
-                // Unclosed code block
-                val code = input.substring(searchFrom).trimEnd()
-                blocks.add(ContentBlock.Code(code = code, language = lang))
-                break
-            }
-        } else if (hasMath) {
-            // Process leading text before math block
-            if (mathStart > currentIndex) {
-                val leading = input.substring(currentIndex, mathStart).trim()
-                if (leading.isNotEmpty()) {
-                    blocks.addAll(parseMarkdownText(leading))
+            "math" -> {
+                val mathEnd = input.indexOf(mathClosingDelimiter, mathStart + mathDelimiterLen)
+                if (mathEnd != -1) {
+                    val math = input.substring(mathStart + mathDelimiterLen, mathEnd).trim()
+                    if (math.isNotEmpty()) {
+                        blocks.add(ContentBlock.MathDisplay(latex = math))
+                    }
+                    currentIndex = mathEnd + mathDelimiterLen
+                } else {
+                    // Unclosed math block
+                    val math = input.substring(mathStart + mathDelimiterLen).trim()
+                    if (math.isNotEmpty()) {
+                        blocks.add(ContentBlock.MathDisplay(latex = math))
+                    }
+                    break
                 }
             }
-
-            val mathEnd = input.indexOf(mathClosingDelimiter, mathStart + mathDelimiterLen)
-            if (mathEnd != -1) {
-                val math = input.substring(mathStart + mathDelimiterLen, mathEnd).trim()
-                if (math.isNotEmpty()) {
-                    blocks.add(ContentBlock.MathDisplay(latex = math))
+            "table" -> {
+                val tableEnd = tableClose + 8 // length of "</table>"
+                val tableHtml = input.substring(tableStart, tableEnd)
+                val parsedTable = parseHtmlTable(tableHtml)
+                if (parsedTable != null) {
+                    blocks.add(parsedTable)
+                } else {
+                    blocks.addAll(parseMarkdownText(tableHtml))
                 }
-                currentIndex = mathEnd + mathDelimiterLen
-            } else {
-                // Unclosed math block
-                val math = input.substring(mathStart + mathDelimiterLen).trim()
-                if (math.isNotEmpty()) {
-                    blocks.add(ContentBlock.MathDisplay(latex = math))
-                }
-                break
+                currentIndex = tableEnd
             }
         }
     }
