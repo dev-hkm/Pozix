@@ -65,6 +65,10 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -90,17 +94,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.material.icons.rounded.BrightnessAuto
-import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.LightMode
-import androidx.compose.ui.graphics.graphicsLayer
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.AiProvider
 import com.hkm.pozix.ui.theme.getAvailableFonts
@@ -209,7 +202,7 @@ fun SettingsScreen(
 
         item(key = "appearance") {
             SettingsCard(title = stringResource(R.string.settings_appearance_section)) {
-                // Modern 3-Way Theme Segmented Pill
+                // Material 3 SingleChoiceSegmentedButtonRow Theme Selector
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -217,99 +210,43 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.settings_theme),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                    val themeOptions = listOf(
+                        "system" to stringResource(R.string.settings_theme_system),
+                        "light" to stringResource(R.string.settings_theme_light),
+                        "dark" to stringResource(R.string.settings_theme_dark)
+                    )
+
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            val options = listOf(
-                                Triple("system", stringResource(R.string.settings_theme_system), Icons.Rounded.BrightnessAuto),
-                                Triple("light", stringResource(R.string.settings_theme_light), Icons.Rounded.LightMode),
-                                Triple("dark", stringResource(R.string.settings_theme_dark), Icons.Rounded.DarkMode)
-                            )
-
-                            options.forEach { (mode, label, icon) ->
-                                val isSelected = uiState.themeMode == mode
-                                val interactionSource = remember { MutableInteractionSource() }
-                                val isPressed by interactionSource.collectIsPressedAsState()
-
-                                val pressScale by animateFloatAsState(
-                                    targetValue = if (isPressed) 0.93f else 1.0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
-                                    ),
-                                    label = "theme_press"
-                                )
-
-                                val bgColor by animateColorAsState(
-                                    targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f),
-                                    label = "theme_bg"
-                                )
-                                val contentColor by animateColorAsState(
-                                    targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    animationSpec = tween(180),
-                                    label = "theme_content"
-                                )
-
-                                Surface(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .graphicsLayer {
-                                            scaleX = pressScale
-                                            scaleY = pressScale
-                                        }
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable(
-                                            interactionSource = interactionSource,
-                                            indication = null
-                                        ) {
-                                            if (!isSelected) {
-                                                HapticUtil.selectionTick(context)
-                                                viewModel.setThemeMode(mode)
-                                            }
-                                        },
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = bgColor,
-                                    shadowElevation = if (isSelected) 2.dp else 0.dp
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = icon,
-                                            contentDescription = null,
-                                            tint = contentColor,
-                                            modifier = Modifier.size(17.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = contentColor
-                                        )
+                        themeOptions.forEachIndexed { index, (mode, label) ->
+                            SegmentedButton(
+                                selected = uiState.themeMode == mode,
+                                onClick = {
+                                    if (uiState.themeMode != mode) {
+                                        HapticUtil.selectionTick(context)
+                                        viewModel.setThemeMode(mode)
                                     }
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = themeOptions.size
+                                ),
+                                icon = {
+                                    SegmentedButtonDefaults.Icon(active = uiState.themeMode == mode)
+                                },
+                                label = {
+                                    Text(
+                                        text = label,
+                                        maxLines = 1
+                                    )
                                 }
-                            }
+                            )
                         }
                     }
                 }
