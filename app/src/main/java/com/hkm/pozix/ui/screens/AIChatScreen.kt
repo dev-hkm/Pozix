@@ -245,23 +245,175 @@ fun AIChatScreen(
 
     // Root layout using imePadding to guarantee input bar is NEVER hidden by the keyboard
     Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                windowInsets = WindowInsets.statusBars,
-                navigationIcon = {
-                    IconButton(onClick = {
-                        HapticUtil.lightTap(context)
-                        onNavigateBack()
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.ai_chat_back)
-                        )
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { _ ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .imePadding()
+        ) {
+            // LAYER 1: Chat Message Stream or Setup Card (Spans full height under floating header)
+            if (uiState.activeProvider == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 90.dp, bottom = 130.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ProviderSetupCard(
+                        onNavigateToSettings = onNavigateToSettings,
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
+            } else {
+                AnimatedContent(
+                    targetState = uiState.messages.isEmpty(),
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(250))
+                    },
+                    label = "chatContentTransition",
+                    modifier = Modifier.fillMaxSize()
+                ) { isEmpty ->
+                    if (isEmpty) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(
+                                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 60.dp,
+                                    bottom = 140.dp
+                                )
+                        ) {
+                            ChatWelcomeSection(
+                                onSuggestionClick = { suggestion ->
+                                    HapticUtil.lightTap(context)
+                                    viewModel.sendMessage(suggestion)
+                                },
+                                onAttachClick = { showAttachmentTray = true }
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(
+                                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 62.dp,
+                                bottom = 150.dp
+                            )
+                        ) {
+                            itemsIndexed(
+                                items = uiState.messages,
+                                key = { index, message -> "${message.timestamp}_${message.role}_$index" }
+                            ) { index, message ->
+                                val isLast = index == uiState.messages.lastIndex
+                                val isStreaming = uiState.isLoading && isLast && message.role == "model"
+                                Box(
+                                    modifier = if (isStreaming) Modifier else Modifier.animateItem(
+                                        fadeInSpec = tween(300),
+                                        fadeOutSpec = tween(250),
+                                        placementSpec = spring(
+                                            dampingRatio = 0.8f,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        )
+                                    )
+                                ) {
+                                    ChatBubbleItem(
+                                        message = message,
+                                        isStreaming = isStreaming,
+                                        onImageClick = { previewImageFilePath = it },
+                                        onImportPlay = { json ->
+                                            HapticUtil.lightTap(context)
+                                            viewModel.importQuizSet(json, onPlayQuiz)
+                                        },
+                                        onSaveLibrary = { json ->
+                                            HapticUtil.lightTap(context)
+                                            viewModel.saveQuizSetOnly(json)
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Show thinking indicator with entrance animation while waiting for first token
+                            if (uiState.isLoading && uiState.messages.lastOrNull()?.role != "model") {
+                                item(key = "typing_indicator") {
+                                    Box(
+                                        modifier = Modifier.animateItem(
+                                            fadeInSpec = tween(250),
+                                            fadeOutSpec = tween(200),
+                                            placementSpec = spring(dampingRatio = 0.8f)
+                                        )
+                                    ) {
+                                        AssistantTypingIndicator()
+                                    }
+                                }
+                            }
+                        }
                     }
-                },
-                title = {
-                    // Modern Centered Pill Model Selector
+                }
+            }
+
+            // LAYER 2: TOP TRANSLUCENT GRADIENT & FLOATING CHATGPT-STYLE HEADER (media_1789121761075.png)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+            ) {
+                // Soft Translucent Gradient Scrim
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 74.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.80f),
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.35f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+
+                // Top Controls Floating Row (Elevated glass pills & circle)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 1. Left: Floating Circular Button (Back or History)
+                    Surface(
+                        onClick = {
+                            HapticUtil.lightTap(context)
+                            if (showBackButton) {
+                                onNavigateBack()
+                            } else {
+                                showHistorySheet = true
+                            }
+                        },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                        shadowElevation = 2.dp,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (showBackButton) Icons.AutoMirrored.Filled.ArrowBack else Icons.Default.Menu,
+                                contentDescription = stringResource(R.string.ai_chat_back),
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // 2. Center: Modern Floating Pill Model Selector
                     Surface(
                         modifier = Modifier
                             .clip(RoundedCornerShape(22.dp))
@@ -270,8 +422,9 @@ fun AIChatScreen(
                                 showProviderPicker = true
                             },
                         shape = RoundedCornerShape(22.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                        shadowElevation = 2.dp
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
@@ -309,301 +462,194 @@ fun AIChatScreen(
                             }
                         }
                     }
-                },
-                actions = {
-                    // 1. Sleek New Chat Button
+
+                    // 3. Right: Floating Dual-Action Pill (New Chat + Options) matching ChatGPT in media_1789121761075.png
                     Surface(
-                        onClick = {
-                            HapticUtil.lightTap(context)
-                            viewModel.startNewChat()
-                        },
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.size(38.dp)
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                        shadowElevation = 2.dp
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = stringResource(R.string.ai_chat_new_chat),
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    // 2. Options Dropdown Menu Button
-                    Box {
-                        Surface(
-                            onClick = {
-                                HapticUtil.lightTap(context)
-                                showMoreMenu = true
-                            },
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier.size(38.dp)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
+                            IconButton(
+                                onClick = {
+                                    HapticUtil.lightTap(context)
+                                    viewModel.startNewChat()
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = stringResource(R.string.ai_chat_options),
-                                    modifier = Modifier.size(18.dp),
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = stringResource(R.string.ai_chat_new_chat),
+                                    modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                        }
 
-                        DropdownMenu(
-                            expanded = showMoreMenu,
-                            onDismissRequest = { showMoreMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.ai_chat_history)) },
-                                leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
-                                onClick = {
-                                    showMoreMenu = false
-                                    HapticUtil.lightTap(context)
-                                    showHistorySheet = true
-                                }
-                            )
-                            if (onOpenTemplates != null) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.ai_chat_templates)) },
-                                    leadingIcon = { Icon(Icons.Default.Description, contentDescription = null) },
+                            Box {
+                                IconButton(
                                     onClick = {
-                                        showMoreMenu = false
                                         HapticUtil.lightTap(context)
-                                        onOpenTemplates()
-                                    }
-                                )
-                            }
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.ai_chat_manage_providers)) },
-                                leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) },
-                                onClick = {
-                                    showMoreMenu = false
-                                    onNavigateToSettings()
+                                        showMoreMenu = true
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = stringResource(R.string.ai_chat_options),
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
                                 }
-                            )
-                            HorizontalDivider()
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.ai_chat_delete_this), color = MaterialTheme.colorScheme.error) },
-                                leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                                onClick = {
-                                    showMoreMenu = false
-                                    HapticUtil.lightTap(context)
-                                    viewModel.clearChat()
-                                }
-                            )
-                        }
-                    }
 
-                    Spacer(modifier = Modifier.width(8.dp))
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
-            )
-        }
-    ) { paddingValues ->
-        // MAIN COLUMN WITH imePadding() - Pushes everything (messages + input) above soft keyboard
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
-                .imePadding()
-        ) {
-            if (uiState.activeProvider == null) {
-                // Setup Card when no provider is added yet
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    ProviderSetupCard(
-                        onNavigateToSettings = onNavigateToSettings,
-                        modifier = Modifier.padding(24.dp)
-                    )
-                }
-            } else {
-                // Chat Message Stream with Fluid Transitions
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                ) {
-                    AnimatedContent(
-                        targetState = uiState.messages.isEmpty(),
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(250))
-                        },
-                        label = "chatContentTransition"
-                    ) { isEmpty ->
-                        if (isEmpty) {
-                            ChatWelcomeSection(
-                                onSuggestionClick = { suggestion ->
-                                    HapticUtil.lightTap(context)
-                                    viewModel.sendMessage(suggestion)
-                                },
-                                onAttachClick = { showAttachmentTray = true }
-                            )
-                        } else {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp),
-                                contentPadding = PaddingValues(top = 12.dp, bottom = 140.dp)
-                            ) {
-                                itemsIndexed(
-                                    items = uiState.messages,
-                                    key = { index, message -> "${message.timestamp}_${message.role}_$index" }
-                                ) { index, message ->
-                                    val isLast = index == uiState.messages.lastIndex
-                                    val isStreaming = uiState.isLoading && isLast && message.role == "model"
-                                    Box(
-                                        modifier = if (isStreaming) Modifier else Modifier.animateItem(
-                                            fadeInSpec = tween(300),
-                                            fadeOutSpec = tween(250),
-                                            placementSpec = spring(
-                                                dampingRatio = 0.8f,
-                                                stiffness = Spring.StiffnessMediumLow
-                                            )
-                                        )
-                                    ) {
-                                        ChatBubbleItem(
-                                            message = message,
-                                            isStreaming = isStreaming,
-                                            onImageClick = { previewImageFilePath = it },
-                                            onImportPlay = { json ->
+                                DropdownMenu(
+                                    expanded = showMoreMenu,
+                                    onDismissRequest = { showMoreMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.ai_chat_history)) },
+                                        leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            HapticUtil.lightTap(context)
+                                            showHistorySheet = true
+                                        }
+                                    )
+                                    if (onOpenTemplates != null) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.ai_chat_templates)) },
+                                            leadingIcon = { Icon(Icons.Default.Description, contentDescription = null) },
+                                            onClick = {
+                                                showMoreMenu = false
                                                 HapticUtil.lightTap(context)
-                                                viewModel.importQuizSet(json, onPlayQuiz)
-                                            },
-                                            onSaveLibrary = { json ->
-                                                HapticUtil.lightTap(context)
-                                                viewModel.saveQuizSetOnly(json)
+                                                onOpenTemplates()
                                             }
                                         )
                                     }
-                                }
-
-                                // Show thinking indicator with entrance animation while waiting for first token
-                                if (uiState.isLoading && uiState.messages.lastOrNull()?.role != "model") {
-                                    item(key = "typing_indicator") {
-                                        Box(
-                                            modifier = Modifier.animateItem(
-                                                fadeInSpec = tween(250),
-                                                fadeOutSpec = tween(200),
-                                                placementSpec = spring(dampingRatio = 0.8f)
-                                            )
-                                        ) {
-                                            AssistantTypingIndicator()
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.ai_chat_manage_providers)) },
+                                        leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            onNavigateToSettings()
                                         }
-                                    }
+                                    )
+                                    HorizontalDivider()
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.ai_chat_delete_this), color = MaterialTheme.colorScheme.error) },
+                                        leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            HapticUtil.lightTap(context)
+                                            viewModel.clearChat()
+                                        }
+                                    )
                                 }
                             }
                         }
                     }
+                }
+            }
 
-                    // Floating Scroll-to-Bottom FAB when user scrolls up
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = userScrolledUp,
-                        enter = fadeIn(tween(200)) + scaleIn(spring(dampingRatio = 0.7f)),
-                        exit = fadeOut(tween(150)) + scaleOut(tween(150)),
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = 175.dp)
-                    ) {
-                        FloatingActionButton(
-                            onClick = {
-                                HapticUtil.lightTap(context)
-                                userScrolledUp = false
-                                scope.launch {
-                                    if (uiState.messages.isNotEmpty()) {
-                                        listState.animateScrollToItem(uiState.messages.size - 1, scrollOffset = 100000)
-                                    }
-                                }
-                            },
-                            modifier = Modifier.size(40.dp),
-                            shape = CircleShape,
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            contentColor = MaterialTheme.colorScheme.primary,
-                            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowDownward,
-                                contentDescription = stringResource(R.string.ai_chat_scroll_bottom),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    // DeepSeek SIGNATURE FLOATING ISLAND INPUT CARD
-                    DeepSeekStyleFloatingInputCard(
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                        textInput = textInput,
-                        onTextChanged = { textInput = it },
-                        isLoading = uiState.isLoading,
-                        isAttaching = uiState.isAttaching,
-                        pendingAttachments = uiState.pendingAttachments,
-                        reasoningEffort = reasoningEffort,
-                        onOpenReasoningSelector = {
-                            HapticUtil.lightTap(context)
-                            showReasoningSheet = true
-                        },
-                        onNavigateToTemplates = {
-                            HapticUtil.lightTap(context)
-                            onOpenTemplates?.invoke()
-                        },
-                        showAttachmentTray = showAttachmentTray,
-                        onToggleAttachmentTray = {
-                            HapticUtil.lightTap(context)
-                            showAttachmentTray = !showAttachmentTray
-                        },
-                        onPickGallery = {
-                            showAttachmentTray = false
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
-                        onTakePhoto = {
-                            showAttachmentTray = false
-                            cameraLauncher.launch(null)
-                        },
-                        onPickDocument = {
-                            showAttachmentTray = false
-                            documentPickerLauncher.launch("*/*")
-                        },
-                        onRemoveAttachment = { viewModel.removePendingAttachment(it) },
-                        onPreviewImage = { previewImageFilePath = it },
-                        onSend = {
-                            if (textInput.isNotBlank() || uiState.pendingAttachments.isNotEmpty()) {
-                                HapticUtil.lightTap(context)
-                                userScrolledUp = false
-                                val isReasoningActive = reasoningEffort != "off"
-                                val promptText = if (isReasoningActive && textInput.isNotBlank() && !textInput.lowercase().contains("suy nghĩ") && !textInput.lowercase().contains("think")) {
-                                    "${context.getString(R.string.ai_chat_think_desc)}:\n${textInput.trim()}"
-                                } else {
-                                    textInput.trim()
-                                }
-                                viewModel.sendMessage(promptText, reasoningEffort)
-                                textInput = ""
-                                keyboardController?.hide()
-                                showAttachmentTray = false
+            // LAYER 3: FLOATING SCROLL-TO-BOTTOM FAB (Centered above input island, exactly matching ChatGPT!)
+            androidx.compose.animation.AnimatedVisibility(
+                visible = userScrolledUp,
+                enter = fadeIn(tween(200)) + scaleIn(spring(dampingRatio = 0.7f)),
+                exit = fadeOut(tween(150)) + scaleOut(tween(150)),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 145.dp)
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        HapticUtil.lightTap(context)
+                        userScrolledUp = false
+                        scope.launch {
+                            if (uiState.messages.isNotEmpty()) {
+                                listState.animateScrollToItem(uiState.messages.size - 1, scrollOffset = 100000)
                             }
-                        },
-                        onCancelGeneration = {
-                            HapticUtil.lightTap(context)
-                            viewModel.cancelGeneration()
                         }
+                    },
+                    modifier = Modifier.size(38.dp),
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowDownward,
+                        contentDescription = stringResource(R.string.ai_chat_scroll_bottom),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
+
+            // LAYER 4: DeepSeek SIGNATURE FLOATING ISLAND INPUT CARD
+            DeepSeekStyleFloatingInputCard(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                textInput = textInput,
+                onTextChanged = { textInput = it },
+                isLoading = uiState.isLoading,
+                isAttaching = uiState.isAttaching,
+                pendingAttachments = uiState.pendingAttachments,
+                reasoningEffort = reasoningEffort,
+                onOpenReasoningSelector = {
+                    HapticUtil.lightTap(context)
+                    showReasoningSheet = true
+                },
+                onNavigateToTemplates = {
+                    HapticUtil.lightTap(context)
+                    if (onOpenTemplates != null) {
+                        onOpenTemplates()
+                    } else {
+                        Toast.makeText(context, context.getString(R.string.ai_chat_templates), Toast.LENGTH_SHORT).show()
+                    }
+                },
+                showAttachmentTray = showAttachmentTray,
+                onToggleAttachmentTray = {
+                    HapticUtil.lightTap(context)
+                    showAttachmentTray = !showAttachmentTray
+                },
+                onPickGallery = {
+                    showAttachmentTray = false
+                    photoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
+                onTakePhoto = {
+                    showAttachmentTray = false
+                    cameraLauncher.launch(null)
+                },
+                onPickDocument = {
+                    showAttachmentTray = false
+                    documentPickerLauncher.launch("*/*")
+                },
+                onRemoveAttachment = { viewModel.removePendingAttachment(it) },
+                onPreviewImage = { previewImageFilePath = it },
+                onSend = {
+                    if (textInput.isNotBlank() || uiState.pendingAttachments.isNotEmpty()) {
+                        HapticUtil.lightTap(context)
+                        userScrolledUp = false
+                        val isReasoningActive = reasoningEffort != "off"
+                        val promptText = if (isReasoningActive && textInput.isNotBlank() && !textInput.lowercase().contains("suy nghĩ") && !textInput.lowercase().contains("think")) {
+                            "${context.getString(R.string.ai_chat_think_desc)}:\n${textInput.trim()}"
+                        } else {
+                            textInput.trim()
+                        }
+                        viewModel.sendMessage(promptText, reasoningEffort)
+                        textInput = ""
+                        keyboardController?.hide()
+                        showAttachmentTray = false
+                    }
+                },
+                onCancelGeneration = {
+                    HapticUtil.lightTap(context)
+                    viewModel.cancelGeneration()
+                }
+            )
         }
     }
 

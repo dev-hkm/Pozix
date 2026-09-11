@@ -53,6 +53,11 @@ class MainActivity : ComponentActivity() {
             )
         )
         
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
+        
         settingsRepository = SettingsRepository(applicationContext)
         
         lifecycleScope.launch {
@@ -74,8 +79,17 @@ class MainActivity : ComponentActivity() {
                 if (!view.isInEditMode) {
                     SideEffect {
                         val window = (view.context as Activity).window
-                        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDark
-                        WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !isDark
+                        val insetsController = WindowCompat.getInsetsController(window, view)
+                        insetsController.isAppearanceLightStatusBars = !isDark
+                        insetsController.isAppearanceLightNavigationBars = !isDark
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            window.isNavigationBarContrastEnforced = false
+                            window.isStatusBarContrastEnforced = false
+                        }
+                        @Suppress("DEPRECATION")
+                        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                        @Suppress("DEPRECATION")
+                        window.statusBarColor = android.graphics.Color.TRANSPARENT
                     }
                 }
 

@@ -57,7 +57,7 @@ fun KaTeXMathView(
     }
 
     val cachedHeight = remember(latex) { katexHeightCache[latex] }
-    var contentHeightDp by remember(latex) { mutableStateOf(cachedHeight ?: if (displayMode) 64.dp else 44.dp) }
+    var contentHeightDp by remember(latex) { mutableStateOf(cachedHeight ?: if (displayMode) 76.dp else 48.dp) }
     var hasError by remember(latex) { mutableStateOf(false) }
 
     if (hasError) {
@@ -103,7 +103,7 @@ fun KaTeXMathView(
                     fun onHeightCalculated(heightPx: Float) {
                         post {
                             if (heightPx > 0) {
-                                val calculatedDp = heightPx.dp.coerceIn(36.dp, 650.dp)
+                                val calculatedDp = heightPx.dp.coerceIn(44.dp, 750.dp)
                                 contentHeightDp = calculatedDp
                                 katexHeightCache.put(latex, calculatedDp)
                             }
@@ -135,7 +135,7 @@ fun KaTeXMathView(
         modifier = modifier
             .fillMaxWidth()
             .height(contentHeightDp)
-            .padding(vertical = 2.dp)
+            .padding(vertical = 4.dp)
     )
 }
 
@@ -170,28 +170,33 @@ private fun buildKaTeXHtml(
                     width: 100%;
                     margin: 0;
                     padding: 0;
+                    overflow-y: visible !important;
                 }
                 body {
                     color: $hexColor;
                     font-size: ${fontSize}px;
                     display: flex;
-                    align-items: center;
-                    justify-content: flex-start;
+                    align-items: flex-start;
+                    justify-content: ${if (displayMode) "center" else "flex-start"};
                     overflow-x: auto;
-                    overflow-y: hidden;
+                    overflow-y: visible !important;
                     -webkit-overflow-scrolling: touch;
-                    padding: 8px 12px 16px 12px;
+                    padding: 10px 14px 28px 14px;
                     box-sizing: border-box;
-                    min-height: 100%;
                 }
                 #math-output {
                     margin: ${if (displayMode) "0 auto" else "0"};
                     flex-shrink: 0;
                     display: inline-block;
-                    padding: 4px 6px;
+                    padding: 4px 6px 14px 6px;
+                    overflow: visible !important;
                 }
                 .katex-display {
                     margin: 0 !important;
+                    overflow: visible !important;
+                }
+                .katex, .katex-html {
+                    overflow: visible !important;
                 }
             </style>
         </head>
@@ -210,11 +215,26 @@ private fun buildKaTeXHtml(
                         function reportHeight() {
                             var target = document.getElementById("math-output");
                             if (!target) return;
-                            var katexEl = target.querySelector(".katex-html") || target;
-                            var rect = katexEl.getBoundingClientRect();
-                            var bodyScroll = document.body.scrollHeight || 0;
-                            var maxH = Math.ceil(Math.max(rect.height, target.offsetHeight, bodyScroll));
-                            var finalH = Math.max(maxH + 20, 44);
+                            
+                            var targetRect = target.getBoundingClientRect();
+                            var minTop = targetRect.top;
+                            var maxBottom = targetRect.bottom;
+                            
+                            var all = target.querySelectorAll("*");
+                            for (var i = 0; i < all.length; i++) {
+                                var r = all[i].getBoundingClientRect();
+                                if (r.height > 0 || r.width > 0) {
+                                    if (r.top < minTop) minTop = r.top;
+                                    if (r.bottom > maxBottom) maxBottom = r.bottom;
+                                }
+                            }
+                            
+                            var renderedH = Math.ceil(maxBottom - minTop);
+                            var bodyScroll = document.body ? Math.ceil(document.body.scrollHeight) : 0;
+                            var targetOffset = target ? Math.ceil(target.offsetHeight) : 0;
+                            var maxH = Math.max(renderedH, bodyScroll, targetOffset);
+                            // +32px buffer guarantees that integrals with negative limits like -\infty and 0 never get clipped
+                            var finalH = Math.max(maxH + 32, 56);
                             if (window.AndroidBridge && window.AndroidBridge.onHeightCalculated) {
                                 window.AndroidBridge.onHeightCalculated(finalH);
                             }
@@ -224,8 +244,9 @@ private fun buildKaTeXHtml(
                         if (document.fonts && document.fonts.ready) {
                             document.fonts.ready.then(reportHeight);
                         }
-                        setTimeout(reportHeight, 60);
-                        setTimeout(reportHeight, 200);
+                        setTimeout(reportHeight, 50);
+                        setTimeout(reportHeight, 150);
+                        setTimeout(reportHeight, 300);
                     } catch (e) {
                         if (window.AndroidBridge && window.AndroidBridge.onRenderError) {
                             window.AndroidBridge.onRenderError();

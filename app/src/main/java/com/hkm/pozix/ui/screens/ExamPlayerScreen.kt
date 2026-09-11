@@ -43,6 +43,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import com.hkm.pozix.ui.components.richcontent.RichContentText
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -140,7 +141,9 @@ fun ExamPlayerScreen(
             fadeIn(tween(350)) togetherWith fadeOut(tween(220))
         },
         contentKey = { it::class },
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
         label = "examState"
     ) { state ->
         when (state) {

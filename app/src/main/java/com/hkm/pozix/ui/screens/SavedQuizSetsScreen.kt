@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Preview
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import com.hkm.pozix.ui.components.richcontent.RichContentText
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.filled.Quiz
@@ -97,31 +98,31 @@ fun SavedQuizSetsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 16.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.saved_quiz_sets_title),
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = stringResource(R.string.saved_quiz_sets_subtitle),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            when {
-                uiState.isLoading -> {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
+        when {
+            uiState.isLoading -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.saved_quiz_sets_title),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.saved_quiz_sets_subtitle),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -129,79 +130,118 @@ fun SavedQuizSetsScreen(
                         CircularProgressIndicator()
                     }
                 }
-                
-                uiState.quizSets.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+            }
+            
+            uiState.quizSets.isEmpty() -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 120.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.saved_quiz_sets_title),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.saved_quiz_sets_subtitle),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(48.dp))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Quiz,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
+                        Icon(
+                            imageVector = Icons.Default.Quiz,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.saved_quiz_sets_empty),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.saved_quiz_sets_empty_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+            
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 16.dp,
+                        bottom = 120.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    item(key = "header") {
+                        Column(modifier = Modifier.padding(bottom = 6.dp)) {
                             Text(
-                                text = stringResource(R.string.saved_quiz_sets_empty),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
+                                text = stringResource(R.string.saved_quiz_sets_title),
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = stringResource(R.string.saved_quiz_sets_empty_hint),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                textAlign = TextAlign.Center
+                                text = stringResource(R.string.saved_quiz_sets_subtitle),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                }
-                
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 112.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        items(uiState.quizSets, key = { it.id }) { quizSet ->
-                            PremiumQuizCard(
-                                quizSet = quizSet,
-                                isExpanded = uiState.expandedCardId == quizSet.id,
-                                onToggleExpand = {
-                                    HapticUtil.ultraLightTap(context)
-                                    viewModel.toggleExpand(quizSet.id)
-                                },
-                                onPlay = {
-                                    HapticUtil.lightTap(context)
-                                    viewModel.loadQuizSet(quizSet, onPlayQuiz)
-                                },
-                                onStartTest = {
-                                    HapticUtil.lightTap(context)
-                                    viewModel.loadQuizSet(quizSet, onStartTest)
-                                },
-                                onPreview = {
-                                    HapticUtil.lightTap(context)
-                                    viewModel.showPreviewWarning(quizSet)
-                                },
-                                onRename = {
-                                    HapticUtil.ultraLightTap(context)
-                                    viewModel.showRenameDialog(quizSet)
-                                },
-                                onDelete = {
-                                    HapticUtil.ultraLightTap(context)
-                                    viewModel.showDeleteDialog(quizSet)
-                                },
-                                onShare = { HapticUtil.lightTap(context); viewModel.shareQuizSet(quizSet) },
-                                isSharing = uiState.sharingSetId == quizSet.id,
-                                shareEnabled = uiState.sharingSetId == null
-                            )
-                        }
+
+                    items(uiState.quizSets, key = { it.id }) { quizSet ->
+                        PremiumQuizCard(
+                            quizSet = quizSet,
+                            isExpanded = uiState.expandedCardId == quizSet.id,
+                            onToggleExpand = {
+                                HapticUtil.ultraLightTap(context)
+                                viewModel.toggleExpand(quizSet.id)
+                            },
+                            onPlay = {
+                                HapticUtil.lightTap(context)
+                                viewModel.loadQuizSet(quizSet, onPlayQuiz)
+                            },
+                            onStartTest = {
+                                HapticUtil.lightTap(context)
+                                viewModel.loadQuizSet(quizSet, onStartTest)
+                            },
+                            onPreview = {
+                                HapticUtil.lightTap(context)
+                                viewModel.showPreviewWarning(quizSet)
+                            },
+                            onRename = {
+                                HapticUtil.ultraLightTap(context)
+                                viewModel.showRenameDialog(quizSet)
+                            },
+                            onDelete = {
+                                HapticUtil.ultraLightTap(context)
+                                viewModel.showDeleteDialog(quizSet)
+                            },
+                            onShare = { HapticUtil.lightTap(context); viewModel.shareQuizSet(quizSet) },
+                            isSharing = uiState.sharingSetId == quizSet.id,
+                            shareEnabled = uiState.sharingSetId == null
+                        )
                     }
                 }
             }

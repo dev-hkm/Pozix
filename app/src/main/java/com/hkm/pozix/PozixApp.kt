@@ -53,7 +53,6 @@ fun PozixApp(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.statusBars)
     ) {
         PozixNavigation(
             navController = navController,
