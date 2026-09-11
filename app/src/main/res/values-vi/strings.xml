@@ -330,10 +330,10 @@
     <string name="exam_setup_summary">%1$d câu hỏi • Tối đa 10.0 điểm</string>
     
     <!-- AI Chat Screen -->
-    <string name="nav_ai_chat">AI Chat</string>
-    <string name="ai_chat_title">Trợ lý AI Quiz</string>
-    <string name="ai_chat_subtitle">Tự thiết kế bộ câu hỏi bằng trí tuệ nhân tạo</string>
-    <string name="ai_chat_input_placeholder">Yêu cầu AI tạo bộ câu hỏi…</string>
+    <string name="nav_ai_chat">Zix Bot</string>
+    <string name="ai_chat_title">Zix Bot</string>
+    <string name="ai_chat_subtitle">Học tập &amp; thiết kế bộ câu hỏi cùng Zix Bot</string>
+    <string name="ai_chat_input_placeholder">Nhắn tin cho Zix Bot…</string>
     <string name="ai_chat_welcome_desc">Tạo bộ quiz tùy chỉnh, đầy đủ chỉ trong vài giây.</string>
     <string name="ai_chat_no_key_title">Yêu cầu Gemini API Key</string>
     <string name="ai_chat_no_key_desc">Để mở khóa Trợ lý AI Quiz, vui lòng cấu hình Gemini API Key của bạn trong Cài đặt trước. Đây là tính năng nâng cao sử dụng khóa API của riêng bạn để tạo quiz.</string>
@@ -342,7 +342,7 @@
     <string name="ai_chat_suggest_1">Tạo 10 câu hỏi trắc nghiệm về Lịch sử Thế giới</string>
     <string name="ai_chat_suggest_2">Tạo 5 câu trắc nghiệm Ngữ pháp tiếng Anh kèm giải thích</string>
     <string name="ai_chat_suggest_3">Tạo bộ câu hỏi Đúng/Sai về Khoa học &amp; Tự nhiên</string>
-    <string name="ai_chat_loading">AI đang suy nghĩ…</string>
+    <string name="ai_chat_loading">Zix Bot đang suy nghĩ…</string>
     <string name="ai_chat_import_card_title">Bộ Quiz đã tạo: %s</string>
     <string name="ai_chat_import_card_desc">Gồm %1$d câu hỏi (%2$d trắc nghiệm, %3$d đúng/sai)</string>
     <string name="ai_chat_btn_import_play">Nhập &amp; Chơi ngay</string>

@@ -61,7 +61,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
     private var currentGenerationJob: Job? = null
 
     private val systemInstruction = """
-        You are Pozix AI Quiz Assistant, a helpful assistant specialized in creating custom quiz sets and solving academic problems.
+        You are Zix Bot, a brilliant, helpful AI Assistant for Pozix specialized in creating custom quiz sets and solving academic problems.
         Your goal is to help users generate high-quality quizzes on any topic they request, and solve or explain STEM and humanities questions accurately.
         When users ask you to generate a quiz, you MUST explain the quiz briefly and then output the quiz JSON inside a standard ```json ... ``` code block.
         
@@ -363,9 +363,10 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             // We construct history for API: replace last user message with promptToSend
             val apiHistory = updatedMessages.dropLast(1) + userMessage.copy(text = promptToSend)
 
-                        val assistantText = StringBuilder()
+            val assistantText = StringBuilder()
             var hasStartedReceiving = false
             var lastUiUpdateTime = 0L
+            val modelMsgTimestamp = System.currentTimeMillis()
 
             try {
                 OpenAiCompatClient.chatCompletionStream(
@@ -382,18 +383,18 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                     assistantText.append(chunk)
 
                     val now = System.currentTimeMillis()
-                    // Throttle state emission every ~35ms for silky-smooth 60fps streaming
-                    if (now - lastUiUpdateTime > 35L) {
+                    // Throttle state emission every ~25ms for fluid streaming
+                    if (now - lastUiUpdateTime > 25L) {
                         lastUiUpdateTime = now
                         val currentText = assistantText.toString()
-                        val currentModelMsg = ChatMessage(role = "model", text = currentText)
+                        val currentModelMsg = ChatMessage(role = "model", text = currentText, timestamp = modelMsgTimestamp)
                         _uiState.value = _uiState.value.copy(messages = updatedMessages + currentModelMsg)
                     }
                 }
 
                 // Final flush on stream completion
                 val finalText = assistantText.toString().trim()
-                val finalModelMsg = ChatMessage(role = "model", text = finalText)
+                val finalModelMsg = ChatMessage(role = "model", text = finalText, timestamp = modelMsgTimestamp)
                 val finalMessages = updatedMessages + finalModelMsg
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -407,7 +408,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                     withContext(NonCancellable) {
                         val partialText = assistantText.toString().trim()
                         if (partialText.isNotEmpty()) {
-                            val partialMsg = ChatMessage(role = "model", text = partialText)
+                            val partialMsg = ChatMessage(role = "model", text = partialText, timestamp = modelMsgTimestamp)
                             val finalMessages = updatedMessages + partialMsg
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,

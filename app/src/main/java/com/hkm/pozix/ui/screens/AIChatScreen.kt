@@ -83,6 +83,8 @@ import com.hkm.pozix.viewmodel.AIChatUiState
 import com.hkm.pozix.viewmodel.AIChatViewModel
 import com.hkm.pozix.viewmodel.ImportStatus
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -342,51 +344,81 @@ fun AIChatScreen(
                     )
                 }
             } else {
-                // Chat Message Stream
+                // Chat Message Stream with Fluid Transitions
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
                 ) {
-                    if (uiState.messages.isEmpty()) {
-                        ChatWelcomeSection(
-                            onSuggestionClick = { suggestion ->
-                                HapticUtil.lightTap(context)
-                                viewModel.sendMessage(suggestion)
-                            },
-                            onAttachClick = { showAttachmentSheet = true }
-                        )
-                    } else {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
-                        ) {
-                            itemsIndexed(uiState.messages) { index, message ->
-                                val isLast = index == uiState.messages.lastIndex
-                                val isStreaming = uiState.isLoading && isLast && message.role == "model"
-                                ChatBubbleItem(
-                                    message = message,
-                                    isStreaming = isStreaming,
-                                    onImageClick = { previewImageFilePath = it },
-                                    onImportPlay = { json ->
-                                        HapticUtil.lightTap(context)
-                                        viewModel.importQuizSet(json, onPlayQuiz)
-                                    },
-                                    onSaveLibrary = { json ->
-                                        HapticUtil.lightTap(context)
-                                        viewModel.saveQuizSetOnly(json)
+                    AnimatedContent(
+                        targetState = uiState.messages.isEmpty(),
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(250))
+                        },
+                        label = "chatContentTransition"
+                    ) { isEmpty ->
+                        if (isEmpty) {
+                            ChatWelcomeSection(
+                                onSuggestionClick = { suggestion ->
+                                    HapticUtil.lightTap(context)
+                                    viewModel.sendMessage(suggestion)
+                                },
+                                onAttachClick = { showAttachmentSheet = true }
+                            )
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
+                            ) {
+                                itemsIndexed(
+                                    items = uiState.messages,
+                                    key = { index, message -> "${message.timestamp}_${message.role}_$index" }
+                                ) { index, message ->
+                                    val isLast = index == uiState.messages.lastIndex
+                                    val isStreaming = uiState.isLoading && isLast && message.role == "model"
+                                    Box(
+                                        modifier = Modifier.animateItem(
+                                            fadeInSpec = tween(300),
+                                            fadeOutSpec = tween(250),
+                                            placementSpec = spring(
+                                                dampingRatio = 0.8f,
+                                                stiffness = Spring.StiffnessMediumLow
+                                            )
+                                        )
+                                    ) {
+                                        ChatBubbleItem(
+                                            message = message,
+                                            isStreaming = isStreaming,
+                                            onImageClick = { previewImageFilePath = it },
+                                            onImportPlay = { json ->
+                                                HapticUtil.lightTap(context)
+                                                viewModel.importQuizSet(json, onPlayQuiz)
+                                            },
+                                            onSaveLibrary = { json ->
+                                                HapticUtil.lightTap(context)
+                                                viewModel.saveQuizSetOnly(json)
+                                            }
+                                        )
                                     }
-                                )
-                            }
+                                }
 
-                            // Show thinking indicator only while waiting for the first token
-                            if (uiState.isLoading && uiState.messages.lastOrNull()?.role != "model") {
-                                item {
-                                    AssistantTypingIndicator()
+                                // Show thinking indicator with entrance animation while waiting for first token
+                                if (uiState.isLoading && uiState.messages.lastOrNull()?.role != "model") {
+                                    item(key = "typing_indicator") {
+                                        Box(
+                                            modifier = Modifier.animateItem(
+                                                fadeInSpec = tween(250),
+                                                fadeOutSpec = tween(200),
+                                                placementSpec = spring(dampingRatio = 0.8f)
+                                            )
+                                        ) {
+                                            AssistantTypingIndicator()
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -517,8 +549,12 @@ fun ChatGPTStyleInputBar(
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
-            // Attached Items Preview Row (Images & Document Chips)
-            if (pendingAttachments.isNotEmpty() || isAttaching) {
+            // Attached Items Preview Row (Images & Document Chips) with smooth expand/collapse
+            AnimatedVisibility(
+                visible = pendingAttachments.isNotEmpty() || isAttaching,
+                enter = expandVertically(spring(dampingRatio = 0.75f)) + fadeIn(tween(200)),
+                exit = shrinkVertically(spring(dampingRatio = 0.75f)) + fadeOut(tween(200))
+            ) {
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -683,7 +719,7 @@ fun ChatGPTStyleInputBar(
                         if (textInput.isEmpty()) {
                             Text(
                                 text = if (pendingAttachments.isNotEmpty()) "Nhập yêu cầu cho tệp/ảnh..."
-                                else "Nhắn tin cho Pozix AI...",
+                                else "Nhắn tin cho Zix Bot...",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontSize = 15.sp,
                                     lineHeight = 20.sp,
@@ -713,54 +749,53 @@ fun ChatGPTStyleInputBar(
                     }
                 }
 
-                // 3. Send or Stop Circular Button with tactile spring physics & 100% Dynamic Colors
-                val sendButtonScale by animateFloatAsState(
-                    targetValue = if (canSend || isLoading) 1.0f else 0.95f,
-                    animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
-                    label = "sendButtonScale"
-                )
-
-                if (isLoading) {
-                    Surface(
-                        onClick = onCancelGeneration,
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .scale(sendButtonScale)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Stop,
-                                contentDescription = "Dừng",
-                                tint = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                } else {
-                    Surface(
-                        onClick = {
-                            if (canSend) {
-                                onSend()
+                // 3. Send or Stop Circular Button with animated morphing & 100% Dynamic Colors
+                AnimatedContent(
+                    targetState = isLoading,
+                    transitionSpec = {
+                        (scaleIn(spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(150))) togetherWith
+                        (scaleOut(tween(120)) + fadeOut(tween(120)))
+                    },
+                    label = "sendStopMorph"
+                ) { loading ->
+                    if (loading) {
+                        Surface(
+                            onClick = onCancelGeneration,
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Stop,
+                                    contentDescription = "Dừng",
+                                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
-                        },
-                        enabled = canSend,
-                        shape = CircleShape,
-                        color = if (canSend) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .scale(sendButtonScale)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowUpward,
-                                contentDescription = "Gửi",
-                                tint = if (canSend) MaterialTheme.colorScheme.onPrimary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                                modifier = Modifier.size(20.dp)
-                            )
+                        }
+                    } else {
+                        Surface(
+                            onClick = {
+                                if (canSend) {
+                                    onSend()
+                                }
+                            },
+                            enabled = canSend,
+                            shape = CircleShape,
+                            color = if (canSend) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowUpward,
+                                    contentDescription = "Gửi",
+                                    tint = if (canSend) MaterialTheme.colorScheme.onPrimary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -897,9 +932,9 @@ fun ChatBubbleItem(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
-        // Assistant Sparkle Avatar (Copilot Iridescent Halo when streaming)
+        // Assistant Sparkle Avatar (Zix Bot Iridescent Halo when streaming)
         if (!isUser) {
-            CopilotAvatar(isStreaming = isStreaming)
+            ZixBotAvatar(isStreaming = isStreaming)
             Spacer(modifier = Modifier.width(10.dp))
         }
 
@@ -992,7 +1027,7 @@ fun ChatBubbleItem(
                 }
             } else {
                 // Assistant Message: Natural open layout with rich markdown, math & code blocks
-                val displayText = remember(message.text) {
+                val fullTargetText = remember(message.text) {
                     if (jsonBlock != null) {
                         val withoutFence = message.text.substringBefore("```json").trim()
                         if (withoutFence.isNotEmpty()) withoutFence
@@ -1002,23 +1037,38 @@ fun ChatBubbleItem(
                     }
                 }
 
-                if (displayText.isNotBlank()) {
+                // Liquid text pouring engine ("tuôn text ra") at 60fps
+                val flowingText = rememberLiquidStreamText(
+                    targetText = fullTargetText,
+                    isStreaming = isStreaming
+                )
+
+                if (flowingText.isNotBlank()) {
                     RichContentText(
-                        text = displayText,
+                        text = flowingText,
                         textColor = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 23.sp),
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
 
-                // Copilot-style Signature Streaming Indicator (Glowing spark + sweeping ribbon)
+                // Zix Bot Liquid Streaming Indicator (Luminous spark + sweeping ribbon)
                 if (isStreaming) {
-                    CopilotStreamingIndicator()
+                    ZixBotStreamingIndicator()
+                }
+
+                // Haptic feedback tick when streaming settles
+                var wasStreaming by remember { mutableStateOf(false) }
+                LaunchedEffect(isStreaming) {
+                    if (wasStreaming && !isStreaming && fullTargetText.isNotBlank()) {
+                        HapticUtil.selectionTick(context)
+                    }
+                    wasStreaming = isStreaming
                 }
 
                 // Assistant Action Row (Copy button) - smoothly animated when streaming settles
                 AnimatedVisibility(
-                    visible = !isStreaming && displayText.isNotBlank(),
+                    visible = !isStreaming && fullTargetText.isNotBlank(),
                     enter = fadeIn(tween(250)) + expandVertically(tween(250))
                 ) {
                     Row(
@@ -1036,7 +1086,7 @@ fun ChatBubbleItem(
                                     .clickable {
                                         HapticUtil.selectionTick(context)
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(ClipData.newPlainText("AI Message", displayText))
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Zix Bot Message", fullTargetText))
                                         Toast.makeText(context, "Đã sao chép câu trả lời", Toast.LENGTH_SHORT).show()
                                     }
                                     .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -1061,14 +1111,21 @@ fun ChatBubbleItem(
                 }
             }
 
-            // Interactive Quiz Card if AI generated a quiz JSON
-            if (jsonBlock != null) {
-                Spacer(modifier = Modifier.height(10.dp))
-                GeneratedQuizCard(
-                    jsonText = jsonBlock,
-                    onImportPlay = { onImportPlay(jsonBlock) },
-                    onSaveLibrary = { onSaveLibrary(jsonBlock) }
-                )
+            // Interactive Quiz Card if AI generated a quiz JSON (with spring reveal animation)
+            AnimatedVisibility(
+                visible = jsonBlock != null,
+                enter = fadeIn(tween(350)) + expandVertically(spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow)) + slideInVertically { it / 3 }
+            ) {
+                if (jsonBlock != null) {
+                    Column {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        GeneratedQuizCard(
+                            jsonText = jsonBlock,
+                            onImportPlay = { onImportPlay(jsonBlock) },
+                            onSaveLibrary = { onSaveLibrary(jsonBlock) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -1220,14 +1277,55 @@ private fun BadgeChip(text: String, color: Color) {
 }
 
 /**
- * Microsoft Copilot-style Avatar with rotating iridescent halo and breathing scale.
+ * Liquid Text Streaming Engine ("hiệu ứng tuôn text ra").
+ * Pours characters out continuously and smoothly at 60fps (~16ms/tick).
+ * Uses an adaptive dynamic pacer:
+ * - If backlog is small (1-10 chars): trickles 1-2 chars per tick for silky natural typewriter flow.
+ * - If network dumps a large SSE chunk (30-100+ chars): dynamically accelerates so it never falls behind.
+ * - Instantly returns targetText if not actively streaming (old messages, chat history).
  */
 @Composable
-fun CopilotAvatar(
+fun rememberLiquidStreamText(
+    targetText: String,
+    isStreaming: Boolean
+): String {
+    if (!isStreaming) return targetText
+
+    var revealedCount by remember { mutableIntStateOf(0) }
+    val currentTarget by rememberUpdatedState(targetText)
+
+    LaunchedEffect(isStreaming) {
+        revealedCount = 0
+        while (isActive) {
+            val total = currentTarget.length
+            if (revealedCount < total) {
+                val diff = total - revealedCount
+                val step = when {
+                    diff > 160 -> (diff / 3).coerceAtLeast(10)
+                    diff > 80 -> 6
+                    diff > 40 -> 4
+                    diff > 15 -> 2
+                    else -> 1
+                }
+                revealedCount = (revealedCount + step).coerceAtMost(total)
+            }
+            delay(16L) // ~60fps smooth liquid pouring
+        }
+    }
+
+    val safeCount = revealedCount.coerceIn(0, targetText.length)
+    return targetText.take(safeCount)
+}
+
+/**
+ * Zix Bot Avatar with rotating iridescent halo and breathing scale.
+ */
+@Composable
+fun ZixBotAvatar(
     isStreaming: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "copilotAvatar")
+    val infiniteTransition = rememberInfiniteTransition(label = "zixBotAvatar")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -1313,16 +1411,16 @@ fun CopilotAvatar(
 }
 
 /**
- * Microsoft Copilot-style signature streaming indicator:
+ * Zix Bot signature streaming indicator:
  * 1. Radiant pulsing spark orb with bloom halo.
  * 2. Animated label.
  * 3. Sweeping iridescent ribbon line.
  */
 @Composable
-fun CopilotStreamingIndicator(
+fun ZixBotStreamingIndicator(
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "copilotStreamFx")
+    val infiniteTransition = rememberInfiniteTransition(label = "zixBotStreamFx")
 
     val shimmerTranslate by infiniteTransition.animateFloat(
         initialValue = -300f,
@@ -1403,7 +1501,7 @@ fun CopilotStreamingIndicator(
             }
 
             Text(
-                text = "Copilot đang phát sinh câu trả lời...",
+                text = "Zix Bot đang soạn câu trả lời...",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 fontWeight = FontWeight.Medium
@@ -1433,11 +1531,11 @@ fun CopilotStreamingIndicator(
 }
 
 /**
- * Copilot 3-dot thinking wave with staggered delays.
+ * Zix Bot 3-dot thinking wave with staggered delays.
  */
 @Composable
 fun PulsingThinkingDots() {
-    val transition = rememberInfiniteTransition(label = "copilotDots")
+    val transition = rememberInfiniteTransition(label = "zixBotDots")
     val dot1 by transition.animateFloat(
         initialValue = 0.35f,
         targetValue = 1.0f,
@@ -1495,7 +1593,7 @@ fun PulsingThinkingDots() {
 }
 
 /**
- * Microsoft Copilot-style Shimmering Thinking Card.
+ * Zix Bot Shimmering Thinking Card.
  */
 @Composable
 fun AssistantTypingIndicator() {
@@ -1517,7 +1615,7 @@ fun AssistantTypingIndicator() {
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CopilotAvatar(isStreaming = true)
+        ZixBotAvatar(isStreaming = true)
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -1546,7 +1644,7 @@ fun AssistantTypingIndicator() {
                 PulsingThinkingDots()
 
                 Text(
-                    text = "Copilot đang suy nghĩ...",
+                    text = "Zix Bot đang suy nghĩ...",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface

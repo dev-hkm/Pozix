@@ -329,10 +329,10 @@
     <string name="exam_setup_summary">%1$d questions • Max 10.0 points</string>
     
     <!-- AI Chat Screen -->
-    <string name="nav_ai_chat">AI Chat</string>
-    <string name="ai_chat_title">AI Quiz Assistant</string>
-    <string name="ai_chat_subtitle">Create customized quiz sets with AI</string>
-    <string name="ai_chat_input_placeholder">Ask AI to generate a quiz…</string>
+    <string name="nav_ai_chat">Zix Bot</string>
+    <string name="ai_chat_title">Zix Bot</string>
+    <string name="ai_chat_subtitle">Create customized quiz sets &amp; study with Zix Bot</string>
+    <string name="ai_chat_input_placeholder">Message Zix Bot…</string>
     <string name="ai_chat_welcome_desc">Generate comprehensive, custom quiz sets in seconds.</string>
     <string name="ai_chat_no_key_title">Gemini API Key Required</string>
     <string name="ai_chat_no_key_desc">To unlock the AI Quiz Assistant, please configure your Gemini API Key in Settings first. This is a premium feature that uses your own API key to generate quizzes.</string>
@@ -341,7 +341,7 @@
     <string name="ai_chat_suggest_1">Create a 10-question quiz about World History</string>
     <string name="ai_chat_suggest_2">Create a 5-question English Grammar test with explanations</string>
     <string name="ai_chat_suggest_3">Make a true/false quiz about Science &amp; Nature</string>
-    <string name="ai_chat_loading">AI is thinking…</string>
+    <string name="ai_chat_loading">Zix Bot is thinking…</string>
     <string name="ai_chat_import_card_title">Generated Quiz: %s</string>
     <string name="ai_chat_import_card_desc">Contains %1$d questions (%2$d single choice, %3$d true/false)</string>
     <string name="ai_chat_btn_import_play">Import &amp; Play</string>
