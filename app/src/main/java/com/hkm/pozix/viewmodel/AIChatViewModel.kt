@@ -59,6 +59,8 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
     val uiState: StateFlow<AIChatUiState> = _uiState.asStateFlow()
 
     private var currentGenerationJob: Job? = null
+    private var generationVersion = 0L
+    private var pendingSnapshot: (() -> List<ChatMessage>)? = null
 
     private val systemInstruction = """
         You are Zix Bot, a brilliant, helpful AI Assistant for Pozix specialized in creating custom quiz sets and solving academic problems.
@@ -263,11 +265,20 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun cancelGeneration() {
+        generationVersion++
         currentGenerationJob?.cancel()
         currentGenerationJob = null
         if (_uiState.value.isLoading) {
+            val state = _uiState.value.copy(messages = pendingSnapshot?.invoke() ?: _uiState.value.messages)
+            _uiState.value = state
+            state.currentSessionId?.let { id ->
+                viewModelScope.launch {
+                    historyRepository.updateSessionMessages(id, state.messages, state.currentSessionTitle)
+                }
+            }
             _uiState.value = _uiState.value.copy(isLoading = false)
         }
+        pendingSnapshot = null
     }
 
     fun sendMessage(text: String) {
@@ -341,214 +352,87 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             isLoading = true
         )
 
-        // Save session immediately
-        viewModelScope.launch {
-            historyRepository.updateSessionMessages(sessionId, updatedMessages, derivedTitle)
-        }
-
+        val generation = ++generationVersion
         currentGenerationJob = viewModelScope.launch {
-            val provider = providerRepository.getActiveProvider()
-            if (provider == null) {
-                val errorMsg = ChatMessage(
-                    role = "model",
-                    text = "Chưa cấu hình AI Provider nào. Vui lòng vào Cài đặt để thêm Provider trước."
-                )
-                val finalMessages = updatedMessages + errorMsg
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    messages = finalMessages
-                )
-                historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
-                return@launch
-            }
-            _uiState.value = _uiState.value.copy(activeProvider = provider)
-
-            // We construct history for API: replace last user message with promptToSend
-            val apiHistory = updatedMessages.dropLast(1) + userMessage.copy(text = promptToSend)
-
             val assistantText = StringBuilder()
             val assistantReasoning = StringBuilder()
-            var hasStartedReceiving = false
-            var lastUiUpdateTime = 0L
-            val modelMsgTimestamp = System.currentTimeMillis()
-            val thinkingStartTime = System.currentTimeMillis()
-            var thinkingEndTime: Long? = null
-
+            val timestamp = System.currentTimeMillis()
+            val started = android.os.SystemClock.elapsedRealtime()
+            var reasoningFinished: Long? = null
+            fun isCurrent() = generation == generationVersion && _uiState.value.currentSessionId == sessionId
+            fun snapshot(complete: Boolean = false): ChatMessage {
+                val (answer, embedded) = com.hkm.pozix.util.StreamPresentation.splitThinking(assistantText.toString(), complete)
+                val reasoning = listOf(assistantReasoning.toString(), embedded)
+                    .filter { it.isNotBlank() }.joinToString("\n").takeIf { it.isNotBlank() }
+                if (reasoning != null && answer.isNotBlank() && reasoningFinished == null) {
+                    reasoningFinished = android.os.SystemClock.elapsedRealtime() - started
+                }
+                return ChatMessage(role = "model", text = answer, reasoning = reasoning,
+                    thinkingDurationMs = reasoningFinished, timestamp = timestamp)
+            }
+            var publisher: Job? = null
+            pendingSnapshot = {
+                if (assistantText.isNotEmpty() || assistantReasoning.isNotEmpty())
+                    updatedMessages + snapshot() else updatedMessages
+            }
             try {
+                historyRepository.updateSessionMessages(sessionId, updatedMessages, derivedTitle)
+                val provider = providerRepository.getActiveProvider()
+                    ?: error("Chưa cấu hình AI Provider. Vui lòng thêm Provider trong Cài đặt.")
+                if (!isCurrent()) return@launch
+                _uiState.value = _uiState.value.copy(activeProvider = provider)
+                val apiHistory = updatedMessages.dropLast(1) + userMessage.copy(text = promptToSend)
+                var dirty = false
+                // Flush independently of incoming tokens, so the last delta never waits for another packet.
+                publisher = launch {
+                    while (true) {
+                        kotlinx.coroutines.delay(33L)
+                        if (dirty && isCurrent()) {
+                            dirty = false
+                            _uiState.value = _uiState.value.copy(messages = updatedMessages + snapshot())
+                        }
+                    }
+                }
                 OpenAiCompatClient.chatCompletionStream(
-                    baseUrl = provider.normalizedBaseUrl(),
-                    apiKey = provider.apiKey,
-                    model = provider.modelId,
-                    history = apiHistory,
-                    systemInstructionText = systemInstruction,
-                    reasoningEffort = provider.reasoningEffort
+                    baseUrl = provider.normalizedBaseUrl(), apiKey = provider.apiKey,
+                    model = provider.modelId, history = apiHistory,
+                    systemInstructionText = systemInstruction, reasoningEffort = provider.reasoningEffort
                 ).collect { chunk ->
-                    if (!hasStartedReceiving) {
-                        hasStartedReceiving = true
-                    }
-                    if (chunk.reasoning.isNotEmpty()) {
-                        assistantReasoning.append(chunk.reasoning)
-                    }
-                    if (chunk.content.isNotEmpty()) {
-                        if (thinkingEndTime == null && assistantReasoning.isNotEmpty()) {
-                            thinkingEndTime = System.currentTimeMillis()
-                        }
-                        assistantText.append(chunk.content)
-                    }
-
-                    val now = System.currentTimeMillis()
-                    // Throttle state emission every ~20ms for fluid streaming
-                    if (now - lastUiUpdateTime > 20L) {
-                        lastUiUpdateTime = now
-                        val rawContent = assistantText.toString()
-                        val (parsedText, embeddedReasoning) = extractEmbeddedThinking(rawContent)
-                        val combinedReasoning = (assistantReasoning.toString() + if (embeddedReasoning.isNotBlank()) "\n$embeddedReasoning" else "").trim().takeIf { it.isNotBlank() }
-
-                        if (thinkingEndTime == null && embeddedReasoning.isNotBlank() && parsedText.isNotBlank()) {
-                            thinkingEndTime = System.currentTimeMillis()
-                        }
-                        val currentDurationMs = thinkingEndTime?.let { it - thinkingStartTime }
-
-                        val currentModelMsg = ChatMessage(
-                            role = "model",
-                            text = parsedText,
-                            reasoning = combinedReasoning,
-                            thinkingDurationMs = currentDurationMs,
-                            timestamp = modelMsgTimestamp
-                        )
-                        _uiState.value = _uiState.value.copy(messages = updatedMessages + currentModelMsg)
-                    }
+                    if (!isCurrent()) throw CancellationException()
+                    assistantText.append(chunk.content)
+                    assistantReasoning.append(chunk.reasoning)
+                    dirty = true
                 }
-
-                // Final flush on stream completion
-                val rawFinalContent = assistantText.toString().trim()
-                val (finalParsedText, finalEmbeddedReasoning) = extractEmbeddedThinking(rawFinalContent)
-                val finalCombinedReasoning = (assistantReasoning.toString() + if (finalEmbeddedReasoning.isNotBlank()) "\n$finalEmbeddedReasoning" else "").trim().takeIf { it.isNotBlank() }
-
-                if (thinkingEndTime == null && !finalCombinedReasoning.isNullOrBlank()) {
-                    thinkingEndTime = System.currentTimeMillis()
-                }
-                val finalDurationMs = thinkingEndTime?.let { (it - thinkingStartTime).coerceAtLeast(300L) }
-
-                val finalModelMsg = ChatMessage(
-                    role = "model",
-                    text = finalParsedText,
-                    reasoning = finalCombinedReasoning,
-                    thinkingDurationMs = finalDurationMs,
-                    timestamp = modelMsgTimestamp
-                )
-                val finalMessages = updatedMessages + finalModelMsg
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    messages = finalMessages
-                )
+                publisher.cancel()
+                if (!isCurrent()) return@launch
+                val finalMessages = updatedMessages + snapshot(complete = true)
+                _uiState.value = _uiState.value.copy(isLoading = false, messages = finalMessages)
                 historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
-
             } catch (e: Exception) {
-                if (e is CancellationException) {
-                    // User explicitly cancelled or stopped generation
-                    withContext(NonCancellable) {
-                        val rawPartial = assistantText.toString().trim()
-                        val (partialParsed, partialEmbedded) = extractEmbeddedThinking(rawPartial)
-                        val partialReasoning = (assistantReasoning.toString() + if (partialEmbedded.isNotBlank()) "\n$partialEmbedded" else "").trim().takeIf { it.isNotBlank() }
-
-                        if (thinkingEndTime == null && partialReasoning != null) {
-                            thinkingEndTime = System.currentTimeMillis()
-                        }
-                        val partialDurationMs = thinkingEndTime?.let { (it - thinkingStartTime).coerceAtLeast(300L) }
-
-                        if (partialParsed.isNotEmpty() || partialReasoning != null) {
-                            val partialMsg = ChatMessage(
-                                role = "model",
-                                text = partialParsed,
-                                reasoning = partialReasoning,
-                                thinkingDurationMs = partialDurationMs,
-                                timestamp = modelMsgTimestamp
-                            )
-                            val finalMessages = updatedMessages + partialMsg
-                            _uiState.value = _uiState.value.copy(
-                                isLoading = false,
-                                messages = finalMessages
-                            )
-                            historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
-                        } else {
-                            _uiState.value = _uiState.value.copy(isLoading = false)
-                        }
-                    }
-                    return@launch
-                }
-
-                // If error happened BEFORE any tokens were streamed, fallback to non-streaming
-                if (!hasStartedReceiving) {
-                    val fallbackResult = OpenAiCompatClient.chatCompletion(
-                        baseUrl = provider.normalizedBaseUrl(),
-                        apiKey = provider.apiKey,
-                        model = provider.modelId,
-                        history = apiHistory,
-                        systemInstructionText = systemInstruction,
-                        reasoningEffort = provider.reasoningEffort
-                    )
-
-                    fallbackResult.fold(
-                        onSuccess = { responseText ->
-                            val (parsedText, embeddedReasoning) = extractEmbeddedThinking(responseText.trim())
-                            val modelMsg = ChatMessage(
-                                role = "model",
-                                text = parsedText,
-                                reasoning = embeddedReasoning.takeIf { it.isNotBlank() },
-                                thinkingDurationMs = if (embeddedReasoning.isNotBlank()) (System.currentTimeMillis() - modelMsgTimestamp).coerceAtLeast(1000L) else null,
-                                timestamp = modelMsgTimestamp
-                            )
-                            val finalMessages = updatedMessages + modelMsg
-                            _uiState.value = _uiState.value.copy(
-                                isLoading = false,
-                                messages = finalMessages
-                            )
-                            historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
-                        },
-                        onFailure = { fallbackError ->
-                            val errorMsg = ChatMessage(
-                                role = "model",
-                                text = "Lỗi khi tạo nội dung: ${fallbackError.message ?: "Lỗi không xác định"}"
-                            )
-                            val finalMessages = updatedMessages + errorMsg
-                            _uiState.value = _uiState.value.copy(
-                                isLoading = false,
-                                messages = finalMessages
-                            )
-                            historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
-                        }
-                    )
-                } else {
-                    // Interrupted stream: preserve partial text and append notice
-                    val partialText = assistantText.toString().trim()
-                    val errorSuffix = "\n\n*(Đã dừng hoặc ngắt kết nối: ${e.message ?: "Lỗi mạng"})*"
-                    val finalMsg = ChatMessage(role = "model", text = partialText + errorSuffix)
-                    val finalMessages = updatedMessages + finalMsg
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        messages = finalMessages
-                    )
+                publisher?.cancel()
+                if (e is CancellationException || !isCurrent()) return@launch
+                // Preserve partial output; never silently resend a paid request without streaming.
+                val partial = snapshot()
+                val notice = "\n\nĐã ngắt phản hồi. Vui lòng thử lại. " +
+                    (e.message ?: "Không thể kết nối").take(180)
+                val finalMessages = updatedMessages + partial.copy(text = partial.text + notice)
+                _uiState.value = _uiState.value.copy(isLoading = false, messages = finalMessages)
+                try {
                     historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
-                }
+                } catch (_: Exception) { /* Keep the visible response when local storage is unavailable. */ }
+            } finally {
+                publisher?.cancel()
+                if (isCurrent()) pendingSnapshot = null
             }
         }
     }
 
     private fun extractEmbeddedThinking(raw: String): Pair<String, String> {
-        if (!raw.contains("<think>")) return Pair(raw, "")
-        return if (raw.contains("</think>")) {
-            val think = raw.substringAfter("<think>").substringBefore("</think>").trim()
-            val text = (raw.substringBefore("<think>") + raw.substringAfter("</think>")).trim()
-            Pair(text, think)
-        } else {
-            val think = raw.substringAfter("<think>").trim()
-            val text = raw.substringBefore("<think>").trim()
-            Pair(text, think)
-        }
+        return com.hkm.pozix.util.StreamPresentation.splitThinking(raw)
     }
 
     fun importQuizSet(jsonText: String, onPlay: () -> Unit) {
+        if (_uiState.value.isLoading) return
         _uiState.value = _uiState.value.copy(isLoading = true)
         viewModelScope.launch {
             try {
@@ -589,6 +473,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun saveQuizSetOnly(jsonText: String) {
+        if (_uiState.value.isLoading) return
         _uiState.value = _uiState.value.copy(isLoading = true)
         viewModelScope.launch {
             try {

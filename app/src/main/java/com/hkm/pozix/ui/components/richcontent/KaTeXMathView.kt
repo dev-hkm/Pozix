@@ -114,10 +114,14 @@ fun KaTeXMathView(
                 }
 
                 loadDataWithBaseURL("file:///android_asset/katex/", htmlData, "text/html", "UTF-8", null)
+                tag = htmlData
             }
         },
         update = { webView ->
-            webView.loadDataWithBaseURL("file:///android_asset/katex/", htmlData, "text/html", "UTF-8", null)
+            if (webView.tag != htmlData) {
+                webView.tag = htmlData
+                webView.loadDataWithBaseURL("file:///android_asset/katex/", htmlData, "text/html", "UTF-8", null)
+            }
         },
         modifier = modifier
             .fillMaxWidth()

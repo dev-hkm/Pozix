@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -213,18 +214,28 @@ fun AIChatScreen(
     }
 
     // While user is dragging or has scrolled away from bottom, suspend auto-scroll completely
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) {
+    val isUserDragging by listState.interactionSource.collectIsDraggedAsState()
+    LaunchedEffect(isUserDragging, isScrolledToBottom) {
+        if (isUserDragging) {
             userScrolledUp = true
         } else if (isScrolledToBottom) {
             userScrolledUp = false
         }
     }
 
-    LaunchedEffect(uiState.messages.size, lastMessageTextLength, lastMessageReasoningLength) {
-        if (uiState.messages.isNotEmpty() && !userScrolledUp && !listState.isScrollInProgress) {
-            val target = uiState.messages.size - 1
-            listState.scrollToItem(target, scrollOffset = 100000)
+    val followTail by rememberUpdatedState(!userScrolledUp)
+    LaunchedEffect(uiState.currentSessionId) {
+        snapshotFlow {
+            listState.layoutInfo.let { layout ->
+                val last = layout.visibleItemsInfo.lastOrNull()
+                if (last != null && last.index == layout.totalItemsCount - 1)
+                    (last.offset + last.size - layout.viewportEndOffset).coerceAtLeast(0)
+                else 0
+            }
+        }.collect { overflow ->
+            if (overflow > 0 && followTail && !listState.isScrollInProgress) {
+                listState.scroll { scrollBy(overflow.toFloat()) }
+            }
         }
     }
 
@@ -452,7 +463,7 @@ fun AIChatScreen(
                                     val isLast = index == uiState.messages.lastIndex
                                     val isStreaming = uiState.isLoading && isLast && message.role == "model"
                                     Box(
-                                        modifier = Modifier.animateItem(
+                                        modifier = if (isStreaming) Modifier else Modifier.animateItem(
                                             fadeInSpec = tween(300),
                                             fadeOutSpec = tween(250),
                                             placementSpec = spring(
@@ -1509,7 +1520,7 @@ fun ReasoningAccordionCard(
                     Spacer(modifier = Modifier.width(10.dp))
                     SelectionContainer(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = reasoning,
+                            text = rememberLiquidStreamText(reasoning, isStreaming),
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontSize = 12.5.sp,
                                 lineHeight = 18.5.sp,
@@ -1533,33 +1544,17 @@ fun rememberLiquidStreamText(
     targetText: String,
     isStreaming: Boolean
 ): String {
-    if (!isStreaming) return targetText
-
-    var revealedCount by remember { mutableIntStateOf(0) }
+    var revealedCount by remember { mutableIntStateOf(if (isStreaming) 0 else targetText.length) }
     val currentTarget by rememberUpdatedState(targetText)
-
-    LaunchedEffect(isStreaming) {
-        revealedCount = 0
-        while (isActive) {
-            val total = currentTarget.length
-            if (revealedCount < total) {
-                val diff = total - revealedCount
-                // Strict character-by-character pacing:
-                // 1 char per tick normally, gently scaling to 2 or max 3 chars if buffer accumulates
-                val step = when {
-                    diff > 120 -> 4
-                    diff > 50 -> 3
-                    diff > 20 -> 2
-                    else -> 1
-                }
-                revealedCount = (revealedCount + step).coerceAtMost(total)
-            }
-            delay(11L) // ~90fps silky smooth character-by-character typewriter flow
+    // Continue draining the small presentation buffer after EOF; never dump it at completion.
+    LaunchedEffect(targetText) {
+        if (revealedCount > currentTarget.length) revealedCount = 0
+        while (revealedCount < currentTarget.length) {
+            androidx.compose.runtime.withFrameNanos { }
+            revealedCount = com.hkm.pozix.util.StreamPresentation.nextRevealIndex(currentTarget, revealedCount)
         }
     }
-
-    val safeCount = revealedCount.coerceIn(0, targetText.length)
-    return targetText.take(safeCount)
+    return targetText.take(revealedCount.coerceIn(0, targetText.length))
 }
 
 /**

@@ -1,6 +1,14 @@
 package com.hkm.pozix.network
 
 import com.hkm.pozix.data.model.ChatMessage
+import com.hkm.pozix.data.model.AiProvider
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import com.hkm.pozix.util.ChatImageStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -101,9 +109,10 @@ object OpenAiCompatClient {
         model: String,
         history: List<ChatMessage>,
         systemInstructionText: String? = null,
-        reasoningEffort: String? = null
+        reasoningEffort: String? = null,
+        httpClient: OkHttpClient = client
     ): Flow<StreamChunk> = flow {
-        val root = baseUrl.trim().trimEnd('/')
+        val root = AiProvider.normalizeBaseUrl(baseUrl)
         require(root.startsWith("http://", true) || root.startsWith("https://", true)) {
             "Invalid Base URL"
         }
@@ -131,9 +140,14 @@ object OpenAiCompatClient {
             }
             .build()
 
-        val call = client.newCall(request)
+        val call = httpClient.newCall(request)
         var response: Response? = null
 
+        coroutineScope {
+        // Close the socket immediately when Stop is pressed, including blocked reads.
+        val cancellation = launch(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
+            try { awaitCancellation() } finally { call.cancel() }
+        }
         try {
             response = call.execute()
             if (!response.isSuccessful) {
@@ -142,35 +156,50 @@ object OpenAiCompatClient {
             }
 
             val body = response.body ?: throw IOException("Empty response body")
+            if (body.contentType()?.subtype?.contains("event-stream") != true) {
+                throw IOException("Provider did not return a realtime event stream")
+            }
             val source = body.source()
-
+            var received = false
+            var completed = false
+            val event = StringBuilder()
             while (!source.exhausted()) {
+                currentCoroutineContext().ensureActive()
                 val line = source.readUtf8Line() ?: break
-                val trimmed = line.trim()
-                if (trimmed.isEmpty() || trimmed.startsWith(":")) {
-                    continue
-                }
-                if (trimmed.startsWith("data:")) {
-                    val data = trimmed.removePrefix("data:").trim()
+                if (line.isEmpty() && event.isNotEmpty()) {
+                    val data = event.toString().trim()
+                    event.setLength(0)
                     if (data == "[DONE]") {
+                        completed = true
                         break
                     }
-                    try {
-                        val chunk = json.decodeFromString<ChatStreamResponse>(data)
-                        val delta = chunk.choices?.firstOrNull()?.delta
-                        val text = delta?.extractText().orEmpty()
-                        val reasoning = delta?.extractReasoning().orEmpty()
-                        if (text.isNotEmpty() || reasoning.isNotEmpty()) {
-                            emit(StreamChunk(content = text, reasoning = reasoning))
-                        }
-                    } catch (_: Exception) {
-                        // Skip unparseable lines or metadata chunks safely
+                    val chunk = json.decodeFromString<ChatStreamResponse>(data)
+                    chunk.error?.let { throw IOException(it.message ?: "Stream error") }
+                    val choice = chunk.choices?.firstOrNull()
+                    if (choice?.finishReason == "length") throw IOException("Response reached the provider output limit")
+                    if (choice?.finishReason == "content_filter") throw IOException("Response was filtered by the provider")
+                    if (choice?.finishReason != null) completed = true
+                    val text = choice?.delta?.extractText().orEmpty()
+                    val reasoning = choice?.delta?.extractReasoning().orEmpty()
+                    if (text.isNotEmpty() || reasoning.isNotEmpty()) {
+                        received = true
+                        emit(StreamChunk(content = text, reasoning = reasoning))
                     }
+                } else if (line.startsWith("data:")) {
+                    if (event.isNotEmpty()) event.append('\n')
+                    event.append(line.removePrefix("data:").removePrefix(" "))
                 }
             }
+            if (!received) throw IOException("Provider returned an empty stream")
+            if (!completed) throw IOException("Stream disconnected before completion")
+        } catch (e: IOException) {
+            currentCoroutineContext().ensureActive()
+            throw e
         } finally {
-            response?.close()
             call.cancel()
+            response?.close()
+            cancellation.cancel()
+        }
         }
     }.flowOn(Dispatchers.IO)
 
@@ -186,7 +215,7 @@ object OpenAiCompatClient {
         reasoningEffort: String? = null
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val root = baseUrl.trim().trimEnd('/')
+            val root = AiProvider.normalizeBaseUrl(baseUrl)
             require(root.startsWith("http://", true) || root.startsWith("https://", true)) {
                 "Invalid Base URL"
             }
@@ -240,6 +269,7 @@ object OpenAiCompatClient {
                 Result.success(text)
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Result.failure(e)
         }
     }
@@ -249,7 +279,7 @@ object OpenAiCompatClient {
         apiKey: String
     ): Result<List<String>> = withContext(Dispatchers.IO) {
         try {
-            val root = baseUrl.trim().trimEnd('/')
+            val root = AiProvider.normalizeBaseUrl(baseUrl)
             require(root.startsWith("http://", true) || root.startsWith("https://", true)) {
                 "Invalid Base URL"
             }
@@ -291,6 +321,7 @@ object OpenAiCompatClient {
                 Result.success(ids)
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Result.failure(e)
         }
     }
