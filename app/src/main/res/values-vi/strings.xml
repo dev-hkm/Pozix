@@ -489,4 +489,7 @@
     <string name="ai_history_save_failed">Không lưu được cuộc trò chuyện: </string>
     <string name="quiz_previous_review">Câu trước</string>
     <string name="quiz_review_read_only">Đã trả lời · Chỉ xem</string>
+    <string name="quiz_grid_view">Dạng lưới</string>
+    <string name="quiz_list_view">Dạng danh sách</string>
+    <string name="quiz_open_actions">Mở bộ câu hỏi</string>
 </resources>

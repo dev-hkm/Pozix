@@ -2,6 +2,7 @@ package com.hkm.pozix.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -490,18 +491,15 @@ fun AdaptiveQuestionCard(
     readOnly: Boolean = false
 ) {
     val scrollState = rememberScrollState()
-    val reveal = remember { Animatable(1f) }
     LaunchedEffect(questionNumber, questionText) {
         scrollState.scrollTo(0)
-        reveal.snapTo(0f)
-        reveal.animateTo(1f, tween(180))
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .graphicsLayer { alpha = 0.65f + reveal.value * 0.35f; translationY = (1f - reveal.value) * 8.dp.toPx() }
+            .animateContentSize(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow))
             .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer

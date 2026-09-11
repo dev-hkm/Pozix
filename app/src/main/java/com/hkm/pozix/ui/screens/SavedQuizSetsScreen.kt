@@ -27,7 +27,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -98,6 +106,11 @@ fun SavedQuizSetsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var gridMode by rememberSaveable { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
+    LaunchedEffect(uiState.quizSets.firstOrNull()?.id) {
+        if (uiState.quizSets.isNotEmpty()) gridState.scrollToItem(0)
+    }
     
     val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 16.dp
     
@@ -184,7 +197,10 @@ fun SavedQuizSetsScreen(
             }
             
             else -> {
-                LazyColumn(
+                LazyVerticalGrid(
+                    columns = if (gridMode) GridCells.Adaptive(160.dp) else GridCells.Fixed(1),
+                    state = gridState,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         start = 20.dp,
@@ -194,8 +210,9 @@ fun SavedQuizSetsScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    item(key = "header") {
-                        Column(modifier = Modifier.padding(bottom = 6.dp)) {
+                    item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f).padding(bottom = 6.dp)) {
                             Text(
                                 text = stringResource(R.string.saved_quiz_sets_title),
                                 style = MaterialTheme.typography.headlineLarge,
@@ -209,10 +226,23 @@ fun SavedQuizSetsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                            IconButton(onClick = { gridMode = !gridMode; HapticUtil.selectionTick(context) }) {
+                                Icon(if (gridMode) Icons.Default.ViewList else Icons.Default.GridView,
+                                    stringResource(if (gridMode) R.string.quiz_list_view else R.string.quiz_grid_view),
+                                    tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
                     }
 
-                    items(uiState.quizSets, key = { it.id }) { quizSet ->
-                        PremiumQuizCard(
+                    items(uiState.quizSets, key = { it.id }, span = {
+                        GridItemSpan(if (!gridMode || uiState.expandedCardId == it.id) maxLineSpan else 1)
+                    }) { quizSet ->
+                        if (gridMode && uiState.expandedCardId != quizSet.id) {
+                            CompactQuizTile(quizSet) {
+                                HapticUtil.selectionTick(context)
+                                viewModel.toggleExpand(quizSet.id)
+                            }
+                        } else PremiumQuizCard(
                             quizSet = quizSet,
                             isExpanded = uiState.expandedCardId == quizSet.id,
                             onToggleExpand = {

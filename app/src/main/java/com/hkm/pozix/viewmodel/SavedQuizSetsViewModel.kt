@@ -103,7 +103,7 @@ class SavedQuizSetsViewModel(application: Application) : AndroidViewModel(applic
                         )
                     }
                 }
-                updatedSets.sortedByDescending { it.lastUsedTimestamp }
+                updatedSets.sortedByDescending { it.savedTimestamp }
             }.collect { sets ->
                 _uiState.value = _uiState.value.copy(
                     quizSets = sets,

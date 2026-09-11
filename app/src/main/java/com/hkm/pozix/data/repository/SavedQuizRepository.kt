@@ -26,7 +26,7 @@ class SavedQuizRepository(private val context: Context) {
     suspend fun saveQuizSet(quizSet: SavedQuizSet) {
         context.savedQuizDataStore.edit { preferences ->
             val currentSets = getSavedQuizSetsSync(preferences)
-            val updatedSets = currentSets.filter { it.id != quizSet.id } + quizSet
+            val updatedSets = listOf(quizSet) + currentSets.filter { it.id != quizSet.id }
             preferences[SAVED_QUIZ_SETS_KEY] = json.encodeToString(updatedSets)
         }
     }

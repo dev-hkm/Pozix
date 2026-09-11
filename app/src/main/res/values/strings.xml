@@ -488,4 +488,7 @@
     <string name="ai_history_save_failed">Could not save this conversation: </string>
     <string name="quiz_previous_review">Previous</string>
     <string name="quiz_review_read_only">Answered · Read only</string>
+    <string name="quiz_grid_view">Grid view</string>
+    <string name="quiz_list_view">List view</string>
+    <string name="quiz_open_actions">Open quiz</string>
 </resources>

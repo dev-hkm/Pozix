@@ -104,7 +104,7 @@ Yêu cầu:
 - Với môn Tin học / Lập trình: Dùng markdown code block (```python, ```cpp, ```java...) cho đoạn code và `code` cho mã inline.
 - Tránh trùng lặp
 - Giữ cho nội dung chuẩn xác và có tính giáo dục
-            """.trimIndent()
+            """.trimIndent() + "\n\n" + com.hkm.pozix.util.RichContentContract.guidance("vi")
         } else {
             """
 Generate a quiz about "$topic" in JSON format. Return ONLY valid JSON without markdown fences or any commentary.
@@ -144,7 +144,7 @@ Requirements:
 - For Computer Science: Use markdown code blocks (```python, ```cpp...) for multi-line code and `code` for inline code.
 - Avoid duplicates
 - Keep it educational and accurate
-            """.trimIndent()
+            """.trimIndent() + "\n\n" + com.hkm.pozix.util.RichContentContract.guidance("en")
         }
     }
     

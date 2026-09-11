@@ -206,7 +206,7 @@ fun AIChatScreen(
             } else {
                 val itemBottom = lastVisible.offset + lastVisible.size
                 val viewportBottom = layoutInfo.viewportEndOffset
-                itemBottom <= viewportBottom + 40
+                itemBottom + layoutInfo.afterContentPadding <= viewportBottom + 40
             }
         }
     }
@@ -236,12 +236,31 @@ fun AIChatScreen(
             listState.layoutInfo.let { layout ->
                 val last = layout.visibleItemsInfo.lastOrNull()
                 if (last != null && last.index == layout.totalItemsCount - 1)
-                    (last.offset + last.size - layout.viewportEndOffset).coerceAtLeast(0)
+                    (last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset).coerceAtLeast(0)
                 else 0
             }
         }.collect { overflow ->
             if (overflow > 0 && followTail && !listState.isScrollInProgress) {
                 listState.scroll { scrollBy(overflow.toFloat()) }
+            }
+        }
+    }
+
+    // A quiz card is inserted asynchronously after validation, and may grow after streaming stops.
+    // Re-check actual layout every frame briefly, including the clearance beneath the floating composer.
+    LaunchedEffect(uiState.messages.lastOrNull()?.quizJson) {
+        if (uiState.messages.lastOrNull()?.quizJson != null) {
+            repeat(90) {
+                withFrameNanos { }
+                if (!followTail || isUserDragging) return@LaunchedEffect
+                if (!listState.isScrollInProgress && listState.canScrollForward) {
+                    val layout = listState.layoutInfo
+                    val last = layout.visibleItemsInfo.lastOrNull()
+                    if (last != null && last.index == layout.totalItemsCount - 1) {
+                        val distance = last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset
+                        if (distance > 0) listState.scroll { scrollBy(distance.toFloat()) }
+                    } else if (layout.totalItemsCount > 0) listState.scrollToItem(layout.totalItemsCount - 1)
+                }
             }
         }
     }
@@ -1326,6 +1345,7 @@ fun ChatBubbleItem(
             else AiQuizOutput.extract(message.text)
         }
     }
+
     val jsonBlock = artifact?.json
 
     if (isUser) {

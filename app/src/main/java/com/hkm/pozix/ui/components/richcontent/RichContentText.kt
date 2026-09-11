@@ -35,10 +35,18 @@ import androidx.compose.ui.text.style.TextAlign
 /**
  * Represents a parsed segment of rich educational STEM content.
  */
+@Composable
+private fun rememberStyledInline(text: String): androidx.compose.ui.text.AnnotatedString {
+    val background = MaterialTheme.colorScheme.tertiaryContainer
+    val foreground = MaterialTheme.colorScheme.onTertiaryContainer
+    return remember(text, background, foreground) { LatexMathParser.parseToAnnotatedString(text, background, foreground) }
+}
+
 sealed interface ContentBlock {
     data class Paragraph(val text: String) : ContentBlock
     data class Heading(val level: Int, val text: String) : ContentBlock
-    data class ListItem(val bullet: String, val text: String) : ContentBlock
+    data class ListItem(val bullet: String, val text: String, val depth: Int = 0) : ContentBlock
+    data class Quote(val text: String) : ContentBlock
     data class Code(val code: String, val language: String) : ContentBlock
     data class MathDisplay(val latex: String) : ContentBlock
     data class Table(
@@ -71,15 +79,14 @@ fun RichContentText(
     fontWeight: FontWeight = FontWeight.Normal,
     lineHeight: TextUnit = 24.sp,
     style: TextStyle = MaterialTheme.typography.bodyLarge,
-    inlineOnly: Boolean = false
+    inlineOnly: Boolean = false,
+    quoteDepth: Int = 0
 ) {
     if (text.isBlank()) return
 
     if (inlineOnly) {
         // Fast path for answer options (A, B, C, D)
-        val annotated = remember(text) {
-            LatexMathParser.parseToAnnotatedString(text)
-        }
+        val annotated = rememberStyledInline(text)
         Text(
             text = annotated,
             modifier = modifier,
@@ -97,6 +104,15 @@ fun RichContentText(
     Column(modifier = modifier.fillMaxWidth()) {
         blocks.forEachIndexed { index, block ->
             when (block) {
+                is ContentBlock.Quote -> {
+                    Row(Modifier.fillMaxWidth().background(textColor.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
+                        .padding(10.dp), verticalAlignment = Alignment.Top) {
+                        Text("▎", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        if (quoteDepth < 8) RichContentText(block.text, Modifier.weight(1f), textColor = textColor,
+                            fontSize = fontSize, fontWeight = fontWeight, lineHeight = lineHeight, style = style, quoteDepth = quoteDepth + 1)
+                        else Text(block.text, Modifier.weight(1f), color = textColor, style = style)
+                    }
+                }
                 is ContentBlock.Heading -> {
                     val (headingStyle, topPad) = when (block.level) {
                         1 -> MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 21.sp, lineHeight = 27.sp) to 10.dp
@@ -106,12 +122,10 @@ fun RichContentText(
                         5 -> MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontSize = 14.5.sp, lineHeight = 20.sp) to 4.dp
                         else -> MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp) to 4.dp
                     }
-                    val annotated = remember(block.text) {
-                        LatexMathParser.parseToAnnotatedString(block.text)
-                    }
+                    val annotated = rememberStyledInline(block.text)
                     Text(
                         text = annotated,
-                        color = textColor,
+                        color = MaterialTheme.colorScheme.primary,
                         style = headingStyle,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -119,13 +133,11 @@ fun RichContentText(
                     )
                 }
                 is ContentBlock.ListItem -> {
-                    val annotated = remember(block.text) {
-                        LatexMathParser.parseToAnnotatedString(block.text)
-                    }
+                    val annotated = rememberStyledInline(block.text)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp, horizontal = 2.dp),
+                            .padding(start = (2 + block.depth * 12).dp, top = 2.dp, bottom = 2.dp, end = 2.dp),
                         verticalAlignment = Alignment.Top
                     ) {
                         Text(
@@ -146,9 +158,7 @@ fun RichContentText(
                     }
                 }
                 is ContentBlock.Paragraph -> {
-                    val annotated = remember(block.text) {
-                        LatexMathParser.parseToAnnotatedString(block.text)
-                    }
+                    val annotated = rememberStyledInline(block.text)
                     Text(
                         text = annotated,
                         color = textColor,
@@ -270,6 +280,16 @@ private fun parseMarkdownText(text: String): List<ContentBlock> {
         }
 
         when {
+            trimmed.startsWith(">") -> {
+                flushParagraph()
+                val quote = mutableListOf<String>()
+                while (lineIdx < lines.size && lines[lineIdx].trimStart().startsWith(">")) {
+                    quote.add(lines[lineIdx].trimStart().removePrefix(">").removePrefix(" "))
+                    lineIdx++
+                }
+                results.add(ContentBlock.Quote(quote.joinToString("\n")))
+                continue
+            }
             trimmed.matches(Regex("""^([-*_])\s*(\1\s*){2,}$""")) -> {
                 flushParagraph()
                 results.add(ContentBlock.Divider)
@@ -284,7 +304,9 @@ private fun parseMarkdownText(text: String): List<ContentBlock> {
             trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ") || trimmed.startsWith("+ ") -> {
                 flushParagraph()
                 val itemText = trimmed.substring(2).trim()
-                results.add(ContentBlock.ListItem("•", itemText))
+                val task = Regex("^\\[([ xX])]\\s+(.*)$").matchEntire(itemText)
+                results.add(ContentBlock.ListItem(if (task == null) "•" else if (task.groupValues[1] == " ") "☐" else "☑",
+                    task?.groupValues?.get(2) ?: itemText, (rawLine.length - rawLine.trimStart().length).div(2).coerceAtMost(6)))
             }
             trimmed.matches(Regex("""^\d+[\.\)]\s+.*""")) -> {
                 flushParagraph()

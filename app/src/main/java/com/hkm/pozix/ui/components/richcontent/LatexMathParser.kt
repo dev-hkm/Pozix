@@ -7,6 +7,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.em
 
@@ -19,6 +20,7 @@ import androidx.compose.ui.unit.em
  * with zero layout distortion or broken tags.
  */
 object LatexMathParser {
+    private val inlineMarkers = listOf("***", "___", "~~", "==", "__")
 
     private val GREEK_MAP = mapOf(
         "\\alpha" to "α", "\\beta" to "β", "\\gamma" to "γ", "\\delta" to "δ",
@@ -128,6 +130,9 @@ object LatexMathParser {
             val len = cleanText.length
 
             while (i < len) {
+                if (cleanText[i] == '\\' && i + 1 < len && cleanText[i + 1] in "*_~`=>#") {
+                    append(cleanText[i + 1]); i += 2; continue
+                }
                 // Check for display math $$...$$
                 if (i + 1 < len && cleanText[i] == '$' && cleanText[i + 1] == '$') {
                     val closeIdx = cleanText.indexOf("$$", i + 2)
@@ -273,6 +278,23 @@ object LatexMathParser {
                             append(" $codeContent ")
                         }
                         i = closeIdx + 7
+                        continue
+                    }
+                }
+
+                // Longer delimiters must win before ** or *; otherwise *** leaves stray markers.
+                val extendedMarker = inlineMarkers.firstOrNull { cleanText.startsWith(it, i) }
+                if (extendedMarker != null) {
+                    val end = cleanText.indexOf(extendedMarker, i + extendedMarker.length)
+                    if (end > i + extendedMarker.length) {
+                        val span = when (extendedMarker) {
+                            "***", "___" -> SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)
+                            "~~" -> SpanStyle(textDecoration = TextDecoration.LineThrough)
+                            "==" -> SpanStyle(background = codeBgColor, color = codeTextColor, fontWeight = FontWeight.SemiBold)
+                            else -> SpanStyle(fontWeight = FontWeight.Bold)
+                        }
+                        withStyle(span) { append(parseToAnnotatedString(cleanText.substring(i + extendedMarker.length, end), codeBgColor, codeTextColor)) }
+                        i = end + extendedMarker.length
                         continue
                     }
                 }

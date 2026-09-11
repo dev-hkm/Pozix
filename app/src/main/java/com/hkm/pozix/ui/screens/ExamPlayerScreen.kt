@@ -2,6 +2,7 @@ package com.hkm.pozix.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -438,12 +439,9 @@ fun ExamPlayingContent(
     val answeredCount = state.answers.size
     val currentOnNext by rememberUpdatedState(onNext)
     val currentOnPrevious by rememberUpdatedState(onPrevious)
-    val questionReveal = remember { Animatable(1f) }
     val questionScroll = rememberScrollState()
     LaunchedEffect(state.currentIndex) {
         questionScroll.scrollTo(0)
-        questionReveal.snapTo(0f)
-        questionReveal.animateTo(1f, tween(200))
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -558,10 +556,6 @@ fun ExamPlayingContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .graphicsLayer {
-                        alpha = 0.65f + 0.35f * questionReveal.value
-                        translationY = (1f - questionReveal.value) * 8.dp.toPx()
-                    }
             ) {
                 val safeIndex = state.currentIndex.coerceIn(state.questions.indices)
                 val question = state.questions[safeIndex]
@@ -597,6 +591,7 @@ fun ExamPlayingContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 240.dp)
+                            .animateContentSize()
                             .padding(horizontal = 16.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer

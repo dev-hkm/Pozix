@@ -437,31 +437,8 @@ fun JsonSchemaPromptCard(
     var copiedPrompt by remember { mutableStateOf(false) }
     var isExpanded by remember { mutableStateOf(false) }
 
-    val jsonSchemaExample = """{
-  "title": "Quiz Title (e.g. World History Trivia)",
-  "description": "Short description of topic or difficulty (Optional)",
-  "language": "en",
-  "questions": [
-    {
-      "type": "single_choice",
-      "question": "What is the capital of Australia?",
-      "options": [
-        "Sydney",
-        "Melbourne",
-        "Canberra",
-        "Brisbane"
-      ],
-      "correctIndex": 2,
-      "explanation": "Canberra was chosen as the capital in 1908."
-    },
-    {
-      "type": "true_false",
-      "question": "The Great Wall of China is visible from the Moon with naked eyes.",
-      "correctAnswer": false,
-      "explanation": "NASA confirmed it is not visible without optical aid."
-    }
-  ]
-}"""
+    val jsonSchemaExample = com.hkm.pozix.util.RichContentContract.example
+    val formattingGuide = com.hkm.pozix.util.RichContentContract.guidance(context.resources.configuration.locales[0].language)
 
     val aiPlanningPrompt = """You are an expert quiz creator for the Pozix quiz app. Help me plan and create an engaging quiz set.
 
@@ -471,6 +448,8 @@ JSON SCHEMA:
 $jsonSchemaExample
 
 SCHEMA RULES:
+$formattingGuide
+
 1. "type": must be "single_choice" or "true_false".
 2. "single_choice": must have 2-6 "options", and "correctIndex" (0-indexed integer).
 3. "true_false": must have "correctAnswer" (boolean: true or false).
@@ -550,7 +529,7 @@ Please ask me what topic, target difficulty, and question count I would like, or
             ) {
                 androidx.compose.foundation.text.selection.SelectionContainer {
                     Text(
-                        text = jsonSchemaExample,
+                        text = jsonSchemaExample + "\n\n" + formattingGuide,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
                         lineHeight = 15.sp,
