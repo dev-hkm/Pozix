@@ -116,6 +116,8 @@ fun AIChatScreen(
     var showProviderPicker by remember { mutableStateOf(false) }
     var showHistorySheet by remember { mutableStateOf(false) }
     var showAttachmentSheet by remember { mutableStateOf(false) }
+    var showAttachmentTray by remember { mutableStateOf(false) }
+    var isThinkActive by remember { mutableStateOf(false) }
     var previewImageFilePath by remember { mutableStateOf<String?>(null) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var textInput by remember { mutableStateOf("") }
@@ -446,7 +448,7 @@ fun AIChatScreen(
                                     HapticUtil.lightTap(context)
                                     viewModel.sendMessage(suggestion)
                                 },
-                                onAttachClick = { showAttachmentSheet = true }
+                                onAttachClick = { showAttachmentTray = true }
                             )
                         } else {
                             LazyColumn(
@@ -455,7 +457,7 @@ fun AIChatScreen(
                                     .fillMaxSize()
                                     .padding(horizontal = 16.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                                contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
+                                contentPadding = PaddingValues(top = 12.dp, bottom = 140.dp)
                             ) {
                                 itemsIndexed(
                                     items = uiState.messages,
@@ -514,7 +516,7 @@ fun AIChatScreen(
                         exit = fadeOut(tween(150)) + scaleOut(tween(150)),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = 12.dp)
+                            .padding(end = 16.dp, bottom = 125.dp)
                     ) {
                         FloatingActionButton(
                             onClick = {
@@ -539,32 +541,66 @@ fun AIChatScreen(
                             )
                         }
                     }
-                }
 
-                // ChatGPT SIGNATURE CAPSULE INPUT BAR
-                ChatGPTStyleInputBar(
-                    textInput = textInput,
-                    onTextChanged = { textInput = it },
-                    isLoading = uiState.isLoading,
-                    isAttaching = uiState.isAttaching,
-                    pendingAttachments = uiState.pendingAttachments,
-                    onAttachClick = { showAttachmentSheet = true },
-                    onRemoveAttachment = { viewModel.removePendingAttachment(it) },
-                    onPreviewImage = { previewImageFilePath = it },
-                    onSend = {
-                        if (textInput.isNotBlank() || uiState.pendingAttachments.isNotEmpty()) {
+                    // DeepSeek SIGNATURE FLOATING ISLAND INPUT CARD
+                    DeepSeekStyleFloatingInputCard(
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                        textInput = textInput,
+                        onTextChanged = { textInput = it },
+                        isLoading = uiState.isLoading,
+                        isAttaching = uiState.isAttaching,
+                        pendingAttachments = uiState.pendingAttachments,
+                        isThinkActive = isThinkActive,
+                        onToggleThink = {
+                            HapticUtil.selectionTick(context)
+                            isThinkActive = !isThinkActive
+                        },
+                        onNavigateToTemplates = {
                             HapticUtil.lightTap(context)
-                            userScrolledUp = false
-                            viewModel.sendMessage(textInput.trim())
-                            textInput = ""
-                            keyboardController?.hide()
+                            onOpenTemplates?.invoke()
+                        },
+                        showAttachmentTray = showAttachmentTray,
+                        onToggleAttachmentTray = {
+                            HapticUtil.lightTap(context)
+                            showAttachmentTray = !showAttachmentTray
+                        },
+                        onPickGallery = {
+                            showAttachmentTray = false
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        onTakePhoto = {
+                            showAttachmentTray = false
+                            cameraLauncher.launch(null)
+                        },
+                        onPickDocument = {
+                            showAttachmentTray = false
+                            documentPickerLauncher.launch("*/*")
+                        },
+                        onRemoveAttachment = { viewModel.removePendingAttachment(it) },
+                        onPreviewImage = { previewImageFilePath = it },
+                        onSend = {
+                            if (textInput.isNotBlank() || uiState.pendingAttachments.isNotEmpty()) {
+                                HapticUtil.lightTap(context)
+                                userScrolledUp = false
+                                val promptText = if (isThinkActive && textInput.isNotBlank() && !textInput.lowercase().contains("suy nghĩ")) {
+                                    "${context.getString(R.string.ai_chat_think_desc)}:\n${textInput.trim()}"
+                                } else {
+                                    textInput.trim()
+                                }
+                                viewModel.sendMessage(promptText)
+                                textInput = ""
+                                keyboardController?.hide()
+                                showAttachmentTray = false
+                            }
+                        },
+                        onCancelGeneration = {
+                            HapticUtil.lightTap(context)
+                            viewModel.cancelGeneration()
                         }
-                    },
-                    onCancelGeneration = {
-                        HapticUtil.lightTap(context)
-                        viewModel.cancelGeneration()
-                    }
-                )
+                    )
+                }
             }
         }
     }
@@ -635,17 +671,27 @@ fun AIChatScreen(
 }
 
 /**
- * Signature ChatGPT Pill Input Bar.
- * Elegant, rounded, floating container with attachment menu and circular send/stop button.
+ * DeepSeek Signature Floating Island Input Card.
+ * Floats gracefully over the chat background with zero docked bars.
+ * Multi-layer container with auto-expanding input, Think toggle pill, Prompts pill,
+ * plus button with rotating morph animation, and smooth expandable media tray.
  */
 @Composable
-fun ChatGPTStyleInputBar(
+fun DeepSeekStyleFloatingInputCard(
+    modifier: Modifier = Modifier,
     textInput: String,
     onTextChanged: (String) -> Unit,
     isLoading: Boolean,
     isAttaching: Boolean,
     pendingAttachments: List<ChatAttachment>,
-    onAttachClick: () -> Unit,
+    isThinkActive: Boolean,
+    onToggleThink: () -> Unit,
+    onNavigateToTemplates: () -> Unit,
+    showAttachmentTray: Boolean,
+    onToggleAttachmentTray: () -> Unit,
+    onPickGallery: () -> Unit,
+    onTakePhoto: () -> Unit,
+    onPickDocument: () -> Unit,
     onRemoveAttachment: (String) -> Unit,
     onPreviewImage: (String) -> Unit,
     onSend: () -> Unit,
@@ -654,269 +700,432 @@ fun ChatGPTStyleInputBar(
     val isDark = isSystemInDarkTheme()
     val canSend = (textInput.isNotBlank() || pendingAttachments.isNotEmpty()) && !isLoading
 
-    Surface(
-        modifier = Modifier
+    val plusRotation by animateFloatAsState(
+        targetValue = if (showAttachmentTray) 45f else 0f,
+        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow),
+        label = "plusRotation"
+    )
+
+    Column(
+        modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding(),
-        color = MaterialTheme.colorScheme.background,
-        tonalElevation = 0.dp
+            .navigationBarsPadding()
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 6.dp)
+        // Floating Island Container Card
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(26.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDark) 0.35f else 0.5f)
+            ),
+            shadowElevation = 8.dp,
+            tonalElevation = 2.dp
         ) {
-            // Attached Items Preview Row (Images & Document Chips) with smooth expand/collapse
-            AnimatedVisibility(
-                visible = pendingAttachments.isNotEmpty() || isAttaching,
-                enter = expandVertically(spring(dampingRatio = 0.75f)) + fadeIn(tween(200)),
-                exit = shrinkVertically(spring(dampingRatio = 0.75f)) + fadeOut(tween(200))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // 1. Attached Items Preview Row (Images & Document Chips)
+                AnimatedVisibility(
+                    visible = pendingAttachments.isNotEmpty() || isAttaching,
+                    enter = expandVertically(spring(dampingRatio = 0.75f)) + fadeIn(tween(200)),
+                    exit = shrinkVertically(spring(dampingRatio = 0.75f)) + fadeOut(tween(200))
                 ) {
-                    if (isAttaching) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isAttaching) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                }
                             }
                         }
-                    }
 
-                    items(pendingAttachments, key = { it.id }) { item ->
-                        if (item.type == AttachmentType.IMAGE) {
-                            // Image Thumbnail
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
-                            ) {
-                                val bitmap = remember(item.localPath) {
-                                    try {
-                                        BitmapFactory.decodeFile(item.localPath)?.asImageBitmap()
-                                    } catch (_: Exception) {
-                                        null
+                        items(pendingAttachments, key = { it.id }) { item ->
+                            if (item.type == AttachmentType.IMAGE) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                                ) {
+                                    val bitmap = remember(item.localPath) {
+                                        try {
+                                            BitmapFactory.decodeFile(item.localPath)?.asImageBitmap()
+                                        } catch (_: Exception) {
+                                            null
+                                        }
+                                    }
+                                    if (bitmap != null) {
+                                        Image(
+                                            bitmap = bitmap,
+                                            contentDescription = item.name,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clickable { onPreviewImage(item.localPath) },
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                    Surface(
+                                        onClick = { onRemoveAttachment(item.id) },
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(2.dp)
+                                            .size(20.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = stringResource(R.string.ai_chat_delete),
+                                                tint = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(11.dp)
+                                            )
+                                        }
                                     }
                                 }
-                                if (bitmap != null) {
-                                    Image(
-                                        bitmap = bitmap,
-                                        contentDescription = item.name,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clickable { onPreviewImage(item.localPath) },
-                                        contentScale = ContentScale.Crop
-                                    )
-                                }
+                            } else {
                                 Surface(
-                                    onClick = { onRemoveAttachment(item.id) },
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(3.dp)
-                                        .size(22.dp)
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Description,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = item.name,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
                                         Icon(
                                             imageVector = Icons.Default.Close,
                                             contentDescription = stringResource(R.string.ai_chat_delete),
-                                            tint = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(12.dp)
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .clickable { onRemoveAttachment(item.id) }
                                         )
                                     }
-                                }
-                            }
-                        } else {
-                            // File / Document Chip
-                            Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Description,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Column {
-                                        Text(
-                                            text = item.name,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1
-                                        )
-                                        Text(
-                                            text = item.formattedSize,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = stringResource(R.string.ai_chat_delete),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .clickable { onRemoveAttachment(item.id) }
-                                    )
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            // Modern ChatGPT-style Separate Control Row:
-            // [ + Circle Button ]  [ Pill Capsule with BasicTextField ]  [ ↑ Send / Stop Circle Button ]
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // 1. Separate circular '+' button
-                Surface(
-                    onClick = onAttachClick,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                    ),
-                    modifier = Modifier.size(42.dp)
+                // 2. Main Borderless Text Field
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = stringResource(R.string.ai_chat_attach_title),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
+                    if (textInput.isEmpty()) {
+                        Text(
+                            text = if (pendingAttachments.isNotEmpty()) stringResource(R.string.ai_chat_input_with_attachments)
+                            else stringResource(R.string.ai_chat_input_placeholder),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = 15.sp,
+                                lineHeight = 21.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
+                    }
+
+                    BasicTextField(
+                        value = textInput,
+                        onValueChange = onTextChanged,
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 15.sp,
+                            lineHeight = 21.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        maxLines = 5,
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Default,
+                            keyboardType = KeyboardType.Text
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // 3. DeepSeek Signature Bottom Control Bar:
+                // [ 🧠 Think ]  [ 📋 Prompts ]   ...   [ (+) ]  [ (↑) / (■) ]
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Left Side: Feature Toggle Pills
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // DeepSeek "Think" Pill
+                        Surface(
+                            onClick = onToggleThink,
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isThinkActive) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
+                            border = BorderStroke(
+                                width = if (isThinkActive) 1.2.dp else 0.8.dp,
+                                color = if (isThinkActive) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = stringResource(R.string.ai_chat_think),
+                                    tint = if (isThinkActive) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.ai_chat_think),
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isThinkActive) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    color = if (isThinkActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                           else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Prompts & Templates Pill
+                        Surface(
+                            onClick = onNavigateToTemplates,
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
+                            border = BorderStroke(
+                                width = 0.8.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesomeMotion,
+                                    contentDescription = stringResource(R.string.ai_chat_prompts_pill),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.ai_chat_prompts_pill),
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // Right Side: (+) Button and Send/Stop Button
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // DeepSeek Circular (+) Expand / Rotate Button
+                        Surface(
+                            onClick = onToggleAttachmentTray,
+                            shape = CircleShape,
+                            color = if (showAttachmentTray) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+                            border = BorderStroke(
+                                width = 0.8.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = stringResource(R.string.ai_chat_attach_title),
+                                    tint = if (showAttachmentTray) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .graphicsLayer { rotationZ = plusRotation }
+                                )
+                            }
+                        }
+
+                        // Send / Stop Button with smooth morphing
+                        AnimatedContent(
+                            targetState = isLoading,
+                            transitionSpec = {
+                                (scaleIn(spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(150))) togetherWith
+                                (scaleOut(tween(120)) + fadeOut(tween(120)))
+                            },
+                            label = "sendStopMorph"
+                        ) { loading ->
+                            if (loading) {
+                                Surface(
+                                    onClick = onCancelGeneration,
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Stop,
+                                            contentDescription = stringResource(R.string.ai_chat_stop),
+                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                    }
+                                }
+                            } else {
+                                Surface(
+                                    onClick = {
+                                        if (canSend) {
+                                            onSend()
+                                        }
+                                    },
+                                    enabled = canSend,
+                                    shape = CircleShape,
+                                    color = if (canSend) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowUpward,
+                                            contentDescription = stringResource(R.string.ai_chat_send),
+                                            tint = if (canSend) MaterialTheme.colorScheme.onPrimary
+                                                   else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
-                // 2. Central Capsule Pill for text input
-                Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 42.dp),
-                    shape = RoundedCornerShape(22.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-                    )
+                // 4. DeepSeek Expandable Attachment Tray (Inline, expands with spring)
+                AnimatedVisibility(
+                    visible = showAttachmentTray,
+                    enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(200)),
+                    exit = shrinkVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) + fadeOut(tween(150))
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 11.dp),
-                        contentAlignment = Alignment.CenterStart
+                            .padding(top = 10.dp)
                     ) {
-                        if (textInput.isEmpty()) {
-                            Text(
-                                text = if (pendingAttachments.isNotEmpty()) stringResource(R.string.ai_chat_input_with_attachments)
-                                else stringResource(R.string.ai_chat_input_placeholder),
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontSize = 15.sp,
-                                    lineHeight = 20.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                ),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        BasicTextField(
-                            value = textInput,
-                            onValueChange = onTextChanged,
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                fontSize = 15.sp,
-                                lineHeight = 20.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            maxLines = 5,
-                            keyboardOptions = KeyboardOptions(
-                                imeAction = ImeAction.Default,
-                                keyboardType = KeyboardType.Text
-                            )
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                            modifier = Modifier.padding(bottom = 10.dp)
                         )
-                    }
-                }
 
-                // 3. Send or Stop Circular Button with animated morphing & 100% Dynamic Colors
-                AnimatedContent(
-                    targetState = isLoading,
-                    transitionSpec = {
-                        (scaleIn(spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(150))) togetherWith
-                        (scaleOut(tween(120)) + fadeOut(tween(120)))
-                    },
-                    label = "sendStopMorph"
-                ) { loading ->
-                    if (loading) {
-                        Surface(
-                            onClick = onCancelGeneration,
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            modifier = Modifier.size(42.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Stop,
-                                    contentDescription = stringResource(R.string.ai_chat_stop),
-                                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    } else {
-                        Surface(
-                            onClick = {
-                                if (canSend) {
-                                    onSend()
-                                }
-                            },
-                            enabled = canSend,
-                            shape = CircleShape,
-                            color = if (canSend) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier.size(42.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowUpward,
-                                    contentDescription = stringResource(R.string.ai_chat_send),
-                                    tint = if (canSend) MaterialTheme.colorScheme.onPrimary
-                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            // Camera tile
+                            DeepSeekActionTile(
+                                icon = Icons.Default.CameraAlt,
+                                label = stringResource(R.string.ai_chat_camera),
+                                onClick = onTakePhoto
+                            )
+
+                            // Photos tile
+                            DeepSeekActionTile(
+                                icon = Icons.Default.PhotoLibrary,
+                                label = stringResource(R.string.ai_chat_photos),
+                                onClick = onPickGallery
+                            )
+
+                            // Documents tile
+                            DeepSeekActionTile(
+                                icon = Icons.Default.FolderOpen,
+                                label = stringResource(R.string.ai_chat_documents),
+                                onClick = onPickDocument
+                            )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DeepSeekActionTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
+        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        modifier = Modifier
+            .widthIn(min = 90.dp)
+            .height(70.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }

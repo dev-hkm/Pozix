@@ -460,4 +460,10 @@
     <string name="ai_chat_title_doc_and_photo">Analyze attached documents and images</string>
     <string name="prompts_back_to_ai">Back to AI Assistant</string>
     <string name="import_sample_stem_json">Load Math/STEM JSON Sample</string>
+    <string name="ai_chat_think">Think</string>
+    <string name="ai_chat_think_desc">Deep step-by-step reasoning</string>
+    <string name="ai_chat_camera">Camera</string>
+    <string name="ai_chat_photos">Photos</string>
+    <string name="ai_chat_documents">Document</string>
+    <string name="ai_chat_prompts_pill">Templates</string>
 </resources>

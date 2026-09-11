@@ -461,4 +461,10 @@
     <string name="ai_chat_title_doc_and_photo">Phân tích tài liệu và hình ảnh đính kèm</string>
     <string name="prompts_back_to_ai">Trở lại Trợ lý AI</string>
     <string name="import_sample_stem_json">Tải mẫu JSON Toán / KHTN</string>
+    <string name="ai_chat_think">Suy nghĩ</string>
+    <string name="ai_chat_think_desc">Suy nghĩ chuyên sâu từng bước</string>
+    <string name="ai_chat_camera">Chụp ảnh</string>
+    <string name="ai_chat_photos">Thư viện</string>
+    <string name="ai_chat_documents">Tài liệu</string>
+    <string name="ai_chat_prompts_pill">Mẫu đề</string>
 </resources>

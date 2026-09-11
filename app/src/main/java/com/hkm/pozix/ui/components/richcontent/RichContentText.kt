@@ -99,9 +99,12 @@ fun RichContentText(
             when (block) {
                 is ContentBlock.Heading -> {
                     val (headingStyle, topPad) = when (block.level) {
-                        1 -> MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 26.sp) to 8.dp
-                        2 -> MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 23.sp) to 6.dp
-                        else -> MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 21.sp) to 4.dp
+                        1 -> MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 21.sp, lineHeight = 27.sp) to 10.dp
+                        2 -> MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 18.sp, lineHeight = 24.sp) to 8.dp
+                        3 -> MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 16.5.sp, lineHeight = 22.sp) to 6.dp
+                        4 -> MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 21.sp) to 5.dp
+                        5 -> MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontSize = 14.5.sp, lineHeight = 20.sp) to 4.dp
+                        else -> MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp) to 4.dp
                     }
                     val annotated = remember(block.text) {
                         LatexMathParser.parseToAnnotatedString(block.text)
@@ -271,17 +274,12 @@ private fun parseMarkdownText(text: String): List<ContentBlock> {
                 flushParagraph()
                 results.add(ContentBlock.Divider)
             }
-            trimmed.startsWith("### ") -> {
+            trimmed.matches(Regex("""^#{1,6}\s+.*""")) -> {
                 flushParagraph()
-                results.add(ContentBlock.Heading(3, trimmed.removePrefix("### ").trim()))
-            }
-            trimmed.startsWith("## ") -> {
-                flushParagraph()
-                results.add(ContentBlock.Heading(2, trimmed.removePrefix("## ").trim()))
-            }
-            trimmed.startsWith("# ") -> {
-                flushParagraph()
-                results.add(ContentBlock.Heading(1, trimmed.removePrefix("# ").trim()))
+                val hashes = trimmed.takeWhile { it == '#' }
+                val level = hashes.length.coerceIn(1, 6)
+                val headingText = trimmed.substring(hashes.length).trim()
+                results.add(ContentBlock.Heading(level, headingText))
             }
             trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ") || trimmed.startsWith("+ ") -> {
                 flushParagraph()

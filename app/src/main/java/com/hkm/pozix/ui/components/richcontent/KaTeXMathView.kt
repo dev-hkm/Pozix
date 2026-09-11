@@ -53,7 +53,7 @@ fun KaTeXMathView(
         String.format("#%06X", 0xFFFFFF and textColor.toArgb())
     }
 
-    var contentHeightDp by remember { mutableStateOf(44.dp) }
+    var contentHeightDp by remember { mutableStateOf(48.dp) }
     var hasError by remember { mutableStateOf(false) }
 
     if (hasError) {
@@ -95,8 +95,9 @@ fun KaTeXMathView(
                     fun onHeightCalculated(heightPx: Float) {
                         post {
                             if (heightPx > 0) {
-                                val calculatedDp = with(density) { heightPx.toDp() }
-                                contentHeightDp = calculatedDp.coerceIn(32.dp, 350.dp)
+                                // CSS pixels in mobile viewport match DP units. Add 14dp padding for fraction descenders/roots.
+                                val calculatedDp = (heightPx + 14f).dp.coerceIn(36.dp, 600.dp)
+                                contentHeightDp = calculatedDp
                             }
                         }
                     }
@@ -156,23 +157,29 @@ private fun buildKaTeXHtml(
                     padding: 0;
                     box-sizing: border-box;
                 }
-                body {
+                html, body {
                     background: transparent;
+                    width: 100%;
+                }
+                body {
                     color: $hexColor;
                     font-size: ${fontSize}px;
                     display: flex;
                     align-items: center;
                     justify-content: ${if (displayMode) "center" else "flex-start"};
-                    min-height: 100%;
                     overflow-x: auto;
-                    overflow-y: hidden;
-                    padding: 4px 8px;
+                    overflow-y: visible;
+                    padding: 8px 6px 12px 6px;
                 }
                 #math-output {
                     display: inline-block;
+                    padding: 2px 2px;
                 }
                 .katex-display {
                     margin: 2px 0 !important;
+                }
+                .katex {
+                    line-height: 1.35 !important;
                 }
             </style>
         </head>
@@ -187,12 +194,17 @@ private fun buildKaTeXHtml(
                             throwOnError: false
                         });
                         
-                        setTimeout(function() {
-                            var height = document.body.scrollHeight || target.offsetHeight;
+                        function reportHeight() {
+                            var rect = target.getBoundingClientRect();
+                            var h = Math.ceil(Math.max(rect.height, target.offsetHeight, document.body.scrollHeight, document.documentElement.scrollHeight));
                             if (window.AndroidBridge && window.AndroidBridge.onHeightCalculated) {
-                                window.AndroidBridge.onHeightCalculated(height);
+                                window.AndroidBridge.onHeightCalculated(h);
                             }
-                        }, 50);
+                        }
+                        
+                        reportHeight();
+                        setTimeout(reportHeight, 60);
+                        setTimeout(reportHeight, 250);
                     } catch (e) {
                         if (window.AndroidBridge && window.AndroidBridge.onRenderError) {
                             window.AndroidBridge.onRenderError();
