@@ -77,6 +77,7 @@ import com.hkm.pozix.data.model.ChatMessage
 import com.hkm.pozix.data.model.ChatSession
 import com.hkm.pozix.data.model.QuizValidationResult
 import com.hkm.pozix.ui.components.richcontent.RichContentText
+import androidx.compose.foundation.text.selection.SelectionContainer
 import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.util.QuizJsonParser
 import com.hkm.pozix.viewmodel.AIChatUiState
@@ -179,24 +180,42 @@ fun AIChatScreen(
         }
     }
 
-    // Smart auto-scroll: respects user gesture and scrolls to bottom of content, never jerking up
+    // Smart auto-scroll: respects user gesture, never jerks screen or fights manual scroll
     val lastMessageTextLength = uiState.messages.lastOrNull()?.text?.length ?: 0
     val lastMessageReasoningLength = uiState.messages.lastOrNull()?.reasoning?.length ?: 0
     var userScrolledUp by remember { mutableStateOf(false) }
 
+    // Accurately detect whether the user is genuinely at the bottom edge of the last item
     val isScrolledToBottom by remember {
         derivedStateOf {
-            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            val total = listState.layoutInfo.totalItemsCount
-            total == 0 || lastVisible >= total - 1
+            val layoutInfo = listState.layoutInfo
+            val visible = layoutInfo.visibleItemsInfo
+            if (visible.isEmpty()) return@derivedStateOf true
+            val lastVisible = visible.last()
+            val total = layoutInfo.totalItemsCount
+            if (lastVisible.index < total - 1) {
+                false
+            } else {
+                val itemBottom = lastVisible.offset + lastVisible.size
+                val viewportBottom = layoutInfo.viewportEndOffset
+                itemBottom <= viewportBottom + 40
+            }
         }
     }
 
+    // Reset userScrolledUp whenever a new message is posted
+    var prevMessageCount by remember { mutableIntStateOf(uiState.messages.size) }
+    LaunchedEffect(uiState.messages.size) {
+        if (uiState.messages.size > prevMessageCount) {
+            userScrolledUp = false
+        }
+        prevMessageCount = uiState.messages.size
+    }
+
+    // While user is dragging or has scrolled away from bottom, suspend auto-scroll completely
     LaunchedEffect(listState.isScrollInProgress) {
         if (listState.isScrollInProgress) {
-            if (!isScrolledToBottom) {
-                userScrolledUp = true
-            }
+            userScrolledUp = true
         } else if (isScrolledToBottom) {
             userScrolledUp = false
         }
@@ -205,7 +224,6 @@ fun AIChatScreen(
     LaunchedEffect(uiState.messages.size, lastMessageTextLength, lastMessageReasoningLength) {
         if (uiState.messages.isNotEmpty() && !userScrolledUp && !listState.isScrollInProgress) {
             val target = uiState.messages.size - 1
-            // Use 100000 scrollOffset to pin directly to the BOTTOM of the message, NOT the top
             listState.scrollToItem(target, scrollOffset = 100000)
         }
     }
@@ -1128,6 +1146,7 @@ fun ChatBubbleItem(
                 if (!message.reasoning.isNullOrBlank()) {
                     ReasoningAccordionCard(
                         reasoning = message.reasoning,
+                        thinkingDurationMs = message.thinkingDurationMs,
                         isStreaming = isStreaming && fullTargetText.isBlank(),
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
@@ -1383,48 +1402,78 @@ private fun BadgeChip(text: String, color: Color) {
 /**
  * Collapsible Thinking Process Card for Reasoning Models.
  */
+/**
+ * Collapsible Thinking Process Card for Reasoning Models (e.g. DeepSeek R1, OpenAI o1/o3, Gemini Thinking).
+ * Designed after modern AI assistant reasoning cards (Image 2):
+ * - Default collapsed state as requested by user ("với mặc định cho nó tắt đi").
+ * - Outline lightbulb icon with gentle breathing pulse while actively thinking.
+ * - Displays duration: "Đã suy nghĩ trong 9.5s" (or "Thought for 9.5 seconds") when completed.
+ * - Subtle vertical guide line underneath lightbulb leading into indented thinking content.
+ */
 @Composable
 fun ReasoningAccordionCard(
     reasoning: String,
+    thinkingDurationMs: Long?,
     isStreaming: Boolean,
     modifier: Modifier = Modifier
 ) {
-    var isExpanded by remember { mutableStateOf(isStreaming) }
+    // Always default to collapsed ("với mặc định cho nó tắt đi")
+    var isExpanded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isStreaming) {
-        if (isStreaming) {
-            isExpanded = true
-        }
-    }
+    // Breathing pulse for lightbulb while thinking
+    val infiniteTransition = rememberInfiniteTransition(label = "thinkingPulse")
+    val bulbAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bulbAlpha"
+    )
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { isExpanded = !isExpanded }
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                    .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Psychology,
+                    imageVector = Icons.Default.Lightbulb,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.tertiary,
+                    tint = if (isStreaming) {
+                        MaterialTheme.colorScheme.tertiary.copy(alpha = bulbAlpha)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+                    },
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
+
+                val headerTitle = when {
+                    isStreaming -> "Đang suy nghĩ..."
+                    thinkingDurationMs != null && thinkingDurationMs > 0 -> {
+                        val sec = thinkingDurationMs / 1000.0
+                        "Đã suy nghĩ trong ${"%.1f".format(Locale.US, sec)}s"
+                    }
+                    else -> "Quá trình suy nghĩ"
+                }
+
                 Text(
-                    text = if (isStreaming) "Zix Bot đang suy nghĩ..." else "Quá trình suy nghĩ",
+                    text = headerTitle,
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
@@ -1438,20 +1487,36 @@ fun ReasoningAccordionCard(
 
             AnimatedVisibility(
                 visible = isExpanded,
-                enter = expandVertically(tween(250)) + fadeIn(tween(250)),
-                exit = shrinkVertically(tween(200)) + fadeOut(tween(200))
+                enter = expandVertically(tween(220)) + fadeIn(tween(220)),
+                exit = shrinkVertically(tween(180)) + fadeOut(tween(180))
             ) {
-                Column(modifier = Modifier.padding(top = 6.dp, start = 4.dp, end = 4.dp, bottom = 2.dp)) {
-                    HorizontalDivider(
-                        thickness = 0.75.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        modifier = Modifier.padding(bottom = 8.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
+                        .padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 4.dp)
+                ) {
+                    // Subtle vertical guide line underneath lightbulb
+                    Box(
+                        modifier = Modifier
+                            .width(2.dp)
+                            .fillMaxHeight()
+                            .background(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                                shape = RoundedCornerShape(1.dp)
+                            )
                     )
-                    RichContentText(
-                        text = reasoning,
-                        textColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp, lineHeight = 20.sp)
-                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    SelectionContainer(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = reasoning,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 12.5.sp,
+                                lineHeight = 18.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+                            )
+                        )
+                    }
                 }
             }
         }

@@ -368,6 +368,8 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             var hasStartedReceiving = false
             var lastUiUpdateTime = 0L
             val modelMsgTimestamp = System.currentTimeMillis()
+            val thinkingStartTime = System.currentTimeMillis()
+            var thinkingEndTime: Long? = null
 
             try {
                 OpenAiCompatClient.chatCompletionStream(
@@ -385,6 +387,9 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         assistantReasoning.append(chunk.reasoning)
                     }
                     if (chunk.content.isNotEmpty()) {
+                        if (thinkingEndTime == null && assistantReasoning.isNotEmpty()) {
+                            thinkingEndTime = System.currentTimeMillis()
+                        }
                         assistantText.append(chunk.content)
                     }
 
@@ -396,10 +401,16 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         val (parsedText, embeddedReasoning) = extractEmbeddedThinking(rawContent)
                         val combinedReasoning = (assistantReasoning.toString() + if (embeddedReasoning.isNotBlank()) "\n$embeddedReasoning" else "").trim().takeIf { it.isNotBlank() }
 
+                        if (thinkingEndTime == null && embeddedReasoning.isNotBlank() && parsedText.isNotBlank()) {
+                            thinkingEndTime = System.currentTimeMillis()
+                        }
+                        val currentDurationMs = thinkingEndTime?.let { it - thinkingStartTime }
+
                         val currentModelMsg = ChatMessage(
                             role = "model",
                             text = parsedText,
                             reasoning = combinedReasoning,
+                            thinkingDurationMs = currentDurationMs,
                             timestamp = modelMsgTimestamp
                         )
                         _uiState.value = _uiState.value.copy(messages = updatedMessages + currentModelMsg)
@@ -411,10 +422,16 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 val (finalParsedText, finalEmbeddedReasoning) = extractEmbeddedThinking(rawFinalContent)
                 val finalCombinedReasoning = (assistantReasoning.toString() + if (finalEmbeddedReasoning.isNotBlank()) "\n$finalEmbeddedReasoning" else "").trim().takeIf { it.isNotBlank() }
 
+                if (thinkingEndTime == null && !finalCombinedReasoning.isNullOrBlank()) {
+                    thinkingEndTime = System.currentTimeMillis()
+                }
+                val finalDurationMs = thinkingEndTime?.let { (it - thinkingStartTime).coerceAtLeast(300L) }
+
                 val finalModelMsg = ChatMessage(
                     role = "model",
                     text = finalParsedText,
                     reasoning = finalCombinedReasoning,
+                    thinkingDurationMs = finalDurationMs,
                     timestamp = modelMsgTimestamp
                 )
                 val finalMessages = updatedMessages + finalModelMsg
@@ -432,11 +449,17 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         val (partialParsed, partialEmbedded) = extractEmbeddedThinking(rawPartial)
                         val partialReasoning = (assistantReasoning.toString() + if (partialEmbedded.isNotBlank()) "\n$partialEmbedded" else "").trim().takeIf { it.isNotBlank() }
 
+                        if (thinkingEndTime == null && partialReasoning != null) {
+                            thinkingEndTime = System.currentTimeMillis()
+                        }
+                        val partialDurationMs = thinkingEndTime?.let { (it - thinkingStartTime).coerceAtLeast(300L) }
+
                         if (partialParsed.isNotEmpty() || partialReasoning != null) {
                             val partialMsg = ChatMessage(
                                 role = "model",
                                 text = partialParsed,
                                 reasoning = partialReasoning,
+                                thinkingDurationMs = partialDurationMs,
                                 timestamp = modelMsgTimestamp
                             )
                             val finalMessages = updatedMessages + partialMsg
@@ -470,6 +493,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                                 role = "model",
                                 text = parsedText,
                                 reasoning = embeddedReasoning.takeIf { it.isNotBlank() },
+                                thinkingDurationMs = if (embeddedReasoning.isNotBlank()) (System.currentTimeMillis() - modelMsgTimestamp).coerceAtLeast(1000L) else null,
                                 timestamp = modelMsgTimestamp
                             )
                             val finalMessages = updatedMessages + modelMsg

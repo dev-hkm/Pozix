@@ -22,6 +22,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -45,6 +46,7 @@ sealed interface ContentBlock {
         val rows: List<List<String>>,
         val alignments: List<TextAlign>
     ) : ContentBlock
+    object Divider : ContentBlock
 }
 
 /**
@@ -176,6 +178,15 @@ fun RichContentText(
                         fontSize = 14.sp
                     )
                 }
+                is ContentBlock.Divider -> {
+                    HorizontalDivider(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    )
+                }
             }
 
             if (index < blocks.lastIndex) {
@@ -256,6 +267,10 @@ private fun parseMarkdownText(text: String): List<ContentBlock> {
         }
 
         when {
+            trimmed.matches(Regex("""^([-*_])\s*(\1\s*){2,}$""")) -> {
+                flushParagraph()
+                results.add(ContentBlock.Divider)
+            }
             trimmed.startsWith("### ") -> {
                 flushParagraph()
                 results.add(ContentBlock.Heading(3, trimmed.removePrefix("### ").trim()))
@@ -399,9 +414,27 @@ fun MarkdownTableView(
     rows: List<List<String>>,
     alignments: List<TextAlign>,
     textColor: Color = MaterialTheme.colorScheme.onSurface,
-    fontSize: TextUnit = 14.sp
+    fontSize: TextUnit = 13.5.sp
 ) {
+    if (headers.isEmpty()) return
+
     val scrollState = rememberScrollState()
+
+    // Base column widths computed from content length
+    val baseColWidths = remember(headers, rows) {
+        headers.indices.map { colIdx ->
+            val headerLen = headers.getOrElse(colIdx) { "" }.length
+            val maxRowCellLen = rows.maxOfOrNull { r -> r.getOrElse(colIdx) { "" }.length } ?: 0
+            val maxLen = maxOf(headerLen, maxRowCellLen)
+            when {
+                maxLen <= 4 -> 56.dp
+                maxLen <= 8 -> 88.dp
+                maxLen <= 16 -> 120.dp
+                maxLen <= 30 -> 160.dp
+                else -> 220.dp
+            }
+        }
+    }
 
     Surface(
         modifier = Modifier
@@ -409,28 +442,41 @@ fun MarkdownTableView(
             .padding(vertical = 6.dp),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
     ) {
-        Box(modifier = Modifier.horizontalScroll(scrollState)) {
-            Column(modifier = Modifier.width(IntrinsicSize.Max)) {
-                // Table Header
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val availableWidth = maxWidth
+            val totalBaseWidth = baseColWidths.fold(0.dp) { acc, w -> acc + w }
+            val finalWidths = remember(baseColWidths, availableWidth) {
+                if (totalBaseWidth < availableWidth && totalBaseWidth > 0.dp) {
+                    val scale = availableWidth / totalBaseWidth
+                    baseColWidths.map { it * scale }
+                } else {
+                    baseColWidths
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(scrollState)
+            ) {
+                Column {
+                    // Header Row
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .padding(vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         headers.forEachIndexed { colIdx, headerText ->
                             val align = alignments.getOrElse(colIdx) { TextAlign.Start }
+                            val width = finalWidths.getOrElse(colIdx) { 100.dp }
                             val annotated = remember(headerText) { LatexMathParser.parseToAnnotatedString(headerText) }
                             Box(
                                 modifier = Modifier
-                                    .widthIn(min = 90.dp, max = 220.dp)
-                                    .padding(horizontal = 8.dp)
+                                    .width(width)
+                                    .padding(horizontal = 12.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = annotated,
@@ -443,53 +489,53 @@ fun MarkdownTableView(
                             }
                         }
                     }
-                }
 
-                HorizontalDivider(
-                    thickness = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                )
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
 
-                // Table Rows
-                rows.forEachIndexed { rowIdx, rowCells ->
-                    val rowBg = if (rowIdx % 2 == 1) {
-                        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.35f)
-                    } else {
-                        androidx.compose.ui.graphics.Color.Transparent
-                    }
+                    // Data Rows
+                    rows.forEachIndexed { rowIdx, rowCells ->
+                        val rowBg = if (rowIdx % 2 == 1) {
+                            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.35f)
+                        } else {
+                            Color.Transparent
+                        }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(rowBg)
-                            .padding(horizontal = 8.dp, vertical = 9.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        headers.indices.forEach { colIdx ->
-                            val cellText = rowCells.getOrElse(colIdx) { "" }
-                            val align = alignments.getOrElse(colIdx) { TextAlign.Start }
-                            val annotated = remember(cellText) { LatexMathParser.parseToAnnotatedString(cellText) }
-                            Box(
-                                modifier = Modifier
-                                    .widthIn(min = 90.dp, max = 220.dp)
-                                    .padding(horizontal = 8.dp)
-                            ) {
-                                Text(
-                                    text = annotated,
-                                    color = textColor,
-                                    fontSize = fontSize,
-                                    textAlign = align,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                        Row(
+                            modifier = Modifier
+                                .background(rowBg)
+                                .padding(vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            headers.indices.forEach { colIdx ->
+                                val cellText = rowCells.getOrElse(colIdx) { "" }
+                                val align = alignments.getOrElse(colIdx) { TextAlign.Start }
+                                val width = finalWidths.getOrElse(colIdx) { 100.dp }
+                                val annotated = remember(cellText) { LatexMathParser.parseToAnnotatedString(cellText) }
+                                Box(
+                                    modifier = Modifier
+                                        .width(width)
+                                        .padding(horizontal = 12.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = annotated,
+                                        color = textColor,
+                                        fontSize = fontSize,
+                                        textAlign = align,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    if (rowIdx < rows.lastIndex) {
-                        HorizontalDivider(
-                            thickness = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-                        )
+                        if (rowIdx < rows.lastIndex) {
+                            HorizontalDivider(
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                            )
+                        }
                     }
                 }
             }
