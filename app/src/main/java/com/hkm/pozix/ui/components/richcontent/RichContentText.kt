@@ -1,13 +1,16 @@
 package com.hkm.pozix.ui.components.richcontent
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -21,6 +24,8 @@ import androidx.compose.ui.unit.sp
  */
 sealed interface ContentBlock {
     data class Paragraph(val text: String) : ContentBlock
+    data class Heading(val level: Int, val text: String) : ContentBlock
+    data class ListItem(val bullet: String, val text: String) : ContentBlock
     data class Code(val code: String, val language: String) : ContentBlock
     data class MathDisplay(val latex: String) : ContentBlock
 }
@@ -28,8 +33,10 @@ sealed interface ContentBlock {
 /**
  * Universal rich educational content component for Pozix.
  * Intelligently handles:
+ * - Markdown Headings (#, ##, ###)
+ * - Bulleted & numbered lists (-, *, 1.)
  * - Markdown Code Blocks (```lang ... ```)
- * - Display Math Formulas ($$ ... $$)
+ * - Display Math Formulas ($$ ... $$ or \[ ... \])
  * - Inline Math ($ ... $ or \( ... \))
  * - Inline Code (`...`)
  * - Markdown bold (**...**) and italic (*...*)
@@ -71,6 +78,51 @@ fun RichContentText(
     Column(modifier = modifier.fillMaxWidth()) {
         blocks.forEachIndexed { index, block ->
             when (block) {
+                is ContentBlock.Heading -> {
+                    val (headingStyle, topPad) = when (block.level) {
+                        1 -> MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 26.sp) to 8.dp
+                        2 -> MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 23.sp) to 6.dp
+                        else -> MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 21.sp) to 4.dp
+                    }
+                    val annotated = remember(block.text) {
+                        LatexMathParser.parseToAnnotatedString(block.text)
+                    }
+                    Text(
+                        text = annotated,
+                        color = textColor,
+                        style = headingStyle,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = topPad, bottom = 2.dp)
+                    )
+                }
+                is ContentBlock.ListItem -> {
+                    val annotated = remember(block.text) {
+                        LatexMathParser.parseToAnnotatedString(block.text)
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp, horizontal = 2.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = block.bullet,
+                            color = MaterialTheme.colorScheme.primary,
+                            style = style.copy(fontWeight = FontWeight.Bold, fontSize = fontSize),
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(
+                            text = annotated,
+                            color = textColor,
+                            fontSize = fontSize,
+                            fontWeight = fontWeight,
+                            lineHeight = lineHeight,
+                            style = style,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
                 is ContentBlock.Paragraph -> {
                     val annotated = remember(block.text) {
                         LatexMathParser.parseToAnnotatedString(block.text)
@@ -101,14 +153,73 @@ fun RichContentText(
             }
 
             if (index < blocks.lastIndex) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
     }
 }
 
 /**
- * Split text into Paragraphs, Code Blocks, and Display Math blocks.
+ * Parses normal markdown text lines into Headings, ListItems, and Paragraphs.
+ */
+private fun parseMarkdownText(text: String): List<ContentBlock> {
+    val results = mutableListOf<ContentBlock>()
+    val lines = text.lines()
+    val currentParagraph = StringBuilder()
+
+    fun flushParagraph() {
+        val trimmed = currentParagraph.toString().trim()
+        if (trimmed.isNotEmpty()) {
+            results.add(ContentBlock.Paragraph(trimmed))
+            currentParagraph.clear()
+        }
+    }
+
+    for (rawLine in lines) {
+        val trimmed = rawLine.trim()
+        if (trimmed.isEmpty()) {
+            flushParagraph()
+            continue
+        }
+
+        when {
+            trimmed.startsWith("### ") -> {
+                flushParagraph()
+                results.add(ContentBlock.Heading(3, trimmed.removePrefix("### ").trim()))
+            }
+            trimmed.startsWith("## ") -> {
+                flushParagraph()
+                results.add(ContentBlock.Heading(2, trimmed.removePrefix("## ").trim()))
+            }
+            trimmed.startsWith("# ") -> {
+                flushParagraph()
+                results.add(ContentBlock.Heading(1, trimmed.removePrefix("# ").trim()))
+            }
+            trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ") || trimmed.startsWith("+ ") -> {
+                flushParagraph()
+                val itemText = trimmed.substring(2).trim()
+                results.add(ContentBlock.ListItem("•", itemText))
+            }
+            trimmed.matches(Regex("""^\d+[\.\)]\s+.*""")) -> {
+                flushParagraph()
+                val prefix = trimmed.takeWhile { it.isDigit() || it == '.' || it == ')' }
+                val itemText = trimmed.removePrefix(prefix).trim()
+                results.add(ContentBlock.ListItem(prefix, itemText))
+            }
+            else -> {
+                if (currentParagraph.isNotEmpty()) {
+                    currentParagraph.append("\n")
+                }
+                currentParagraph.append(rawLine)
+            }
+        }
+    }
+    flushParagraph()
+    return results
+}
+
+/**
+ * Split text into Paragraphs/Headings/Lists, Code Blocks, and Display Math blocks.
  */
 internal fun parseContentBlocks(input: String): List<ContentBlock> {
     val blocks = mutableListOf<ContentBlock>()
@@ -127,7 +238,7 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
             else -> mathStart2
         }
         val isBracketMath = mathStart != -1 && mathStart == mathStart2
-        val mathDelimiterLen = if (isBracketMath) 2 else 2
+        val mathDelimiterLen = 2
         val mathClosingDelimiter = if (isBracketMath) "\\]" else "$$"
 
         // Find the earliest delimiter
@@ -135,10 +246,10 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
         val hasMath = mathStart != -1
 
         if (!hasCode && !hasMath) {
-            // Remainder is a single paragraph
+            // Remainder is text (paragraphs, headings, lists)
             val remaining = input.substring(currentIndex).trim()
             if (remaining.isNotEmpty()) {
-                blocks.add(ContentBlock.Paragraph(remaining))
+                blocks.addAll(parseMarkdownText(remaining))
             }
             break
         }
@@ -148,7 +259,7 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
             if (codeStart > currentIndex) {
                 val leading = input.substring(currentIndex, codeStart).trim()
                 if (leading.isNotEmpty()) {
-                    blocks.add(ContentBlock.Paragraph(leading))
+                    blocks.addAll(parseMarkdownText(leading))
                 }
             }
 
@@ -176,7 +287,7 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
             if (mathStart > currentIndex) {
                 val leading = input.substring(currentIndex, mathStart).trim()
                 if (leading.isNotEmpty()) {
-                    blocks.add(ContentBlock.Paragraph(leading))
+                    blocks.addAll(parseMarkdownText(leading))
                 }
             }
 
@@ -199,7 +310,7 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
     }
 
     return if (blocks.isEmpty() && input.isNotBlank()) {
-        listOf(ContentBlock.Paragraph(input.trim()))
+        parseMarkdownText(input.trim())
     } else {
         blocks
     }

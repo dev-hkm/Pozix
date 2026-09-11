@@ -95,7 +95,7 @@ fun CodeBlockView(
         shape = RoundedCornerShape(14.dp),
         color = editorBg,
         shadowElevation = 3.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF45475A))
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Header bar
@@ -148,14 +148,14 @@ fun CodeBlockView(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Copied",
-                                tint = Color(0xFFA6E3A1),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Default.ContentCopy,
                                 contentDescription = "Copy code",
-                                tint = Color(0xFFBAC2DE),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(16.dp)
                             )
                         }

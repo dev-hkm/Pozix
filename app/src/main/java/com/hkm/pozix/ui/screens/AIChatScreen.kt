@@ -74,10 +74,13 @@ import java.util.UUID
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AIChatScreen(
-    onNavigateBack: () -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onPlayQuiz: () -> Unit,
-    viewModel: AIChatViewModel = viewModel()
+    onNavigateBack: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    onPlayQuiz: () -> Unit = {},
+    viewModel: AIChatViewModel = viewModel(),
+    initialPrompt: String? = null,
+    showBackButton: Boolean = true,
+    onOpenTemplates: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -92,6 +95,11 @@ fun AIChatScreen(
     var previewImageFilePath by remember { mutableStateOf<String?>(null) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var textInput by remember { mutableStateOf("") }
+    LaunchedEffect(initialPrompt) {
+        if (!initialPrompt.isNullOrBlank()) {
+            textInput = initialPrompt
+        }
+    }
 
     // Launchers for media and files
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -173,7 +181,7 @@ fun AIChatScreen(
                                 showProviderPicker = true
                             },
                         shape = RoundedCornerShape(20.dp),
-                        color = if (isDark) Color(0xFF262628) else Color(0xFFEBECEF),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         tonalElevation = 1.dp
                     ) {
                         Row(
@@ -483,7 +491,7 @@ fun ChatGPTStyleInputBar(
                                 modifier = Modifier
                                     .size(60.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(if (isDark) Color(0xFF262628) else Color(0xFFEBECEF)),
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                                 contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -539,7 +547,7 @@ fun ChatGPTStyleInputBar(
                             // File / Document Chip
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = if (isDark) Color(0xFF262628) else Color(0xFFEBECEF),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                             ) {
                                 Row(
@@ -586,10 +594,10 @@ fun ChatGPTStyleInputBar(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(28.dp),
-                color = if (isDark) Color(0xFF242426) else Color(0xFFF0F1F4),
+                color = MaterialTheme.colorScheme.surfaceContainer,
                 border = BorderStroke(
                     width = 1.dp,
-                    color = if (isDark) Color(0xFF38383A) else Color(0xFFE2E3E8)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
             ) {
                 Row(
@@ -608,7 +616,7 @@ fun ChatGPTStyleInputBar(
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Đính kèm",
-                            tint = if (isDark) Color(0xFFD4D4D8) else Color(0xFF52525B),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -625,7 +633,7 @@ fun ChatGPTStyleInputBar(
                                 text = if (pendingAttachments.isNotEmpty()) "Nhập yêu cầu cho tệp/ảnh..."
                                 else "Nhắn tin cho Pozix AI...",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (isDark) Color(0xFF8E8E93) else Color(0xFF8E8E93),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 maxLines = 1
                             )
                         },
@@ -714,7 +722,7 @@ fun AttachmentPickerBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = if (isDark) Color(0xFF1C1C1E) else MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             modifier = Modifier
@@ -766,6 +774,7 @@ private fun AttachmentOptionItem(
     title: String,
     subtitle: String,
     iconBg: Color,
+    iconTint: Color = MaterialTheme.colorScheme.onPrimaryContainer,
     onClick: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
@@ -775,7 +784,7 @@ private fun AttachmentOptionItem(
             .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        color = if (isDark) Color(0xFF2C2C2E) else Color(0xFFF2F2F7)
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -788,7 +797,7 @@ private fun AttachmentOptionItem(
                     .background(iconBg.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(imageVector = icon, contentDescription = null, tint = iconBg, modifier = Modifier.size(22.dp))
+                Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -887,7 +896,7 @@ fun ChatBubbleItem(
                     docAttachments.forEach { doc ->
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA)
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -912,8 +921,8 @@ fun ChatBubbleItem(
             }
 
             // Message Bubble Box
-            val userBubbleColor = if (isDark) Color(0xFF2E2F30) else Color(0xFFE9E9EB)
-            val userTextColor = if (isDark) Color(0xFFF2F2F2) else Color(0xFF1C1C1E)
+            val userBubbleColor = MaterialTheme.colorScheme.primaryContainer
+            val userTextColor = MaterialTheme.colorScheme.onPrimaryContainer
 
             if (isUser) {
                 // User Message Pill
@@ -1006,7 +1015,7 @@ fun GeneratedQuizCard(
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isDark) Color(0xFF1E1E22) else Color(0xFFF7F7FA)
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ),
             shape = RoundedCornerShape(22.dp),
             border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
@@ -1019,17 +1028,13 @@ fun GeneratedQuizCard(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))
-                                )
-                            ),
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Quiz,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -1069,7 +1074,7 @@ fun GeneratedQuizCard(
                         BadgeChip(text = "${validation.singleChoiceCount} trắc nghiệm", color = MaterialTheme.colorScheme.tertiary)
                     }
                     if (validation.trueFalseCount > 0) {
-                        BadgeChip(text = "${validation.trueFalseCount} đúng/sai", color = Color(0xFF10B981))
+                        BadgeChip(text = "${validation.trueFalseCount} đúng/sai", color = MaterialTheme.colorScheme.secondary)
                     }
                 }
 
@@ -1253,7 +1258,7 @@ fun ChatWelcomeSection(
                         .clip(RoundedCornerShape(16.dp))
                         .clickable { onSuggestionClick(text) },
                     shape = RoundedCornerShape(16.dp),
-                    color = if (isDark) Color(0xFF222224) else Color(0xFFF2F2F5),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                 ) {
                     Row(
@@ -1354,7 +1359,7 @@ fun ChatHistoryBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = if (isDark) Color(0xFF1C1C1E) else MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             modifier = Modifier
@@ -1419,7 +1424,7 @@ fun ChatHistoryBottomSheet(
                                 },
                             shape = RoundedCornerShape(16.dp),
                             color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                            else if (isDark) Color(0xFF2C2C2E) else Color(0xFFF2F2F7),
+                            else MaterialTheme.colorScheme.surfaceContainerHigh,
                             border = if (isCurrent) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
                         ) {
                             Row(

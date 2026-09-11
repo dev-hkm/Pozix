@@ -26,11 +26,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
 import androidx.compose.material.icons.automirrored.rounded.LibraryBooks
 import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Icon
@@ -65,6 +63,10 @@ data class NavItem(
     val route: String
 )
 
+/**
+ * Ultra-compact, minimalist Material 3 floating pill bottom navigation bar.
+ * Designed with 100% dynamic colors, spring physics, and zero screen obstruction.
+ */
 @Composable
 fun FloatingPillBottomNav(
     selectedIndex: Int,
@@ -77,21 +79,21 @@ fun FloatingPillBottomNav(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(68.dp),
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
-        tonalElevation = 6.dp,
-        shadowElevation = 10.dp,
+            .height(54.dp),
+        shape = RoundedCornerShape(27.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f),
+        tonalElevation = 3.dp,
+        shadowElevation = 8.dp,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEachIndexed { index, item ->
@@ -100,18 +102,18 @@ fun FloatingPillBottomNav(
 
                 val itemBgColor by animateColorAsState(
                     targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                    animationSpec = tween(220),
+                    animationSpec = tween(200),
                     label = "item_bg_color"
                 )
                 val contentColor by animateColorAsState(
                     targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    animationSpec = tween(220),
+                    animationSpec = tween(200),
                     label = "item_content_color"
                 )
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(18.dp))
                         .background(itemBgColor)
                         .clickable(
                             interactionSource = interactionSource,
@@ -128,8 +130,8 @@ fun FloatingPillBottomNav(
                             this.contentDescription = item.label
                         }
                         .padding(
-                            horizontal = if (isSelected) 14.dp else 12.dp,
-                            vertical = 10.dp
+                            horizontal = if (isSelected) 12.dp else 10.dp,
+                            vertical = 7.dp
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -141,28 +143,28 @@ fun FloatingPillBottomNav(
                             imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                             contentDescription = null,
                             tint = contentColor,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
 
                         AnimatedVisibility(
                             visible = isSelected,
-                            enter = fadeIn(tween(180)) + expandHorizontally(
-                                animationSpec = spring(dampingRatio = 0.85f, stiffness = 400f),
+                            enter = fadeIn(tween(160)) + expandHorizontally(
+                                animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f),
                                 expandFrom = Alignment.Start
                             ),
-                            exit = fadeOut(tween(120)) + shrinkHorizontally(
-                                animationSpec = spring(dampingRatio = 0.85f, stiffness = 400f),
+                            exit = fadeOut(tween(100)) + shrinkHorizontally(
+                                animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f),
                                 shrinkTowards = Alignment.Start
                             )
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
                                     text = item.label,
                                     color = contentColor,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     lineHeight = 14.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -183,15 +185,15 @@ fun BottomNavBar(
 ) {
     val items = listOf(
         NavItem(
-            selectedIcon = Icons.Rounded.Home,
-            unselectedIcon = Icons.Outlined.Home,
-            label = stringResource(R.string.nav_home),
-            route = "home"
+            selectedIcon = Icons.AutoMirrored.Rounded.LibraryBooks,
+            unselectedIcon = Icons.AutoMirrored.Outlined.LibraryBooks,
+            label = stringResource(R.string.nav_quizzes),
+            route = "library"
         ),
         NavItem(
             selectedIcon = Icons.Rounded.AutoAwesome,
             unselectedIcon = Icons.Outlined.AutoAwesome,
-            label = stringResource(R.string.nav_templates),
+            label = stringResource(R.string.nav_ai_prompts),
             route = "templates"
         ),
         NavItem(
@@ -201,21 +203,16 @@ fun BottomNavBar(
             route = "import"
         ),
         NavItem(
-            selectedIcon = Icons.AutoMirrored.Rounded.LibraryBooks,
-            unselectedIcon = Icons.AutoMirrored.Outlined.LibraryBooks,
-            label = stringResource(R.string.nav_library),
-            route = "library"
-        ),
-        NavItem(
             selectedIcon = Icons.Rounded.Settings,
             unselectedIcon = Icons.Outlined.Settings,
             label = stringResource(R.string.nav_settings),
             route = "settings"
         )
     )
-    val selectedIndex = items.indexOfFirst { it.route == currentRoute }
-        .takeIf { it >= 0 }
-        ?: 0
+
+    val selectedIndex = items.indexOfFirst {
+        it.route == currentRoute || (it.route == "templates" && currentRoute in setOf("templates", "ai_chat", "ai_prompts"))
+    }.takeIf { it >= 0 } ?: 0
 
     FloatingPillBottomNav(
         selectedIndex = selectedIndex,
@@ -224,4 +221,3 @@ fun BottomNavBar(
         modifier = modifier
     )
 }
-

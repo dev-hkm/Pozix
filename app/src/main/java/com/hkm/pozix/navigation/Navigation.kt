@@ -12,32 +12,29 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.hkm.pozix.ui.screens.AIChatScreen
+import com.hkm.pozix.ui.screens.AIPromptsScreen
 import com.hkm.pozix.ui.screens.ExamPlayerScreen
-import com.hkm.pozix.ui.screens.HomeScreen
 import com.hkm.pozix.ui.screens.ImportScreen
-import com.hkm.pozix.ui.screens.PromptTemplatesScreen
 import com.hkm.pozix.ui.screens.QuizPlayerScreen
 import com.hkm.pozix.ui.screens.SavedQuizSetsScreen
 import com.hkm.pozix.ui.screens.SettingsScreen
 
 sealed class Screen(val route: String) {
-    object Home : Screen("home")
+    object Library : Screen("library")
     object Templates : Screen("templates")
     object Import : Screen("import")
-    object Library : Screen("library")
     object Settings : Screen("settings")
     object QuizPlayer : Screen("quiz_player")
     object ExamPlayer : Screen("exam_player")
     object AIChat : Screen("ai_chat")
+    object Home : Screen("home")
 }
 
 private fun getTabIndex(route: String?): Int = when (route) {
-    Screen.Home.route -> 0
-    Screen.Templates.route -> 1
+    Screen.Library.route -> 0
+    Screen.Templates.route, Screen.AIChat.route -> 1
     Screen.Import.route -> 2
-    Screen.Library.route -> 3
-    Screen.Settings.route -> 4
+    Screen.Settings.route -> 3
     else -> -1
 }
 
@@ -74,61 +71,8 @@ fun PozixNavigation(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route
+        startDestination = Screen.Library.route
     ) {
-        composable(
-            route = Screen.Home.route,
-            enterTransition = { tabEnterTransition(this) },
-            exitTransition = { tabExitTransition(this) }
-        ) {
-            HomeScreen(
-                onNavigateToTemplates = {
-                    navController.navigate(Screen.Templates.route) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateToImport = {
-                    navController.navigate(Screen.Import.route) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateToAIChat = {
-                    navController.navigate(Screen.AIChat.route)
-                },
-                onStartQuiz = {
-                    navController.navigate(Screen.QuizPlayer.route)
-                },
-                onStartTest = {
-                    navController.navigate(Screen.ExamPlayer.route)
-                }
-            )
-        }
-        
-        composable(
-            route = Screen.Templates.route,
-            enterTransition = { tabEnterTransition(this) },
-            exitTransition = { tabExitTransition(this) }
-        ) {
-            PromptTemplatesScreen()
-        }
-        
-        composable(
-            route = Screen.Import.route,
-            enterTransition = { tabEnterTransition(this) },
-            exitTransition = { tabExitTransition(this) }
-        ) {
-            ImportScreen(
-                onQuizLoaded = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }
-            )
-        }
-        
         composable(
             route = Screen.Library.route,
             enterTransition = { tabEnterTransition(this) },
@@ -143,7 +87,41 @@ fun PozixNavigation(
                 }
             )
         }
-        
+
+        composable(
+            route = Screen.Templates.route,
+            enterTransition = { tabEnterTransition(this) },
+            exitTransition = { tabExitTransition(this) }
+        ) {
+            AIPromptsScreen(
+                initialTab = 0,
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route) {
+                        popUpTo(Screen.Library.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onPlayQuiz = {
+                    navController.navigate(Screen.QuizPlayer.route)
+                }
+            )
+        }
+
+        composable(
+            route = Screen.Import.route,
+            enterTransition = { tabEnterTransition(this) },
+            exitTransition = { tabExitTransition(this) }
+        ) {
+            ImportScreen(
+                onQuizLoaded = {
+                    navController.navigate(Screen.Library.route) {
+                        popUpTo(Screen.Library.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
         composable(
             route = Screen.Settings.route,
             enterTransition = { tabEnterTransition(this) },
@@ -153,7 +131,7 @@ fun PozixNavigation(
                 onLanguageChanged = onLanguageChanged
             )
         }
-        
+
         composable(
             route = Screen.QuizPlayer.route,
             enterTransition = {
@@ -219,20 +197,16 @@ fun PozixNavigation(
                 ) + fadeOut(animationSpec = tween(240))
             }
         ) {
-            AIChatScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
+            AIPromptsScreen(
+                initialTab = 0,
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
+                        popUpTo(Screen.Library.route) { inclusive = false }
                         launchSingleTop = true
                     }
                 },
                 onPlayQuiz = {
-                    navController.navigate(Screen.QuizPlayer.route) {
-                        popUpTo(Screen.AIChat.route) { inclusive = false }
-                    }
+                    navController.navigate(Screen.QuizPlayer.route)
                 }
             )
         }

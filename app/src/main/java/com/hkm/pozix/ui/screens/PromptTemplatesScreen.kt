@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -72,7 +73,8 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun PromptTemplatesScreen(
-    viewModel: PromptTemplatesViewModel = viewModel()
+    viewModel: PromptTemplatesViewModel = viewModel(),
+    onUseInChat: ((String) -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -104,7 +106,7 @@ fun PromptTemplatesScreen(
         // JSON SCHEMA & AI PLANNING SECTION
         // Shows full importable JSON structure and AI prompt template with copy buttons
         // =========================================================================
-        JsonSchemaPromptCard()
+        JsonSchemaPromptCard(onUseInChat = onUseInChat)
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -125,7 +127,8 @@ fun PromptTemplatesScreen(
                 onCopy = {
                     copyToClipboard(context, prompt.content)
                     HapticUtil.selectionTick(context)
-                }
+                },
+                onUseInChat = onUseInChat?.let { callback -> { callback(prompt.content) } }
             )
             Spacer(modifier = Modifier.height(12.dp))
         }
@@ -197,7 +200,26 @@ fun PromptTemplatesScreen(
                     
                     var customCopied by remember { mutableStateOf(false) }
                     
-                    Button(
+                    if (onUseInChat != null) {
+                        Button(
+                            onClick = {
+                                onUseInChat(uiState.generatedPrompt)
+                                HapticUtil.primaryAction(context)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.prompts_use_in_chat))
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    FilledTonalButton(
                         onClick = {
                             copyToClipboard(context, uiState.generatedPrompt)
                             HapticUtil.veryLightTap(context)
@@ -233,7 +255,8 @@ fun PromptTemplatesScreen(
 fun PromptCard(
     prompt: PromptItem,
     onToggleExpand: () -> Unit,
-    onCopy: () -> Unit
+    onCopy: () -> Unit,
+    onUseInChat: (() -> Unit)? = null
 ) {
     var copied by remember { mutableStateOf(false) }
     
@@ -321,6 +344,28 @@ fun PromptCard(
                             modifier = Modifier.padding(14.dp)
                         )
                     }
+                    if (onUseInChat != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        FilledTonalButton(
+                            onClick = {
+                                onUseInChat()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.prompts_use_in_chat),
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
                 }
             }
             
@@ -341,7 +386,9 @@ private fun copyToClipboard(context: Context, text: String) {
 }
 
 @Composable
-fun JsonSchemaPromptCard() {
+fun JsonSchemaPromptCard(
+    onUseInChat: ((String) -> Unit)? = null
+) {
     val context = LocalContext.current
     var copiedSchema by remember { mutableStateOf(false) }
     var copiedPrompt by remember { mutableStateOf(false) }
@@ -479,6 +526,33 @@ Please ask me what topic, target difficulty, and question count I would like, or
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (onUseInChat != null) {
+                    Button(
+                        onClick = {
+                            onUseInChat(aiPlanningPrompt)
+                            HapticUtil.primaryAction(context)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 44.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.prompts_use_in_chat),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
                 FilledTonalButton(
                     onClick = {
                         copyToClipboard(context, jsonSchemaExample)

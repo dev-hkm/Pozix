@@ -37,12 +37,11 @@ fun PozixApp(
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Home.route
+    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Library.route
     val isKeyboardOpen = WindowInsets.isImeVisible
     val showBottomBar = currentRoute !in setOf(
         Screen.QuizPlayer.route,
-        Screen.ExamPlayer.route,
-        Screen.AIChat.route
+        Screen.ExamPlayer.route
     ) && !isKeyboardOpen
 
     Box(
@@ -58,26 +57,26 @@ fun PozixApp(
 
         AnimatedVisibility(
             visible = showBottomBar,
-            enter = fadeIn(tween(200)) + slideInVertically(
-                animationSpec = spring(dampingRatio = 0.85f, stiffness = 400f),
+            enter = fadeIn(tween(180)) + slideInVertically(
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f),
                 initialOffsetY = { it }
             ),
-            exit = fadeOut(tween(150)) + slideOutVertically(
-                animationSpec = spring(dampingRatio = 0.85f, stiffness = 400f),
+            exit = fadeOut(tween(140)) + slideOutVertically(
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f),
                 targetOffsetY = { it }
             ),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 10.dp)
         ) {
             BottomNavBar(
                 currentRoute = currentRoute,
                 onNavigate = { route ->
                     if (route != currentRoute) {
                         navController.navigate(route) {
-                            popUpTo(Screen.Home.route) { inclusive = false }
+                            popUpTo(Screen.Library.route) { inclusive = false }
                             launchSingleTop = true
                         }
                     }

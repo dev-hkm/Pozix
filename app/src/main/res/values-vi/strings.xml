@@ -4,10 +4,15 @@
     
     <!-- Bottom Navigation -->
     <string name="nav_home">Trang chủ</string>
+    <string name="nav_quizzes">Bộ đề</string>
     <string name="nav_templates">Mẫu</string>
-    <string name="nav_library">Thư viện</string>
+    <string name="nav_ai_prompts">AI &amp; Mẫu lệnh</string>
+    <string name="nav_library">Bộ đề</string>
     <string name="nav_import">Nhập</string>
     <string name="nav_settings">Cài đặt</string>
+    <string name="tab_ai_chat">Trợ lý AI</string>
+    <string name="tab_prompts">Mẫu câu lệnh</string>
+    <string name="prompts_use_in_chat">Dùng trong AI Chat</string>
     
     <!-- Home Screen -->
     <string name="home_title">Pozix</string>
@@ -105,8 +110,8 @@
     <string name="settings_cloud_security_badge">Mã hóa đầu cuối</string>
     
     <!-- Saved Quiz Sets Screen -->
-    <string name="saved_quiz_sets_title">Thư viện Quiz</string>
-    <string name="saved_quiz_sets_subtitle">Bộ sưu tập quiz đã lưu</string>
+    <string name="saved_quiz_sets_title">Bộ đề của tôi</string>
+    <string name="saved_quiz_sets_subtitle">Các bộ đề ôn tập và đề thi bạn đã lưu</string>
     <string name="saved_quiz_sets_empty">Chưa có bộ quiz nào</string>
     <string name="saved_quiz_sets_empty_hint">Nhập và lưu các bộ quiz để xây dựng thư viện</string>
     <string name="saved_quiz_sets_play">Chơi Quiz</string>
