@@ -102,7 +102,11 @@
     <string name="import_file_too_large">File is too large (maximum 5MB)</string>
     <string name="import_or">or</string>
     <string name="import_source">Import Source</string>
-    <string name="settings_appearance_section">Appearance</string>
+        <string name="settings_appearance_section">Appearance</string>
+    <string name="settings_theme">Theme Mode</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
     <string name="settings_ai_section">AI Providers</string>
     <string name="settings_gemini_api_key_desc">Used to generate customized quiz sets in AI Chat</string>
     <string name="settings_version_info">Pozix v%s</string>

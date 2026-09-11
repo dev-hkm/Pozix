@@ -11,6 +11,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.draw.scale
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -537,22 +543,23 @@ fun ChatGPTStyleInputBar(
                                         contentScale = ContentScale.Crop
                                     )
                                 }
-                                Box(
+                                Surface(
+                                    onClick = { onRemoveAttachment(item.id) },
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .padding(2.dp)
-                                        .size(20.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Black.copy(alpha = 0.7f))
-                                        .clickable { onRemoveAttachment(item.id) },
-                                    contentAlignment = Alignment.Center
+                                        .padding(3.dp)
+                                        .size(22.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Xóa",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(12.dp)
-                                    )
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Xóa",
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
                                 }
                             }
                         } else {
@@ -602,114 +609,134 @@ fun ChatGPTStyleInputBar(
                 }
             }
 
-            // Capsule Pill Container
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+            // Modern ChatGPT-style Separate Control Row:
+            // [ + Circle Button ]  [ Pill Capsule with BasicTextField ]  [ ↑ Send / Stop Circle Button ]
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.Bottom
+                // 1. Separate circular '+' button
+                Surface(
+                    onClick = onAttachClick,
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                    ),
+                    modifier = Modifier.size(42.dp)
                 ) {
-                    // Attachment '+' Button
-                    IconButton(
-                        onClick = onAttachClick,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                    ) {
+                    Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Đính kèm",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
+                }
 
-                    // Text Input
-                    TextField(
-                        value = textInput,
-                        onValueChange = onTextChanged,
+                // 2. Central Capsule Pill for text input
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 42.dp),
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                    )
+                ) {
+                    Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 4.dp),
-                        placeholder = {
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (textInput.isEmpty()) {
                             Text(
                                 text = if (pendingAttachments.isNotEmpty()) "Nhập yêu cầu cho tệp/ảnh..."
                                 else "Nhắn tin cho Pozix AI...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                maxLines = 1
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = 15.sp,
+                                    lineHeight = 20.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
-                        },
-                        minLines = 1,
-                        maxLines = 5,
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Default,
-                            keyboardType = KeyboardType.Text
-                        ),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp)
-                    )
+                        }
 
-                    // Send or Stop Button
-                    if (isLoading) {
-                        // Stop Generation Button
-                        Box(
-                            modifier = Modifier
-                                .padding(bottom = 2.dp)
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.error)
-                                .clickable { onCancelGeneration() },
-                            contentAlignment = Alignment.Center
-                        ) {
+                        BasicTextField(
+                            value = textInput,
+                            onValueChange = onTextChanged,
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = 15.sp,
+                                lineHeight = 20.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            maxLines = 5,
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Default,
+                                keyboardType = KeyboardType.Text
+                            )
+                        )
+                    }
+                }
+
+                // 3. Send or Stop Circular Button with tactile spring physics & 100% Dynamic Colors
+                val sendButtonScale by animateFloatAsState(
+                    targetValue = if (canSend || isLoading) 1.0f else 0.95f,
+                    animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+                    label = "sendButtonScale"
+                )
+
+                if (isLoading) {
+                    Surface(
+                        onClick = onCancelGeneration,
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier
+                            .size(42.dp)
+                            .scale(sendButtonScale)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.Stop,
                                 contentDescription = "Dừng",
-                                tint = MaterialTheme.colorScheme.onError,
-                                modifier = Modifier.size(18.dp)
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                    } else {
-                        // Upward Arrow Send Button
-                        Box(
-                            modifier = Modifier
-                                .padding(bottom = 2.dp)
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (canSend) {
-                                        if (isDark) Color.White else Color.Black
-                                    } else {
-                                        if (isDark) Color(0xFF38383A) else Color(0xFFD1D1D6)
-                                    }
-                                )
-                                .clickable(enabled = canSend) { onSend() },
-                            contentAlignment = Alignment.Center
-                        ) {
+                    }
+                } else {
+                    Surface(
+                        onClick = {
+                            if (canSend) {
+                                onSend()
+                            }
+                        },
+                        enabled = canSend,
+                        shape = CircleShape,
+                        color = if (canSend) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier
+                            .size(42.dp)
+                            .scale(sendButtonScale)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.ArrowUpward,
                                 contentDescription = "Gửi",
-                                tint = if (canSend) {
-                                    if (isDark) Color.Black else Color.White
-                                } else {
-                                    if (isDark) Color(0xFF71717A) else Color(0xFF8E8E93)
-                                },
-                                modifier = Modifier.size(18.dp)
+                                tint = if (canSend) MaterialTheme.colorScheme.onPrimary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -755,7 +782,8 @@ fun AttachmentPickerBottomSheet(
                 icon = Icons.Default.PhotoLibrary,
                 title = "Thư viện ảnh",
                 subtitle = "Gửi đề thi, công thức toán hoặc bài tập từ ảnh chụp",
-                iconBg = Color(0xFF3B82F6),
+                iconBg = MaterialTheme.colorScheme.primaryContainer,
+                iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                 onClick = onPickGallery
             )
 
@@ -764,7 +792,8 @@ fun AttachmentPickerBottomSheet(
                 icon = Icons.Default.CameraAlt,
                 title = "Chụp ảnh ngay",
                 subtitle = "Chụp trực tiếp đề bài từ sách hoặc bài làm",
-                iconBg = Color(0xFF10B981),
+                iconBg = MaterialTheme.colorScheme.secondaryContainer,
+                iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                 onClick = onTakePhoto
             )
 
@@ -773,7 +802,8 @@ fun AttachmentPickerBottomSheet(
                 icon = Icons.Default.FolderOpen,
                 title = "Tệp tin & Tài liệu",
                 subtitle = "Tải lên tệp JSON câu hỏi, tệp văn bản TXT, Markdown...",
-                iconBg = Color(0xFFF59E0B),
+                iconBg = MaterialTheme.colorScheme.tertiaryContainer,
+                iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
                 onClick = onPickDocument
             )
         }
@@ -806,7 +836,7 @@ private fun AttachmentOptionItem(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(iconBg.copy(alpha = 0.15f)),
+                    .background(iconBg),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))

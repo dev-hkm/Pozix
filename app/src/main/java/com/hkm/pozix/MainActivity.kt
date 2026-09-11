@@ -12,6 +12,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
+import android.app.Activity
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalView
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,7 +60,23 @@ class MainActivity : ComponentActivity() {
             
             setContent {
                 var currentFont by remember { mutableStateOf(font) }
-                
+                val themeMode by settingsRepository.getThemeMode().collectAsState(initial = "system")
+                val isSystemDark = isSystemInDarkTheme()
+                val isDark = when (themeMode) {
+                    "light" -> false
+                    "dark" -> true
+                    else -> isSystemDark
+                }
+
+                val view = LocalView.current
+                if (!view.isInEditMode) {
+                    SideEffect {
+                        val window = (view.context as Activity).window
+                        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDark
+                        WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !isDark
+                    }
+                }
+
                 // Observe font changes
                 LaunchedEffect(Unit) {
                     settingsRepository.getFont().collect { newFont ->
@@ -64,6 +85,7 @@ class MainActivity : ComponentActivity() {
                 }
                 
                 PozixTheme(
+                    darkTheme = isDark,
                     dynamicColor = true,
                     fontFamily = currentFont
                 ) {

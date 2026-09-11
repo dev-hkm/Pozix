@@ -103,7 +103,11 @@
     <string name="import_file_too_large">Tệp quá lớn (tối đa 5MB)</string>
     <string name="import_or">hoặc</string>
     <string name="import_source">Nguồn nhập</string>
-    <string name="settings_appearance_section">Giao diện &amp; Ngôn ngữ</string>
+        <string name="settings_appearance_section">Giao diện &amp; Ngôn ngữ</string>
+    <string name="settings_theme">Chế độ giao diện</string>
+    <string name="settings_theme_system">Hệ thống</string>
+    <string name="settings_theme_light">Sáng</string>
+    <string name="settings_theme_dark">Tối</string>
     <string name="settings_ai_section">Nhà cung cấp AI</string>
     <string name="settings_gemini_api_key_desc">Dùng để tạo bộ câu hỏi tự động trong AI Chat</string>
     <string name="settings_version_info">Pozix v%s</string>

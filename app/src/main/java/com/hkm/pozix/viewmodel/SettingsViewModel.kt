@@ -39,6 +39,7 @@ data class CloudNotice(
 )
 
 data class SettingsUiState(
+    val themeMode: String = "system",
     val language: String = "en",
     val font: String = "default",
     val shuffleQuestions: Boolean = false,
@@ -81,6 +82,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun loadSettings() {
+        viewModelScope.launch {
+            repository.getThemeMode().collect { value ->
+                _uiState.value = _uiState.value.copy(themeMode = value)
+            }
+        }
         viewModelScope.launch {
             repository.getLanguage().collect { value ->
                 _uiState.value = _uiState.value.copy(language = value)
@@ -127,6 +133,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     activeProviderId = active?.id.orEmpty()
                 )
             }
+        }
+    }
+
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch {
+            repository.setThemeMode(mode)
         }
     }
 

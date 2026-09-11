@@ -14,6 +14,7 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 
 class SettingsRepository(private val context: Context) {
     
+    private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
     private val LANGUAGE_KEY = stringPreferencesKey("language")
     private val FONT_KEY = stringPreferencesKey("font")
     private val SHUFFLE_QUESTIONS_KEY = booleanPreferencesKey("shuffle_questions")
@@ -22,6 +23,18 @@ class SettingsRepository(private val context: Context) {
     private val GEMINI_API_KEY_KEY = stringPreferencesKey("gemini_api_key")
     private val CLOUD_BACKUP_TOKEN_KEY = stringPreferencesKey("cloud_backup_token")
     
+    suspend fun setThemeMode(mode: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[THEME_MODE_KEY] = mode
+        }
+    }
+
+    fun getThemeMode(): Flow<String> {
+        return context.settingsDataStore.data.map { preferences ->
+            preferences[THEME_MODE_KEY] ?: "system"
+        }
+    }
+
     suspend fun setLanguage(languageCode: String) {
         context.settingsDataStore.edit { preferences ->
             preferences[LANGUAGE_KEY] = languageCode

@@ -1,5 +1,6 @@
 package com.hkm.pozix.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,6 +29,11 @@ fun AIPromptsScreen(
 ) {
     var selectedTab by remember { mutableIntStateOf(initialTab) }
     var pendingPrompt by remember { mutableStateOf<String?>(null) }
+
+    // Intercept back button when in Prompt Templates (tab 1) to return to AI Chat (tab 0)
+    BackHandler(enabled = selectedTab != 0) {
+        selectedTab = 0
+    }
 
     AnimatedContent(
         targetState = selectedTab,

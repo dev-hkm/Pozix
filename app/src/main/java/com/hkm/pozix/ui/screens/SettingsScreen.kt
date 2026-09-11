@@ -90,6 +90,17 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.material.icons.rounded.BrightnessAuto
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.ui.graphics.graphicsLayer
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.AiProvider
 import com.hkm.pozix.ui.theme.getAvailableFonts
@@ -198,6 +209,113 @@ fun SettingsScreen(
 
         item(key = "appearance") {
             SettingsCard(title = stringResource(R.string.settings_appearance_section)) {
+                // Modern 3-Way Theme Segmented Pill
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_theme),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            val options = listOf(
+                                Triple("system", stringResource(R.string.settings_theme_system), Icons.Rounded.BrightnessAuto),
+                                Triple("light", stringResource(R.string.settings_theme_light), Icons.Rounded.LightMode),
+                                Triple("dark", stringResource(R.string.settings_theme_dark), Icons.Rounded.DarkMode)
+                            )
+
+                            options.forEach { (mode, label, icon) ->
+                                val isSelected = uiState.themeMode == mode
+                                val interactionSource = remember { MutableInteractionSource() }
+                                val isPressed by interactionSource.collectIsPressedAsState()
+
+                                val pressScale by animateFloatAsState(
+                                    targetValue = if (isPressed) 0.93f else 1.0f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    ),
+                                    label = "theme_press"
+                                )
+
+                                val bgColor by animateColorAsState(
+                                    targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f),
+                                    label = "theme_bg"
+                                )
+                                val contentColor by animateColorAsState(
+                                    targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    animationSpec = tween(180),
+                                    label = "theme_content"
+                                )
+
+                                Surface(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .graphicsLayer {
+                                            scaleX = pressScale
+                                            scaleY = pressScale
+                                        }
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable(
+                                            interactionSource = interactionSource,
+                                            indication = null
+                                        ) {
+                                            if (!isSelected) {
+                                                HapticUtil.selectionTick(context)
+                                                viewModel.setThemeMode(mode)
+                                            }
+                                        },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = bgColor,
+                                    shadowElevation = if (isSelected) 2.dp else 0.dp
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null,
+                                            tint = contentColor,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = contentColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
                 ListItem(
                     headlineContent = {
                         Text(
