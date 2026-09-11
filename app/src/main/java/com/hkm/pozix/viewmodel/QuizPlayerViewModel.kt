@@ -32,7 +32,8 @@ sealed class QuizState {
         val isCorrect: Boolean,
         val showExplanation: Boolean,
         val elapsedTimeMillis: Long,
-        val answeredQuestions: List<Int>
+        val answeredQuestions: List<Int>,
+        val selectedAnswers: Map<Int, Int> = emptyMap()
     ) : QuizState()
     data class Finished(
         val quizTitle: String,
@@ -72,7 +73,8 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                 if (currentState is QuizState.Playing) {
                     val elapsed = System.currentTimeMillis() - startTimeMillis
                     _quizState.value = currentState.copy(elapsedTimeMillis = elapsed)
-                    saveProgress()
+                    // Do not serialize the entire question bank every second on the UI thread.
+                    if (elapsed / 1000 % 10 == 0L) saveProgress()
                 }
             }
         }
@@ -120,20 +122,24 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                 val existingProgress = progressRepository.getProgressForQuiz(quizSetId).first()
                 
                 if (existingProgress != null && !existingProgress.isCompleted && existingProgress.totalQuestions == questions.size) {
+                    if (existingProgress.questionSnapshot.size == questions.size) questions = existingProgress.questionSnapshot
                     startTimeMillis = System.currentTimeMillis() - existingProgress.elapsedTimeMillis
                     _quizState.value = QuizState.Playing(
                         quizSetId = quizSetId,
                         quizTitle = result.quiz.title,
                         questions = questions,
-                        currentQuestionIndex = existingProgress.currentQuestionIndex,
+                        currentQuestionIndex = existingProgress.currentQuestionIndex.coerceIn(questions.indices),
                         score = existingProgress.score,
-                        selectedAnswerIndex = null,
-                        isAnswered = false,
+                        selectedAnswerIndex = existingProgress.selectedAnswers[existingProgress.currentQuestionIndex],
+                        isAnswered = existingProgress.currentQuestionIndex in existingProgress.answeredQuestions,
                         isCorrect = false,
                         showExplanation = false,
                         elapsedTimeMillis = existingProgress.elapsedTimeMillis,
-                        answeredQuestions = existingProgress.answeredQuestions
+                        answeredQuestions = existingProgress.answeredQuestions,
+                        selectedAnswers = existingProgress.selectedAnswers
                     )
+                    _quizState.value = QuizReviewNavigation.show(_quizState.value as QuizState.Playing,
+                        existingProgress.currentQuestionIndex.coerceIn(questions.indices), showExplanationSetting)
                 } else {
                     startTimeMillis = System.currentTimeMillis()
                     _quizState.value = QuizState.Playing(
@@ -167,7 +173,9 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                     answeredQuestions = currentState.answeredQuestions,
                     elapsedTimeMillis = currentState.elapsedTimeMillis,
                     totalQuestions = currentState.questions.size,
-                    isCompleted = false
+                    isCompleted = false,
+                    selectedAnswers = currentState.selectedAnswers,
+                    questionSnapshot = currentState.questions
                 )
                 progressRepository.saveProgressForQuiz(currentState.quizSetId, progress)
             }
@@ -176,9 +184,12 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
     
     fun selectAnswer(answerIndex: Int) {
         val currentState = _quizState.value
-        if (currentState !is QuizState.Playing || currentState.isAnswered) return
+        if (currentState !is QuizState.Playing || currentState.isAnswered ||
+            currentState.currentQuestionIndex in currentState.answeredQuestions) return
         
         val currentQuestion = currentState.questions[currentState.currentQuestionIndex]
+        val optionCount = if (currentQuestion is Question.SingleChoice) currentQuestion.options.size else 2
+        if (answerIndex !in 0 until optionCount) return
         val isCorrect = when (currentQuestion) {
             is Question.SingleChoice -> answerIndex == currentQuestion.correctIndex
             is Question.TrueFalse -> {
@@ -195,7 +206,8 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
             isCorrect = isCorrect,
             score = if (isCorrect) currentState.score + 1 else currentState.score,
             showExplanation = showExplanationSetting && currentQuestion.explanation != null,
-            answeredQuestions = updatedAnsweredQuestions
+            answeredQuestions = updatedAnsweredQuestions,
+            selectedAnswers = currentState.selectedAnswers + (currentState.currentQuestionIndex to answerIndex)
         )
         
         saveProgress()
@@ -203,7 +215,7 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
     
     fun nextQuestion() {
         val currentState = _quizState.value
-        if (currentState !is QuizState.Playing) return
+        if (currentState !is QuizState.Playing || !currentState.isAnswered) return
         
         val nextIndex = currentState.currentQuestionIndex + 1
         
@@ -219,7 +231,9 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                     elapsedTimeMillis = currentState.elapsedTimeMillis,
                     totalQuestions = currentState.questions.size,
                     isCompleted = true,
-                    completedTimestamp = System.currentTimeMillis()
+                    completedTimestamp = System.currentTimeMillis(),
+                    selectedAnswers = currentState.selectedAnswers,
+                    questionSnapshot = currentState.questions
                 )
                 progressRepository.saveProgressForQuiz(currentState.quizSetId, completedProgress)
             }
@@ -231,13 +245,7 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                 elapsedTimeMillis = currentState.elapsedTimeMillis
             )
         } else {
-            _quizState.value = currentState.copy(
-                currentQuestionIndex = nextIndex,
-                selectedAnswerIndex = null,
-                isAnswered = false,
-                isCorrect = false,
-                showExplanation = false
-            )
+            _quizState.value = QuizReviewNavigation.show(currentState, nextIndex, showExplanationSetting)
             saveProgress()
         }
     }
@@ -254,6 +262,15 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
             loadQuiz()
             startTimer()
         }
+    }
+
+    fun previousQuestion() {
+        val state = _quizState.value as? QuizState.Playing ?: return
+        val previous = state.currentQuestionIndex - 1
+        // Legacy saves do not contain selections; never invent a user's previous answer.
+        if (previous !in state.selectedAnswers) return
+        _quizState.value = QuizReviewNavigation.show(state, previous, showExplanationSetting)
+        saveProgress()
     }
     
     override fun onCleared() {

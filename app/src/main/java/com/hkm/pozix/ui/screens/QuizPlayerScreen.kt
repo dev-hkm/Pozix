@@ -83,6 +83,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -171,6 +172,10 @@ fun QuizPlayerScreen(
                     onNext = {
                         viewModel.nextQuestion()
                         HapticUtil.veryLightTap(context)
+                    },
+                    onPrevious = {
+                        viewModel.previousQuestion()
+                        HapticUtil.veryLightTap(context)
                     }
                 )
             }
@@ -222,7 +227,8 @@ fun PlayingContent(
     state: QuizState.Playing,
     onNavigateBack: () -> Unit,
     onSelectAnswer: (Int) -> Unit,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    onPrevious: () -> Unit = {}
 ) {
     val currentQuestion = state.questions[state.currentQuestionIndex]
     val context = LocalContext.current
@@ -258,7 +264,8 @@ fun PlayingContent(
                 // ZONE B: QUESTION CARD (Adaptive height)
                 AdaptiveQuestionCard(
                     questionNumber = state.currentQuestionIndex + 1,
-                    questionText = currentQuestion.question
+                    questionText = currentQuestion.question,
+                    readOnly = state.isAnswered
                 )
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -300,10 +307,13 @@ fun PlayingContent(
                 }
                 
                 // ZONE D: BOTTOM ACTION STACK (after answering)
-                if (state.isAnswered) {
+                if (state.isAnswered || state.currentQuestionIndex - 1 in state.selectedAnswers) {
                     BottomActionStack(
                         isLastQuestion = state.currentQuestionIndex == state.questions.size - 1,
-                        onNext = onNext
+                        onNext = onNext,
+                        canNext = state.isAnswered,
+                        canPrevious = state.currentQuestionIndex - 1 in state.selectedAnswers,
+                        onPrevious = onPrevious
                     )
                 } else {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -476,17 +486,22 @@ fun SmoothProgressBar(
 @Composable
 fun AdaptiveQuestionCard(
     questionNumber: Int,
-    questionText: String
+    questionText: String,
+    readOnly: Boolean = false
 ) {
     val scrollState = rememberScrollState()
+    val reveal = remember { Animatable(1f) }
     LaunchedEffect(questionNumber, questionText) {
         scrollState.scrollTo(0)
+        reveal.snapTo(0f)
+        reveal.animateTo(1f, tween(180))
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
+            .graphicsLayer { alpha = 0.65f + reveal.value * 0.35f; translationY = (1f - reveal.value) * 8.dp.toPx() }
             .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -502,7 +517,8 @@ fun AdaptiveQuestionCard(
             // Header Row: Question badge Qx strictly on top - NEVER overlaps question text!
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Surface(
                     color = MaterialTheme.colorScheme.primary,
@@ -521,6 +537,9 @@ fun AdaptiveQuestionCard(
                         )
                     }
                 }
+                if (readOnly) Text(stringResource(R.string.quiz_review_read_only),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -916,23 +935,32 @@ fun AnswerCard(
 @Composable
 fun BottomActionStack(
     isLastQuestion: Boolean,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    canNext: Boolean = true,
+    canPrevious: Boolean = false,
+    onPrevious: () -> Unit = {}
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .windowInsetsPadding(WindowInsets.navigationBars)
             .padding(horizontal = 16.dp)
             .padding(top = 8.dp, bottom = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        if (canPrevious) {
+            androidx.compose.material3.OutlinedButton(onClick = onPrevious,
+                modifier = Modifier.weight(1f).heightIn(min = 56.dp), shape = RoundedCornerShape(20.dp)) {
+                Text(stringResource(R.string.quiz_previous_review))
+            }
+        }
         Button(
             onClick = onNext,
+            enabled = canNext,
             modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
+                .weight(1f)
+                .heightIn(min = 56.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
             ),

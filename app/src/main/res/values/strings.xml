@@ -477,4 +477,15 @@
     <string name="ai_chat_photos">Photos</string>
     <string name="ai_chat_documents">Document</string>
     <string name="ai_chat_prompts_pill">Templates</string>
+    <string name="ai_quiz_ready">Your quiz is ready below.</string>
+    <string name="ai_quiz_missing">The model did not return valid quiz data after one correction. No quiz was created. Please try again.</string>
+    <string name="ai_phase_waiting">Waiting for the model…</string>
+    <string name="ai_phase_reasoning">Receiving reasoning…</string>
+    <string name="ai_phase_responding">Receiving response…</string>
+    <string name="ai_phase_validating">Checking quiz data…</string>
+    <string name="ai_phase_repairing">Requesting missing quiz data…</string>
+    <string name="ai_phase_saving">Saving conversation…</string>
+    <string name="ai_history_save_failed">Could not save this conversation: </string>
+    <string name="quiz_previous_review">Previous</string>
+    <string name="quiz_review_read_only">Answered · Read only</string>
 </resources>

@@ -19,6 +19,7 @@ import com.hkm.pozix.data.repository.SavedQuizRepository
 import com.hkm.pozix.network.OpenAiCompatClient
 import com.hkm.pozix.util.ChatAttachmentHelper
 import com.hkm.pozix.util.QuizJsonParser
+import com.hkm.pozix.util.AiQuizOutput
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -30,7 +31,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+enum class AiPhase { IDLE, WAITING, REASONING, RESPONDING, VALIDATING, REPAIRING, SAVING }
+
 data class AIChatUiState(
+    val phase: AiPhase = AiPhase.IDLE,
     val currentSessionId: String? = null,
     val currentSessionTitle: String = "",
     val sessions: List<ChatSession> = emptyList(),
@@ -277,7 +281,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                     historyRepository.updateSessionMessages(id, state.messages, state.currentSessionTitle)
                 }
             }
-            _uiState.value = _uiState.value.copy(isLoading = false)
+            _uiState.value = _uiState.value.copy(isLoading = false, phase = AiPhase.IDLE)
         }
         pendingSnapshot = null
     }
@@ -352,7 +356,8 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             currentSessionTitle = derivedTitle,
             messages = updatedMessages,
             pendingAttachments = emptyList(),
-            isLoading = true
+            isLoading = true,
+            phase = AiPhase.WAITING
         )
 
         val generation = ++generationVersion
@@ -361,6 +366,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             val assistantReasoning = StringBuilder()
             val timestamp = System.currentTimeMillis()
             val started = android.os.SystemClock.elapsedRealtime()
+            val expectsQuiz = AiQuizOutput.requested(trimmedText)
             var reasoningFinished: Long? = null
             fun isCurrent() = generation == generationVersion && _uiState.value.currentSessionId == sessionId
             fun snapshot(complete: Boolean = false): ChatMessage {
@@ -370,10 +376,17 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 if (reasoning != null && answer.isNotBlank() && reasoningFinished == null) {
                     reasoningFinished = android.os.SystemClock.elapsedRealtime() - started
                 }
-                return ChatMessage(role = "model", text = answer, reasoning = reasoning,
+                // Quiz schema is an artifact, not thousands of chat characters to animate and then remove.
+                val displayAnswer = if (!complete && expectsQuiz) {
+                    val fence = Regex("```(?:json)?", RegexOption.IGNORE_CASE).find(answer)?.range?.first
+                    val objectStart = answer.indexOf('{').takeIf { it >= 0 }
+                    answer.take(listOfNotNull(fence, objectStart).minOrNull() ?: answer.length).trimEnd()
+                } else answer
+                return ChatMessage(role = "model", text = displayAnswer, reasoning = reasoning,
                     thinkingDurationMs = reasoningFinished, timestamp = timestamp)
             }
             var publisher: Job? = null
+            var completedMessage: ChatMessage? = null
             pendingSnapshot = {
                 if (assistantText.isNotEmpty() || assistantReasoning.isNotEmpty())
                     updatedMessages + snapshot() else updatedMessages
@@ -392,7 +405,10 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         kotlinx.coroutines.delay(33L)
                         if (dirty && isCurrent()) {
                             dirty = false
-                            _uiState.value = _uiState.value.copy(messages = updatedMessages + snapshot())
+                            val message = snapshot()
+                            _uiState.value = _uiState.value.copy(messages = updatedMessages + message,
+                                phase = if (assistantText.isNotEmpty() && (message.text.isNotBlank() || expectsQuiz))
+                                    AiPhase.RESPONDING else AiPhase.REASONING)
                         }
                     }
                 }
@@ -412,16 +428,50 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 publisher.cancel()
                 if (!isCurrent()) return@launch
-                val finalMessages = updatedMessages + snapshot(complete = true)
-                _uiState.value = _uiState.value.copy(isLoading = false, messages = finalMessages)
+                _uiState.value = _uiState.value.copy(phase = AiPhase.VALIDATING)
+                var result = snapshot(complete = true)
+                var artifact = withContext(kotlinx.coroutines.Dispatchers.Default) { AiQuizOutput.extract(result.text) }
+                if (artifact == null && expectsQuiz) {
+                    // One bounded correction, only after a successful stream with a missing/invalid artifact.
+                    _uiState.value = _uiState.value.copy(phase = AiPhase.REPAIRING)
+                    val repair = StringBuilder()
+                    OpenAiCompatClient.chatCompletionStream(
+                        baseUrl = provider.normalizedBaseUrl(), apiKey = provider.apiKey,
+                        model = provider.modelId,
+                        history = apiHistory + result + ChatMessage(role = "user", text =
+                            "The previous response did not contain a valid quiz artifact. Fulfil my original quiz request now. " +
+                            "Return the COMPLETE quiz JSON following the system schema, with all requested questions and explanations. " +
+                            "Do not merely describe or claim to have created it. Output JSON only."),
+                        systemInstructionText = systemInstruction, reasoningEffort = effectiveReasoning
+                    ).collect { chunk ->
+                        if (!isCurrent()) throw CancellationException()
+                        repair.append(chunk.content)
+                    }
+                    _uiState.value = _uiState.value.copy(phase = AiPhase.VALIDATING)
+                    artifact = withContext(kotlinx.coroutines.Dispatchers.Default) { AiQuizOutput.extract(repair.toString()) }
+                    result = result.copy(text = app.getString(if (artifact != null)
+                        R.string.ai_quiz_ready else R.string.ai_quiz_missing))
+                    artifact = artifact?.copy(displayText = result.text)
+                }
+                if (!isCurrent()) return@launch
+                val finalMessages = updatedMessages + result.copy(
+                    text = if (artifact != null) artifact.displayText.ifBlank { app.getString(R.string.ai_quiz_ready) } else result.text,
+                    quizJson = artifact?.json)
+                completedMessage = finalMessages.last()
+                pendingSnapshot = { finalMessages }
+                _uiState.value = _uiState.value.copy(phase = AiPhase.SAVING, messages = finalMessages)
                 historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
+                if (!isCurrent()) return@launch
+                _uiState.value = _uiState.value.copy(isLoading = false, messages = finalMessages)
             } catch (e: Exception) {
                 publisher?.cancel()
                 if (e is CancellationException || !isCurrent()) return@launch
                 // Preserve partial output; never silently resend a paid request without streaming.
-                val partial = snapshot()
+                val partial = completedMessage ?: if (_uiState.value.phase == AiPhase.REPAIRING)
+                    snapshot().copy(text = app.getString(R.string.ai_quiz_missing)) else snapshot()
                 val app = getApplication<Application>()
-                val notice = app.getString(R.string.ai_chat_stream_interrupted) +
+                val notice = (if (completedMessage != null) "\n\n" + app.getString(R.string.ai_history_save_failed)
+                    else app.getString(R.string.ai_chat_stream_interrupted)) +
                     (e.message ?: app.getString(R.string.ai_chat_cannot_connect)).take(180)
                 val finalMessages = updatedMessages + partial.copy(text = partial.text + notice)
                 _uiState.value = _uiState.value.copy(isLoading = false, messages = finalMessages)
@@ -430,7 +480,10 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 } catch (_: Exception) { /* Keep the visible response when local storage is unavailable. */ }
             } finally {
                 publisher?.cancel()
-                if (isCurrent()) pendingSnapshot = null
+                if (isCurrent()) {
+                    pendingSnapshot = null
+                    _uiState.value = _uiState.value.copy(phase = AiPhase.IDLE)
+                }
             }
         }
     }

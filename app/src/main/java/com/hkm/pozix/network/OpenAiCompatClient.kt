@@ -72,14 +72,15 @@ object OpenAiCompatClient {
         }
         history.forEach { msg ->
             val role = if (msg.role == "user") "user" else "assistant"
+            val messageText = msg.text + (msg.quizJson?.let { "\n```json\n$it\n```" } ?: "")
             if (msg.imagePaths.isEmpty()) {
-                add(ChatMsgRequest(role = role, content = JsonPrimitive(msg.text)))
+                add(ChatMsgRequest(role = role, content = JsonPrimitive(messageText)))
             } else {
                 val parts = buildJsonArray {
                     if (msg.text.isNotBlank()) {
                         add(buildJsonObject {
                             put("type", "text")
-                            put("text", msg.text)
+                            put("text", messageText)
                         })
                     }
                     for (path in msg.imagePaths) {

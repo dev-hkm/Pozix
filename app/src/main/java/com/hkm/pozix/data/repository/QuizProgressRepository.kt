@@ -9,12 +9,17 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.hkm.pozix.data.model.QuizProgress
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 private val Context.quizProgressDataStore: DataStore<Preferences> by preferencesDataStore(name = "quiz_progress")
 
 class QuizProgressRepository(private val context: Context) {
+    private val saveMutex = Mutex()
     
     private val json = Json {
         ignoreUnknownKeys = true
@@ -26,8 +31,11 @@ class QuizProgressRepository(private val context: Context) {
     
     // Save progress for a specific quiz set
     suspend fun saveProgressForQuiz(quizSetId: String, progress: QuizProgress) {
-        context.quizProgressDataStore.edit { preferences ->
-            preferences[getProgressKey(quizSetId)] = json.encodeToString(progress)
+        saveMutex.withLock {
+            val encoded = withContext(Dispatchers.Default) { json.encodeToString(progress) }
+            context.quizProgressDataStore.edit { preferences ->
+                preferences[getProgressKey(quizSetId)] = encoded
+            }
         }
     }
     

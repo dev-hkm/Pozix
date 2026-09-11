@@ -96,6 +96,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -437,6 +438,13 @@ fun ExamPlayingContent(
     val answeredCount = state.answers.size
     val currentOnNext by rememberUpdatedState(onNext)
     val currentOnPrevious by rememberUpdatedState(onPrevious)
+    val questionReveal = remember { Animatable(1f) }
+    val questionScroll = rememberScrollState()
+    LaunchedEffect(state.currentIndex) {
+        questionScroll.scrollTo(0)
+        questionReveal.snapTo(0f)
+        questionReveal.animateTo(1f, tween(200))
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -545,23 +553,17 @@ fun ExamPlayingContent(
                 }
             }
 
-            AnimatedContent(
-                targetState = state.currentIndex,
-                transitionSpec = {
-                    if (targetState > initialState) {
-                        (slideInHorizontally(animationSpec = tween(300)) { width -> width } + fadeIn(animationSpec = tween(300)))
-                            .togetherWith(slideOutHorizontally(animationSpec = tween(300)) { width -> -width } + fadeOut(animationSpec = tween(300)))
-                    } else {
-                        (slideInHorizontally(animationSpec = tween(300)) { width -> -width } + fadeIn(animationSpec = tween(300)))
-                            .togetherWith(slideOutHorizontally(animationSpec = tween(300)) { width -> width } + fadeOut(animationSpec = tween(300)))
-                    }
-                },
+            // One persistent composition: no overlapping WebViews/font runtimes during a transition.
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                label = "exam_question_transition"
-            ) { index ->
-                val safeIndex = index.coerceIn(state.questions.indices)
+                    .weight(1f)
+                    .graphicsLayer {
+                        alpha = 0.65f + 0.35f * questionReveal.value
+                        translationY = (1f - questionReveal.value) * 8.dp.toPx()
+                    }
+            ) {
+                val safeIndex = state.currentIndex.coerceIn(state.questions.indices)
                 val question = state.questions[safeIndex]
                 val options = when (question) {
                     is Question.SingleChoice -> question.options
@@ -606,7 +608,7 @@ fun ExamPlayingContent(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .verticalScroll(rememberScrollState())
+                                .verticalScroll(questionScroll)
                                 .padding(horizontal = 16.dp, vertical = 14.dp)
                         ) {
                             Row(

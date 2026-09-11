@@ -11,6 +11,8 @@ import com.hkm.pozix.data.model.ChatSession
 import com.hkm.pozix.util.ChatImageStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -30,7 +32,7 @@ class AiChatHistoryRepository(private val context: Context) {
     fun getSessions(): Flow<List<ChatSession>> {
         return context.aiChatHistoryDataStore.data.map { preferences ->
             getSessionsSync(preferences)
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     fun getSessionById(sessionId: String): Flow<ChatSession?> {

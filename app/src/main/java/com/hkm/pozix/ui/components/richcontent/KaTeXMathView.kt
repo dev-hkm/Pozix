@@ -2,264 +2,160 @@ package com.hkm.pozix.ui.components.richcontent
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Color as AndroidColor
+import android.view.MotionEvent
 import android.webkit.JavascriptInterface
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Box
+import androidx.collection.LruCache
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.collection.LruCache
 import androidx.compose.ui.viewinterop.AndroidView
+import org.json.JSONObject
+import kotlin.math.abs
+import kotlin.math.ceil
 
-private val katexHeightCache = LruCache<String, Dp>(300)
+private val katexHeightCache = LruCache<String, Float>(200)
 
-/**
- * Renders complex LaTeX mathematical display blocks using offline bundled KaTeX.
- * Supports fractions, roots, integrals, limits, matrices, systems of equations, and chemical equations.
- * Adapts dynamically to Material 3 light/dark theme colors with zero layout flickering.
- */
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun KaTeXMathView(
-    latex: String,
-    modifier: Modifier = Modifier,
+fun KaTeXMathView(latex: String, modifier: Modifier = Modifier,
     textColor: Color = MaterialTheme.colorScheme.onSurface,
-    fontSizeSp: Float = 17f,
-    displayMode: Boolean = true
-) {
-    val context = LocalContext.current
+    fontSizeSp: Float = 17f, displayMode: Boolean = true) {
     val density = LocalDensity.current
-    val hexColor = remember(textColor) {
-        String.format("#%06X", 0xFFFFFF and textColor.toArgb())
-    }
-
-    val cachedHeight = remember(latex) { katexHeightCache[latex] }
-    var contentHeightDp by remember(latex) { mutableStateOf(cachedHeight ?: if (displayMode) 52.dp else 40.dp) }
-    var hasError by remember(latex) { mutableStateOf(false) }
-
-    if (hasError) {
-        // Fallback to high-performance Unicode math parser if WebView fails
-        Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            contentAlignment = if (displayMode) Alignment.Center else Alignment.CenterStart
-        ) {
-            Text(
-                text = LatexMathParser.parseToAnnotatedString(latex),
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = fontSizeSp.sp),
-                color = textColor
-            )
-        }
+    var width by remember { mutableIntStateOf(0) }
+    val fontSize = fontSizeSp * density.fontScale
+    val cacheKey = "$latex|$width|${density.density}|$fontSize|$displayMode"
+    var height by remember(cacheKey) { mutableFloatStateOf(katexHeightCache[cacheKey] ?: 48f) }
+    var failed by remember(latex) { mutableStateOf(false) }
+    val color = String.format("#%06X", textColor.toArgb() and 0xFFFFFF)
+    if (failed) {
+        Text(LatexMathParser.parseToAnnotatedString(latex), modifier = modifier,
+            color = textColor, fontSize = fontSizeSp.sp)
         return
     }
+    AndroidView(factory = { MathWebView(it) }, update = { view ->
+        // A reused view must never write to the previous question's Compose state.
+        view.onHeight = { measured ->
+            if (measured.isFinite() && measured > 0 && abs(height - measured) >= 1f) {
+                height = measured
+                katexHeightCache.put(cacheKey, measured)
+            }
+        }
+        view.onError = { failed = true }
+        view.render(latex, color, fontSize, displayMode, cacheKey)
+    }, onReset = { it.resetForReuse() }, onRelease = { it.dispose() },
+        modifier = modifier.fillMaxWidth().onSizeChanged { width = it.width }.height(ceil(height).toInt().dp))
+}
 
-    val htmlData = remember(latex, hexColor, fontSizeSp, displayMode) {
-        buildKaTeXHtml(latex, hexColor, fontSizeSp, displayMode)
+/** Keep bundled JS and fonts alive across expression updates instead of reloading a document. */
+@SuppressLint("SetJavaScriptEnabled")
+private class MathWebView(context: Context) : WebView(context) {
+    var onHeight: (Float) -> Unit = {}
+    var onError: () -> Unit = {}
+    private var loaded = false
+    private var revision = 0
+    private var modelKey = ""
+    private var script = ""
+    private var horizontalOverflow = false
+    private var downX = 0f
+    private var downY = 0f
+    init {
+        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        isVerticalScrollBarEnabled = false
+        isHorizontalScrollBarEnabled = false
+        overScrollMode = OVER_SCROLL_NEVER
+        settings.javaScriptEnabled = true
+        settings.domStorageEnabled = false
+        settings.blockNetworkLoads = true
+        settings.allowFileAccess = true
+        settings.allowContentAccess = false
+        settings.textZoom = 100
+        addJavascriptInterface(object {
+            @JavascriptInterface fun measured(token: Int, height: Float, overflow: Boolean) {
+                post { if (token == revision) { alpha = 1f; horizontalOverflow = overflow; onHeight(height) } }
+            }
+            @JavascriptInterface fun failed(token: Int) { post { if (token == revision) onError() } }
+        }, "MathBridge")
+        webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, url: String) {
+                loaded = true
+                if (script.isNotEmpty()) evaluateJavascript(script, null)
+            }
+            @Suppress("DEPRECATION")
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
+        }
+        loadDataWithBaseURL("file:///android_asset/katex/", MATH_HTML, "text/html", "UTF-8", null)
     }
-
-    AndroidView(
-        factory = { ctx ->
-            WebView(ctx).apply {
-                setBackgroundColor(AndroidColor.TRANSPARENT)
-                isVerticalScrollBarEnabled = false
-                isHorizontalScrollBarEnabled = false
-                isNestedScrollingEnabled = false
-                overScrollMode = WebView.OVER_SCROLL_NEVER
-                setOnTouchListener { v, _ ->
-                    // Disallow parent from intercepting touch if the math expression overflows horizontally
-                    if (v.canScrollHorizontally(1) || v.canScrollHorizontally(-1)) {
-                        v.parent?.requestDisallowInterceptTouchEvent(true)
-                    }
-                    false
-                }
-                settings.apply {
-                    javaScriptEnabled = true
-                    domStorageEnabled = false
-                    allowFileAccess = true
-                    cacheMode = WebSettings.LOAD_DEFAULT
-                    @Suppress("DEPRECATION")
-                    setRenderPriority(WebSettings.RenderPriority.HIGH)
-                }
-
-                addJavascriptInterface(object {
-                    @JavascriptInterface
-                    fun onHeightCalculated(heightPx: Float) {
-                        post {
-                            if (heightPx > 0) {
-                                val calculatedDp = heightPx.dp.coerceIn(36.dp, 500.dp)
-                                contentHeightDp = calculatedDp
-                                katexHeightCache.put(latex, calculatedDp)
-                            }
-                        }
-                    }
-
-                    @JavascriptInterface
-                    fun onRenderError() {
-                        post { hasError = true }
-                    }
-                }, "AndroidBridge")
-
-                webViewClient = object : WebViewClient() {
-                    override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
-                        hasError = true
-                    }
-                }
-
-                loadDataWithBaseURL("file:///android_asset/katex/", htmlData, "text/html", "UTF-8", null)
-                tag = htmlData
-            }
-        },
-        update = { webView ->
-            if (webView.tag != htmlData) {
-                webView.tag = htmlData
-                webView.loadDataWithBaseURL("file:///android_asset/katex/", htmlData, "text/html", "UTF-8", null)
-            }
-        },
-        modifier = modifier
-            .fillMaxWidth()
-            .height(contentHeightDp)
-            .padding(vertical = 2.dp)
-    )
+    fun render(latex: String, color: String, fontSize: Float, display: Boolean, key: String) {
+        val newKey = "$key|$color"
+        if (modelKey == newKey) return
+        modelKey = newKey
+        revision++
+        alpha = 0f
+        script = "renderMath(${JSONObject.quote(latex)},${JSONObject.quote(color)},$fontSize,$display,$revision)"
+        if (loaded) evaluateJavascript(script, null)
+    }
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> { downX = event.x; downY = event.y }
+            MotionEvent.ACTION_MOVE -> parent?.requestDisallowInterceptTouchEvent(
+                horizontalOverflow && abs(event.x - downX) > abs(event.y - downY))
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> parent?.requestDisallowInterceptTouchEvent(false)
+        }
+        return super.onTouchEvent(event)
+    }
+    fun dispose() {
+        revision++
+        onHeight = {}; onError = {}
+        stopLoading()
+        removeJavascriptInterface("MathBridge")
+        destroy()
+    }
+    fun resetForReuse() {
+        revision++
+        modelKey = ""
+        script = ""
+        onHeight = {}; onError = {}
+        alpha = 0f
+    }
 }
 
-private fun buildKaTeXHtml(
-    latex: String,
-    hexColor: String,
-    fontSize: Float,
-    displayMode: Boolean
-): String {
-    // Escape special characters for JavaScript string
-    val escapedLatex = latex
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\n", " ")
-        .replace("\r", "")
-
-    return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-            <link rel="stylesheet" href="file:///android_asset/katex/katex.min.css">
-            <script src="file:///android_asset/katex/katex.min.js"></script>
-            <style>
-                html, body {
-                    background: transparent;
-                    width: 100%;
-                    margin: 0;
-                    padding: 0;
-                }
-                body {
-                    color: $hexColor;
-                    font-size: ${fontSize}px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: flex-start;
-                    overflow-x: auto;
-                    overflow-y: hidden;
-                    -webkit-overflow-scrolling: touch;
-                    padding: 4px 8px;
-                    box-sizing: border-box;
-                }
-                #math-output {
-                    margin: ${if (displayMode) "0 auto" else "0"};
-                    flex-shrink: 0;
-                    display: inline-block;
-                    padding: 2px 4px;
-                    overflow: visible !important;
-                }
-                .katex-display {
-                    margin: 0 !important;
-                    overflow: visible !important;
-                }
-                .katex, .katex-html {
-                    overflow: visible !important;
-                    padding-top: 4px !important;
-                    padding-bottom: 8px !important;
-                }
-                .base, .strut, .mop, .msupsub, .vlist-t, .vlist-r, .vlist {
-                    overflow: visible !important;
-                }
-            </style>
-        </head>
-        <body>
-            <div id="math-output"></div>
-            <script>
-                (function() {
-                    try {
-                        var target = document.getElementById("math-output");
-                        if (!target) return;
-                        katex.render("$escapedLatex", target, {
-                            displayMode: $displayMode,
-                            throwOnError: false
-                        });
-                        
-                        function reportHeight() {
-                            var target = document.getElementById("math-output");
-                            if (!target) return;
-                            
-                            var targetRect = target.getBoundingClientRect();
-                            var minTop = targetRect.top;
-                            var maxBottom = targetRect.bottom;
-                            
-                            var all = target.querySelectorAll("*");
-                            for (var i = 0; i < all.length; i++) {
-                                var r = all[i].getBoundingClientRect();
-                                if (r.height > 0 || r.width > 0) {
-                                    if (r.top < minTop) minTop = r.top;
-                                    if (r.bottom > maxBottom) maxBottom = r.bottom;
-                                }
-                            }
-                            
-                            var renderedH = Math.ceil(maxBottom - minTop);
-                            var targetH = target ? Math.ceil(target.scrollHeight) : 0;
-                            var contentH = Math.max(renderedH, targetH);
-                            // +14px buffer accommodates 4px top + 8px bottom padding on .katex-html plus baseline
-                            var finalH = Math.max(contentH + 14, 38);
-                            if (window.AndroidBridge && window.AndroidBridge.onHeightCalculated) {
-                                window.AndroidBridge.onHeightCalculated(finalH);
-                            }
-                        }
-                        
-                        reportHeight();
-                        if (document.fonts && document.fonts.ready) {
-                            document.fonts.ready.then(reportHeight);
-                        }
-                        setTimeout(reportHeight, 50);
-                        setTimeout(reportHeight, 150);
-                        setTimeout(reportHeight, 300);
-                    } catch (e) {
-                        if (window.AndroidBridge && window.AndroidBridge.onRenderError) {
-                            window.AndroidBridge.onRenderError();
-                        }
-                    }
-                })();
-            </script>
-        </body>
-        </html>
-    """.trimIndent()
+private val MATH_HTML = """
+<!doctype html><html><head>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<link rel="stylesheet" href="katex.min.css"><script src="katex.min.js"></script>
+<style>
+html,body { margin:0; padding:0; background:transparent; width:100%; }
+#viewport { overflow-x:auto; overflow-y:hidden; padding:4px; box-sizing:border-box; }
+#math { display:table; width:max-content; margin:0 auto; }
+.katex-display { margin:0; }
+</style></head><body><div id="viewport"><div id="math"></div></div>
+<script>
+let revision=0;
+const target=document.getElementById('math'), viewport=document.getElementById('viewport');
+function measure() {
+  const height=Math.ceil(target.getBoundingClientRect().height)+8;
+  MathBridge.measured(revision,height,viewport.scrollWidth>viewport.clientWidth+1);
 }
+function renderMath(latex,color,size,display,token) {
+  revision=token;
+  try {
+    target.style.color=color; target.style.fontSize=size+'px';
+    target.style.margin=display?'0 auto':'0';
+    katex.render(latex,target,{displayMode:display,throwOnError:false,trust:false});
+    viewport.scrollLeft=0;
+    document.fonts.ready.then(()=>requestAnimationFrame(()=>{if(revision===token) measure();}));
+  } catch(error) {MathBridge.failed(token);}
+}
+new ResizeObserver(()=>requestAnimationFrame(measure)).observe(target);
+</script></body></html>
+""".trimIndent()

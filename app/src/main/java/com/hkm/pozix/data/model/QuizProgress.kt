@@ -11,5 +11,7 @@ data class QuizProgress(
     val elapsedTimeMillis: Long,
     val totalQuestions: Int,
     val isCompleted: Boolean = false,
-    val completedTimestamp: Long = 0L
+    val completedTimestamp: Long = 0L,
+    val selectedAnswers: Map<Int, Int> = emptyMap(),
+    val questionSnapshot: List<Question> = emptyList()
 )

@@ -85,6 +85,9 @@ import com.hkm.pozix.util.QuizJsonParser
 import com.hkm.pozix.viewmodel.AIChatUiState
 import com.hkm.pozix.viewmodel.AIChatViewModel
 import com.hkm.pozix.viewmodel.ImportStatus
+import com.hkm.pozix.viewmodel.AiPhase
+import com.hkm.pozix.util.AiQuizOutput
+import com.hkm.pozix.ui.components.richcontent.StreamingRichContentText
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -314,15 +317,13 @@ fun AIChatScreen(
                                     modifier = if (isStreaming) Modifier else Modifier.animateItem(
                                         fadeInSpec = tween(300),
                                         fadeOutSpec = tween(250),
-                                        placementSpec = spring(
-                                            dampingRatio = 0.8f,
-                                            stiffness = Spring.StiffnessMediumLow
-                                        )
+                                        placementSpec = null
                                     )
                                 ) {
                                     ChatBubbleItem(
                                         message = message,
                                         isStreaming = isStreaming,
+                                        phase = uiState.phase,
                                         onImageClick = { previewImageFilePath = it },
                                         onImportPlay = { json ->
                                             HapticUtil.lightTap(context)
@@ -346,7 +347,7 @@ fun AIChatScreen(
                                             placementSpec = spring(dampingRatio = 0.8f)
                                         )
                                     ) {
-                                        AssistantTypingIndicator()
+                                        AiPhaseLine(uiState.phase)
                                     }
                                 }
                             }
@@ -1311,6 +1312,7 @@ private fun AttachmentOptionItem(
 fun ChatBubbleItem(
     message: ChatMessage,
     isStreaming: Boolean = false,
+    phase: AiPhase = AiPhase.IDLE,
     onImageClick: (String) -> Unit,
     onImportPlay: (String) -> Unit,
     onSaveLibrary: (String) -> Unit
@@ -1318,7 +1320,13 @@ fun ChatBubbleItem(
     val isUser = message.role == "user"
     val isDark = isSystemInDarkTheme()
     val context = LocalContext.current
-    val jsonBlock = remember(message.text) { extractJsonBlock(message.text) }
+    val artifact by produceState<AiQuizOutput.Artifact?>(null, message.text, message.quizJson, isStreaming) {
+        if (!isStreaming && !isUser) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            if (message.quizJson != null) AiQuizOutput.Artifact(message.quizJson, message.text)
+            else AiQuizOutput.extract(message.text)
+        }
+    }
+    val jsonBlock = artifact?.json
 
     if (isUser) {
         // User Message: Aligned to end, compact pill layout
@@ -1337,16 +1345,20 @@ fun ChatBubbleItem(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(message.imagePaths) { imgPath ->
-                            val bitmap = remember(imgPath) {
-                                try {
-                                    BitmapFactory.decodeFile(imgPath)?.asImageBitmap()
-                                } catch (_: Exception) {
-                                    null
+                            val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, imgPath) {
+                                value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                                    BitmapFactory.decodeFile(imgPath, options)
+                                    options.inSampleSize = 1
+                                    while (maxOf(options.outWidth, options.outHeight) / options.inSampleSize > 640)
+                                        options.inSampleSize *= 2
+                                    options.inJustDecodeBounds = false
+                                    BitmapFactory.decodeFile(imgPath, options)?.asImageBitmap()
                                 }
                             }
                             if (bitmap != null) {
                                 Image(
-                                    bitmap = bitmap,
+                                    bitmap = bitmap!!,
                                     contentDescription = stringResource(R.string.ai_chat_view_image),
                                     modifier = Modifier
                                         .size(160.dp)
@@ -1432,15 +1444,7 @@ fun ChatBubbleItem(
                 )
             }
 
-            val fullTargetText = remember(message.text) {
-                if (jsonBlock != null) {
-                    val withoutFence = message.text.substringBefore("```json").trim()
-                    if (withoutFence.isNotEmpty()) withoutFence
-                    else message.text.replace(jsonBlock, "").replace("```json", "").replace("```", "").trim()
-                } else {
-                    message.text
-                }
-            }
+            val fullTargetText = artifact?.displayText ?: message.text
 
             // Reasoning / Thinking Accordion Card (if model outputs thought process)
             if (!message.reasoning.isNullOrBlank()) {
@@ -1459,8 +1463,9 @@ fun ChatBubbleItem(
             )
 
             if (flowingText.isNotBlank()) {
-                RichContentText(
+                StreamingRichContentText(
                     text = flowingText,
+                    streaming = isStreaming || flowingText != fullTargetText,
                     textColor = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 23.sp),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
@@ -1469,7 +1474,7 @@ fun ChatBubbleItem(
 
             // Zix Bot Liquid Streaming Indicator
             if (isStreaming) {
-                ZixBotStreamingIndicator()
+                AiPhaseLine(phase)
             }
 
             // Haptic feedback tick when streaming settles
@@ -1527,7 +1532,7 @@ fun ChatBubbleItem(
 
             // Interactive Quiz Card if AI generated a quiz JSON
             AnimatedVisibility(
-                visible = jsonBlock != null,
+                visible = jsonBlock != null && !isStreaming,
                 enter = fadeIn(tween(350)) + expandVertically(spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow)) + slideInVertically { it / 3 }
             ) {
                 if (jsonBlock != null) {
@@ -1554,7 +1559,12 @@ fun GeneratedQuizCard(
     onImportPlay: () -> Unit,
     onSaveLibrary: () -> Unit
 ) {
-    val validation = remember(jsonText) { QuizJsonParser.parseAndValidate(jsonText) }
+    val parsed by produceState<QuizValidationResult?>(null, jsonText) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            QuizJsonParser.parseAndValidate(jsonText)
+        }
+    }
+    val validation = parsed
     var isSaved by remember { mutableStateOf(false) }
     val isDark = isSystemInDarkTheme()
 
@@ -1854,6 +1864,16 @@ fun ZixBotAvatar(
     modifier: Modifier = Modifier,
     size: Dp = 28.dp
 ) {
+    if (!isStreaming) {
+        Box(modifier.size(size), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(size * 0.94f).clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(size * 0.5f))
+            }
+        }
+        return
+    }
     val infiniteTransition = rememberInfiniteTransition(label = "zixBotAvatar")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -1884,7 +1904,7 @@ fun ZixBotAvatar(
     Box(
         modifier = modifier
             .size(size)
-            .scale(pulseScale),
+            .graphicsLayer { scaleX = pulseScale; scaleY = pulseScale },
         contentAlignment = Alignment.Center
     ) {
         if (isStreaming) {
