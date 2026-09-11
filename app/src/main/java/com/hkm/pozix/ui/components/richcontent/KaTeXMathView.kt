@@ -31,7 +31,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.collection.LruCache
 import androidx.compose.ui.viewinterop.AndroidView
+
+private val katexHeightCache = LruCache<String, Dp>(300)
 
 /**
  * Renders complex LaTeX mathematical display blocks using offline bundled KaTeX.
@@ -53,8 +56,9 @@ fun KaTeXMathView(
         String.format("#%06X", 0xFFFFFF and textColor.toArgb())
     }
 
-    var contentHeightDp by remember { mutableStateOf(48.dp) }
-    var hasError by remember { mutableStateOf(false) }
+    val cachedHeight = remember(latex) { katexHeightCache[latex] }
+    var contentHeightDp by remember(latex) { mutableStateOf(cachedHeight ?: if (displayMode) 64.dp else 44.dp) }
+    var hasError by remember(latex) { mutableStateOf(false) }
 
     if (hasError) {
         // Fallback to high-performance Unicode math parser if WebView fails
@@ -82,12 +86,16 @@ fun KaTeXMathView(
             WebView(ctx).apply {
                 setBackgroundColor(AndroidColor.TRANSPARENT)
                 isVerticalScrollBarEnabled = false
-                isHorizontalScrollBarEnabled = true
+                isHorizontalScrollBarEnabled = false
+                isNestedScrollingEnabled = false
+                overScrollMode = WebView.OVER_SCROLL_NEVER
                 settings.apply {
                     javaScriptEnabled = true
-                    domStorageEnabled = true
+                    domStorageEnabled = false
                     allowFileAccess = true
                     cacheMode = WebSettings.LOAD_DEFAULT
+                    @Suppress("DEPRECATION")
+                    setRenderPriority(WebSettings.RenderPriority.HIGH)
                 }
 
                 addJavascriptInterface(object {
@@ -95,9 +103,9 @@ fun KaTeXMathView(
                     fun onHeightCalculated(heightPx: Float) {
                         post {
                             if (heightPx > 0) {
-                                // CSS pixels in mobile viewport match DP units. Add 14dp padding for fraction descenders/roots.
-                                val calculatedDp = (heightPx + 14f).dp.coerceIn(36.dp, 600.dp)
+                                val calculatedDp = heightPx.dp.coerceIn(36.dp, 650.dp)
                                 contentHeightDp = calculatedDp
+                                katexHeightCache.put(latex, calculatedDp)
                             }
                         }
                     }
@@ -160,57 +168,70 @@ private fun buildKaTeXHtml(
                 html, body {
                     background: transparent;
                     width: 100%;
+                    margin: 0;
+                    padding: 0;
                 }
                 body {
                     color: $hexColor;
                     font-size: ${fontSize}px;
                     display: flex;
                     align-items: center;
-                    justify-content: ${if (displayMode) "center" else "flex-start"};
+                    justify-content: flex-start;
                     overflow-x: auto;
-                    overflow-y: visible;
-                    padding: 8px 6px 12px 6px;
+                    overflow-y: hidden;
+                    -webkit-overflow-scrolling: touch;
+                    padding: 8px 12px 16px 12px;
+                    box-sizing: border-box;
+                    min-height: 100%;
                 }
                 #math-output {
+                    margin: ${if (displayMode) "0 auto" else "0"};
+                    flex-shrink: 0;
                     display: inline-block;
-                    padding: 2px 2px;
+                    padding: 4px 6px;
                 }
                 .katex-display {
-                    margin: 2px 0 !important;
-                }
-                .katex {
-                    line-height: 1.35 !important;
+                    margin: 0 !important;
                 }
             </style>
         </head>
         <body>
             <div id="math-output"></div>
             <script>
-                document.addEventListener("DOMContentLoaded", function() {
+                (function() {
                     try {
                         var target = document.getElementById("math-output");
+                        if (!target) return;
                         katex.render("$escapedLatex", target, {
                             displayMode: $displayMode,
                             throwOnError: false
                         });
                         
                         function reportHeight() {
-                            var rect = target.getBoundingClientRect();
-                            var h = Math.ceil(Math.max(rect.height, target.offsetHeight, document.body.scrollHeight, document.documentElement.scrollHeight));
+                            var target = document.getElementById("math-output");
+                            if (!target) return;
+                            var katexEl = target.querySelector(".katex-html") || target;
+                            var rect = katexEl.getBoundingClientRect();
+                            var bodyScroll = document.body.scrollHeight || 0;
+                            var maxH = Math.ceil(Math.max(rect.height, target.offsetHeight, bodyScroll));
+                            var finalH = Math.max(maxH + 20, 44);
                             if (window.AndroidBridge && window.AndroidBridge.onHeightCalculated) {
-                                window.AndroidBridge.onHeightCalculated(h);
+                                window.AndroidBridge.onHeightCalculated(finalH);
                             }
                         }
                         
                         reportHeight();
+                        if (document.fonts && document.fonts.ready) {
+                            document.fonts.ready.then(reportHeight);
+                        }
                         setTimeout(reportHeight, 60);
-                        setTimeout(reportHeight, 250);
+                        setTimeout(reportHeight, 200);
                     } catch (e) {
                         if (window.AndroidBridge && window.AndroidBridge.onRenderError) {
                             window.AndroidBridge.onRenderError();
                         }
                     }
-                });
+                })();
             </script>
         </body>
         </html>

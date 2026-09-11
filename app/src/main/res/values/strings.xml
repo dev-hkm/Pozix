@@ -385,9 +385,20 @@
     <string name="ai_provider_reasoning_effort">Reasoning Effort</string>
     <string name="ai_provider_reasoning_effort_desc">Control thinking depth for reasoning models (o1, o3-mini, Gemini Thinking, DeepSeek R1)</string>
     <string name="ai_reasoning_default">Default</string>
+    <string name="ai_reasoning_off">Off</string>
     <string name="ai_reasoning_low">Low</string>
     <string name="ai_reasoning_medium">Medium</string>
     <string name="ai_reasoning_high">High</string>
+    <string name="ai_reasoning_custom">Custom</string>
+    <string name="ai_reasoning_sheet_title">Reasoning Effort</string>
+    <string name="ai_reasoning_sheet_desc">Configure how deeply the AI model thinks before responding</string>
+    <string name="ai_reasoning_off_desc">Fastest response, skips extended reasoning</string>
+    <string name="ai_reasoning_low_desc">Faster speed, saves tokens, good for quick questions</string>
+    <string name="ai_reasoning_medium_desc">Balanced depth and speed for most STEM problems</string>
+    <string name="ai_reasoning_high_desc">Maximum depth for complex Math, Science &amp; Code</string>
+    <string name="ai_reasoning_custom_desc">Specify custom token budget or effort level</string>
+    <string name="ai_reasoning_custom_hint">e.g. 4096 or x-high</string>
+    <string name="ai_reasoning_pill_format">Think: %1$s</string>
     
     <!-- Home screen Banner -->
     <string name="home_ai_chat_banner_title">AI Quiz Generator</string>

@@ -282,7 +282,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         pendingSnapshot = null
     }
 
-    fun sendMessage(text: String) {
+    fun sendMessage(text: String, reasoningEffort: String? = null) {
         val trimmedText = text.trim()
         val currentAttachments = _uiState.value.pendingAttachments.toList()
 
@@ -396,10 +396,14 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                 }
+                val effectiveReasoning = when {
+                    reasoningEffort != null -> reasoningEffort.takeIf { it != "off" && it != "default" }
+                    else -> provider.reasoningEffort?.takeIf { it != "off" && it != "default" }
+                }
                 OpenAiCompatClient.chatCompletionStream(
                     baseUrl = provider.normalizedBaseUrl(), apiKey = provider.apiKey,
                     model = provider.modelId, history = apiHistory,
-                    systemInstructionText = systemInstruction, reasoningEffort = provider.reasoningEffort
+                    systemInstructionText = systemInstruction, reasoningEffort = effectiveReasoning
                 ).collect { chunk ->
                     if (!isCurrent()) throw CancellationException()
                     assistantText.append(chunk.content)

@@ -119,8 +119,10 @@ object OpenAiCompatClient {
         require(model.isNotBlank()) { "Model is required" }
 
         val messages = buildMessagesList(history, systemInstructionText)
-        val validReasoning = reasoningEffort?.trim()?.lowercase()?.takeIf {
-            it in listOf("low", "medium", "high")
+        val validReasoning = reasoningEffort?.trim()?.takeIf {
+            it.isNotBlank() && it.lowercase() != "off" && it.lowercase() != "default"
+        }?.let {
+            if (it.lowercase() in listOf("low", "medium", "high")) it.lowercase() else it
         }
 
         val bodyJson = json.encodeToString(
@@ -222,8 +224,10 @@ object OpenAiCompatClient {
             require(model.isNotBlank()) { "Model is required" }
 
             val messages = buildMessagesList(history, systemInstructionText)
-            val validReasoning = reasoningEffort?.trim()?.lowercase()?.takeIf {
-                it in listOf("low", "medium", "high")
+            val validReasoning = reasoningEffort?.trim()?.takeIf {
+                it.isNotBlank() && it.lowercase() != "off" && it.lowercase() != "default"
+            }?.let {
+                if (it.lowercase() in listOf("low", "medium", "high")) it.lowercase() else it
             }
 
             val bodyJson = json.encodeToString(

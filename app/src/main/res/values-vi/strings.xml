@@ -390,9 +390,20 @@
     <string name="ai_provider_reasoning_effort">Mức độ suy luận (Reasoning)</string>
     <string name="ai_provider_reasoning_effort_desc">Tùy chỉnh độ sâu suy luận cho model reasoning (o1, o3-mini, Gemini Thinking, DeepSeek R1...)</string>
     <string name="ai_reasoning_default">Mặc định</string>
+    <string name="ai_reasoning_off">Tắt</string>
     <string name="ai_reasoning_low">Thấp</string>
     <string name="ai_reasoning_medium">Trung bình</string>
     <string name="ai_reasoning_high">Cao</string>
+    <string name="ai_reasoning_custom">Tùy chỉnh</string>
+    <string name="ai_reasoning_sheet_title">Mức độ suy nghĩ (Reasoning Effort)</string>
+    <string name="ai_reasoning_sheet_desc">Tùy chỉnh độ sâu suy luận của mô hình AI trước khi đưa ra câu trả lời</string>
+    <string name="ai_reasoning_off_desc">Phản hồi nhanh nhất, không xuất hiện khối suy nghĩ</string>
+    <string name="ai_reasoning_low_desc">Tốc độ nhanh, tiết kiệm token, phù hợp câu hỏi cơ bản</string>
+    <string name="ai_reasoning_medium_desc">Cân bằng giữa tốc độ và độ chính xác (Khuyên dùng)</string>
+    <string name="ai_reasoning_high_desc">Suy luận chuyên sâu, giải chi tiết bài toán STEM phức tạp</string>
+    <string name="ai_reasoning_custom_desc">Nhập ngân sách token hoặc mức suy luận tùy biến</string>
+    <string name="ai_reasoning_custom_hint">Ví dụ: 4096 hoặc x-high</string>
+    <string name="ai_reasoning_pill_format">Think: %1$s</string>
     <string name="ai_chat_suggestions_header">Gợi ý câu hỏi</string>
     
     <!-- Common -->

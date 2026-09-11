@@ -467,6 +467,11 @@ fun AdaptiveQuestionCard(
     questionNumber: Int,
     questionText: String
 ) {
+    val scrollState = rememberScrollState()
+    LaunchedEffect(questionNumber, questionText) {
+        scrollState.scrollTo(0)
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -478,41 +483,49 @@ fun AdaptiveQuestionCard(
         shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .size(32.dp),
-                color = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(8.dp)
+            // Header Row: Question badge Qx strictly on top - NEVER overlaps question text!
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "Q$questionNumber",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1
-                    )
+                Surface(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "Q$questionNumber",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
 
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Scrollable Question Content (Math, Code, STEM Text) strictly below the header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 240.dp)
-                    .verticalScroll(rememberScrollState())
-                    .padding(top = 40.dp)
+                    .heightIn(max = 260.dp)
+                    .verticalScroll(scrollState)
             ) {
                 RichContentText(
                     text = questionText,
                     textColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     lineHeight = 26.sp
                 )
             }
@@ -784,11 +797,12 @@ fun AnswerCard(
             isCorrect == true
 
     Surface(
+        onClick = onClick,
+        enabled = !showResult,
         modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .scale(scale.value)
-            .clickable(enabled = !showResult, onClick = onClick),
+            .scale(scale.value),
         color = bgColor.copy(alpha = alpha),
         shape = RoundedCornerShape(cornerRadius),
         border = androidx.compose.foundation.BorderStroke(1.5.dp, borderColor.copy(alpha = alpha))

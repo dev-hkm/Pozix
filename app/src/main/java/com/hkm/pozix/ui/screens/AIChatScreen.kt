@@ -117,7 +117,8 @@ fun AIChatScreen(
     var showHistorySheet by remember { mutableStateOf(false) }
     var showAttachmentSheet by remember { mutableStateOf(false) }
     var showAttachmentTray by remember { mutableStateOf(false) }
-    var isThinkActive by remember { mutableStateOf(false) }
+    var reasoningEffort by remember { mutableStateOf("off") }
+    var showReasoningSheet by remember { mutableStateOf(false) }
     var previewImageFilePath by remember { mutableStateOf<String?>(null) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var textInput by remember { mutableStateOf("") }
@@ -516,7 +517,7 @@ fun AIChatScreen(
                         exit = fadeOut(tween(150)) + scaleOut(tween(150)),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = 125.dp)
+                            .padding(end = 16.dp, bottom = 175.dp)
                     ) {
                         FloatingActionButton(
                             onClick = {
@@ -550,10 +551,10 @@ fun AIChatScreen(
                         isLoading = uiState.isLoading,
                         isAttaching = uiState.isAttaching,
                         pendingAttachments = uiState.pendingAttachments,
-                        isThinkActive = isThinkActive,
-                        onToggleThink = {
-                            HapticUtil.selectionTick(context)
-                            isThinkActive = !isThinkActive
+                        reasoningEffort = reasoningEffort,
+                        onOpenReasoningSelector = {
+                            HapticUtil.lightTap(context)
+                            showReasoningSheet = true
                         },
                         onNavigateToTemplates = {
                             HapticUtil.lightTap(context)
@@ -584,12 +585,13 @@ fun AIChatScreen(
                             if (textInput.isNotBlank() || uiState.pendingAttachments.isNotEmpty()) {
                                 HapticUtil.lightTap(context)
                                 userScrolledUp = false
-                                val promptText = if (isThinkActive && textInput.isNotBlank() && !textInput.lowercase().contains("suy nghĩ")) {
+                                val isReasoningActive = reasoningEffort != "off"
+                                val promptText = if (isReasoningActive && textInput.isNotBlank() && !textInput.lowercase().contains("suy nghĩ") && !textInput.lowercase().contains("think")) {
                                     "${context.getString(R.string.ai_chat_think_desc)}:\n${textInput.trim()}"
                                 } else {
                                     textInput.trim()
                                 }
-                                viewModel.sendMessage(promptText)
+                                viewModel.sendMessage(promptText, reasoningEffort)
                                 textInput = ""
                                 keyboardController?.hide()
                                 showAttachmentTray = false
@@ -668,6 +670,15 @@ fun AIChatScreen(
             onDismiss = { showProviderPicker = false }
         )
     }
+
+    // Reasoning Effort Bottom Sheet
+    if (showReasoningSheet) {
+        ReasoningEffortBottomSheet(
+            currentEffort = reasoningEffort,
+            onSelectEffort = { reasoningEffort = it },
+            onDismiss = { showReasoningSheet = false }
+        )
+    }
 }
 
 /**
@@ -684,8 +695,8 @@ fun DeepSeekStyleFloatingInputCard(
     isLoading: Boolean,
     isAttaching: Boolean,
     pendingAttachments: List<ChatAttachment>,
-    isThinkActive: Boolean,
-    onToggleThink: () -> Unit,
+    reasoningEffort: String,
+    onOpenReasoningSelector: () -> Unit,
     onNavigateToTemplates: () -> Unit,
     showAttachmentTray: Boolean,
     onToggleAttachmentTray: () -> Unit,
@@ -893,15 +904,24 @@ fun DeepSeekStyleFloatingInputCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // DeepSeek "Think" Pill
+                        val isReasoningActive = reasoningEffort.lowercase() != "off"
+                        val thinkLabel = when (reasoningEffort.lowercase()) {
+                            "off" -> stringResource(R.string.ai_reasoning_off)
+                            "low" -> stringResource(R.string.ai_reasoning_low)
+                            "medium" -> stringResource(R.string.ai_reasoning_medium)
+                            "high" -> stringResource(R.string.ai_reasoning_high)
+                            else -> reasoningEffort
+                        }
+
+                        // DeepSeek "Think" / Reasoning Effort Pill
                         Surface(
-                            onClick = onToggleThink,
+                            onClick = onOpenReasoningSelector,
                             shape = RoundedCornerShape(20.dp),
-                            color = if (isThinkActive) MaterialTheme.colorScheme.primaryContainer
+                            color = if (isReasoningActive) MaterialTheme.colorScheme.primaryContainer
                                     else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
                             border = BorderStroke(
-                                width = if (isThinkActive) 1.2.dp else 0.8.dp,
-                                color = if (isThinkActive) MaterialTheme.colorScheme.primary
+                                width = if (isReasoningActive) 1.2.dp else 0.8.dp,
+                                color = if (isReasoningActive) MaterialTheme.colorScheme.primary
                                         else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                             )
                         ) {
@@ -913,17 +933,17 @@ fun DeepSeekStyleFloatingInputCard(
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = stringResource(R.string.ai_chat_think),
-                                    tint = if (isThinkActive) MaterialTheme.colorScheme.primary
+                                    tint = if (isReasoningActive) MaterialTheme.colorScheme.primary
                                            else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Text(
-                                    text = stringResource(R.string.ai_chat_think),
+                                    text = stringResource(R.string.ai_reasoning_pill_format, thinkLabel),
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontSize = 12.sp,
-                                        fontWeight = if (isThinkActive) FontWeight.Bold else FontWeight.Medium
+                                        fontWeight = if (isReasoningActive) FontWeight.Bold else FontWeight.Medium
                                     ),
-                                    color = if (isThinkActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = if (isReasoningActive) MaterialTheme.colorScheme.onPrimaryContainer
                                            else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -2551,4 +2571,224 @@ private fun extractJsonBlock(text: String): String? {
         }
     }
     return null
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReasoningEffortBottomSheet(
+    currentEffort: String,
+    onSelectEffort: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var isCustomSelected by remember {
+        mutableStateOf(currentEffort.lowercase() !in listOf("off", "low", "medium", "high"))
+    }
+    var customText by remember {
+        mutableStateOf(if (isCustomSelected) currentEffort else "")
+    }
+    val context = LocalContext.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = CircleShape,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Column {
+                        Text(
+                            text = stringResource(R.string.ai_reasoning_sheet_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(R.string.ai_reasoning_sheet_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.close),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Standard Options
+            val options = listOf(
+                Triple("off", stringResource(R.string.ai_reasoning_off), stringResource(R.string.ai_reasoning_off_desc)),
+                Triple("low", stringResource(R.string.ai_reasoning_low), stringResource(R.string.ai_reasoning_low_desc)),
+                Triple("medium", stringResource(R.string.ai_reasoning_medium), stringResource(R.string.ai_reasoning_medium_desc)),
+                Triple("high", stringResource(R.string.ai_reasoning_high), stringResource(R.string.ai_reasoning_high_desc))
+            )
+
+            options.forEach { (key, label, desc) ->
+                val isSelected = !isCustomSelected && currentEffort.equals(key, ignoreCase = true)
+                Surface(
+                    onClick = {
+                        HapticUtil.selectionTick(context)
+                        onSelectEffort(key)
+                        onDismiss()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+                            else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(
+                        width = if (isSelected) 1.5.dp else 0.8.dp,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                       else MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = desc,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                       else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Custom Option Card
+            Surface(
+                onClick = {
+                    isCustomSelected = true
+                    HapticUtil.selectionTick(context)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = if (isCustomSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                        else MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = BorderStroke(
+                    width = if (isCustomSelected) 1.5.dp else 0.8.dp,
+                    color = if (isCustomSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.ai_reasoning_custom),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(R.string.ai_reasoning_custom_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    if (isCustomSelected) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = customText,
+                                onValueChange = { customText = it },
+                                modifier = Modifier.weight(1f),
+                                placeholder = { Text(stringResource(R.string.ai_reasoning_custom_hint)) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            Button(
+                                onClick = {
+                                    val trimmed = customText.trim()
+                                    if (trimmed.isNotBlank()) {
+                                        HapticUtil.actionConfirm(context)
+                                        onSelectEffort(trimmed)
+                                        onDismiss()
+                                    }
+                                },
+                                enabled = customText.isNotBlank(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(stringResource(R.string.ok), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
