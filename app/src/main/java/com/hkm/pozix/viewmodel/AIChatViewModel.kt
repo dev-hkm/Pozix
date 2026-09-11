@@ -196,6 +196,24 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun attachMultipleUris(uris: List<Uri>, isExplicitImage: Boolean = false) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isAttaching = true)
+            val newAttachments = mutableListOf<ChatAttachment>()
+            for (uri in uris) {
+                val attachment = ChatAttachmentHelper.processUri(getApplication(), uri, isExplicitImage)
+                if (attachment != null) {
+                    newAttachments.add(attachment)
+                }
+            }
+            _uiState.value = _uiState.value.copy(
+                pendingAttachments = _uiState.value.pendingAttachments + newAttachments,
+                isAttaching = false
+            )
+        }
+    }
+
     fun attachUri(uri: Uri, isExplicitImage: Boolean = false) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isAttaching = true)

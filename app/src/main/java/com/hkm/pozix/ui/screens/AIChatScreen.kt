@@ -23,6 +23,10 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+
 import androidx.compose.foundation.lazy.itemsIndexed
 
 import androidx.compose.foundation.BorderStroke
@@ -116,22 +120,22 @@ fun AIChatScreen(
         }
     }
 
-    // Launchers for media and files
+    // Launchers for media and files (supporting multiple photos and documents)
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri?.let {
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 15)
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
             HapticUtil.lightTap(context)
-            viewModel.attachUri(it, isExplicitImage = true)
+            viewModel.attachMultipleUris(uris, isExplicitImage = true)
         }
     }
 
     val documentPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
             HapticUtil.lightTap(context)
-            viewModel.attachUri(it, isExplicitImage = false)
+            viewModel.attachMultipleUris(uris, isExplicitImage = false)
         }
     }
 
@@ -800,7 +804,7 @@ fun AttachmentPickerBottomSheet(
             AttachmentOptionItem(
                 icon = Icons.Default.PhotoLibrary,
                 title = "Thư viện ảnh",
-                subtitle = "Gửi đề thi, công thức toán hoặc bài tập từ ảnh chụp",
+                subtitle = "Gửi nhiều ảnh đề thi, công thức toán hoặc bài tập",
                 iconBg = MaterialTheme.colorScheme.primaryContainer,
                 iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                 onClick = onPickGallery
@@ -893,22 +897,9 @@ fun ChatBubbleItem(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
-        // Assistant Sparkle Avatar
+        // Assistant Sparkle Avatar (Copilot Iridescent Halo when streaming)
         if (!isUser) {
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+            CopilotAvatar(isStreaming = isStreaming)
             Spacer(modifier = Modifier.width(10.dp))
         }
 
@@ -1020,49 +1011,51 @@ fun ChatBubbleItem(
                     )
                 }
 
-                // Real-time pulsing streaming cursor
+                // Copilot-style Signature Streaming Indicator (Glowing spark + sweeping ribbon)
                 if (isStreaming) {
-                    val infiniteTransition = rememberInfiniteTransition(label = "cursorPulse")
-                    val cursorAlpha by infiniteTransition.animateFloat(
-                        initialValue = 1.0f,
-                        targetValue = 0.15f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(450, easing = LinearEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "cursorAlpha"
-                    )
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 4.dp, bottom = 4.dp)
-                            .size(width = 8.dp, height = 16.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = cursorAlpha))
-                    )
+                    CopilotStreamingIndicator()
                 }
 
-                // Assistant Action Row (Copy button) - only displayed when message has completed streaming
-                if (!isStreaming && displayText.isNotBlank()) {
+                // Assistant Action Row (Copy button) - smoothly animated when streaming settles
+                AnimatedVisibility(
+                    visible = !isStreaming && displayText.isNotBlank(),
+                    enter = fadeIn(tween(250)) + expandVertically(tween(250))
+                ) {
                     Row(
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(top = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            onClick = {
-                                HapticUtil.lightTap(context)
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("AI Message", displayText))
-                                Toast.makeText(context, "Đã sao chép nội dung", Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.size(30.dp)
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                            border = BorderStroke(0.75.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = "Sao chép",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .clickable {
+                                        HapticUtil.selectionTick(context)
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("AI Message", displayText))
+                                        Toast.makeText(context, "Đã sao chép câu trả lời", Toast.LENGTH_SHORT).show()
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Sao chép",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Sao chép",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -1226,8 +1219,297 @@ private fun BadgeChip(text: String, color: Color) {
     }
 }
 
+/**
+ * Microsoft Copilot-style Avatar with rotating iridescent halo and breathing scale.
+ */
+@Composable
+fun CopilotAvatar(
+    isStreaming: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "copilotAvatar")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "avatarRotation"
+    )
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = if (isStreaming) 1.08f else 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1100, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "avatarPulse"
+    )
+
+    val haloColors = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.primary
+    )
+
+    Box(
+        modifier = modifier
+            .size(36.dp)
+            .scale(pulseScale),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isStreaming) {
+            // Rotating iridescent outer ring
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { rotationZ = rotation }
+                    .clip(CircleShape)
+                    .background(Brush.sweepGradient(haloColors))
+            )
+            // Cutout circle for distinct glowing border
+            Box(
+                modifier = Modifier
+                    .size(31.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.background)
+            )
+        }
+
+        // Core avatar disc
+        Box(
+            modifier = Modifier
+                .size(if (isStreaming) 28.dp else 34.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isStreaming) {
+                        Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.tertiaryContainer
+                            )
+                        )
+                    } else {
+                        Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(if (isStreaming) 16.dp else 18.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Microsoft Copilot-style signature streaming indicator:
+ * 1. Radiant pulsing spark orb with bloom halo.
+ * 2. Animated label.
+ * 3. Sweeping iridescent ribbon line.
+ */
+@Composable
+fun CopilotStreamingIndicator(
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "copilotStreamFx")
+
+    val shimmerTranslate by infiniteTransition.animateFloat(
+        initialValue = -300f,
+        targetValue = 900f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerTranslate"
+    )
+
+    val glowScale by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(750, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowScale"
+    )
+
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(750, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowAlpha"
+    )
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // Glowing spark particle & status label
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Luminous glowing orb with bloom
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .scale(glowScale),
+                contentAlignment = Alignment.Center
+            ) {
+                // Bloom aura
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.6f * glowAlpha),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+                // Inner core
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.tertiary
+                                )
+                            )
+                        )
+                )
+            }
+
+            Text(
+                text = "Copilot đang phát sinh câu trả lời...",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        // Sweeping iridescent ribbon
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .height(2.5.dp)
+                .clip(RoundedCornerShape(1.5.dp))
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            MaterialTheme.colorScheme.tertiary,
+                            MaterialTheme.colorScheme.secondary,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ),
+                        start = Offset(shimmerTranslate, 0f),
+                        end = Offset(shimmerTranslate + 350f, 0f)
+                    )
+                )
+        )
+    }
+}
+
+/**
+ * Copilot 3-dot thinking wave with staggered delays.
+ */
+@Composable
+fun PulsingThinkingDots() {
+    val transition = rememberInfiniteTransition(label = "copilotDots")
+    val dot1 by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(550, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot1"
+    )
+    val dot2 by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(550, delayMillis = 160, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot2"
+    )
+    val dot3 by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(550, delayMillis = 320, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot3"
+    )
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .scale(dot1)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = dot1))
+        )
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .scale(dot2)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = dot2))
+        )
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .scale(dot3)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondary.copy(alpha = dot3))
+        )
+    }
+}
+
+/**
+ * Microsoft Copilot-style Shimmering Thinking Card.
+ */
 @Composable
 fun AssistantTypingIndicator() {
+    val infiniteTransition = rememberInfiniteTransition(label = "thinkingCard")
+    val shimmerOffset by infiniteTransition.animateFloat(
+        initialValue = -300f,
+        targetValue = 600f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerOffset"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1235,39 +1517,41 @@ fun AssistantTypingIndicator() {
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.AutoAwesome,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(18.dp)
-            )
-        }
+        CopilotAvatar(isStreaming = true)
+
         Spacer(modifier = Modifier.width(12.dp))
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(
+                width = 1.2.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        MaterialTheme.colorScheme.tertiary,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                    ),
+                    start = Offset(shimmerOffset, 0f),
+                    end = Offset(shimmerOffset + 280f, 0f)
+                )
+            ),
+            shadowElevation = 2.dp
         ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(14.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "AI đang suy nghĩ & trả lời...",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                PulsingThinkingDots()
+
+                Text(
+                    text = "Copilot đang suy nghĩ...",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }
