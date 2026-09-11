@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Preview
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import com.hkm.pozix.ui.components.richcontent.RichContentText
@@ -98,17 +99,17 @@ fun SavedQuizSetsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     
+    val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 16.dp
+    
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
+        modifier = Modifier.fillMaxSize()
     ) {
         when {
             uiState.isLoading -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 16.dp)
+                        .padding(start = 24.dp, end = 24.dp, top = topPadding, bottom = 16.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.saved_quiz_sets_title),
@@ -137,7 +138,7 @@ fun SavedQuizSetsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 120.dp)
+                        .padding(start = 24.dp, end = 24.dp, top = topPadding, bottom = 120.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.saved_quiz_sets_title),
@@ -188,7 +189,7 @@ fun SavedQuizSetsScreen(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         start = 20.dp,
                         end = 20.dp,
-                        top = 16.dp,
+                        top = topPadding,
                         bottom = 120.dp
                     ),
                     verticalArrangement = Arrangement.spacedBy(14.dp)

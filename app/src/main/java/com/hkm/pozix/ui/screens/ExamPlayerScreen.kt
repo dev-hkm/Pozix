@@ -141,9 +141,7 @@ fun ExamPlayerScreen(
             fadeIn(tween(350)) togetherWith fadeOut(tween(220))
         },
         contentKey = { it::class },
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
+        modifier = Modifier.fillMaxSize(),
         label = "examState"
     ) { state ->
         when (state) {
@@ -228,6 +226,7 @@ fun ExamSetupContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .windowInsetsPadding(WindowInsets.navigationBars)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp)
@@ -595,7 +594,7 @@ fun ExamPlayingContent(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 260.dp)
+                            .heightIn(max = 240.dp)
                             .padding(horizontal = 16.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -608,7 +607,7 @@ fun ExamPlayingContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .verticalScroll(rememberScrollState())
-                                .padding(16.dp)
+                                .padding(horizontal = 16.dp, vertical = 14.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -654,13 +653,13 @@ fun ExamPlayingContent(
                                     }
                                 }
                             }
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             RichContentText(
                                 text = question.question,
                                 textColor = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 18.sp,
+                                fontSize = 17.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                lineHeight = 26.sp,
+                                lineHeight = 25.sp,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -963,7 +962,8 @@ fun ExamTimerBar(remainingMillis: Long, totalMillis: Long, isWarning: Boolean) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Surface(

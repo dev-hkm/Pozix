@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -135,10 +137,11 @@ fun ImportScreen(
         }
     }
 
+    val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 16.dp
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .imePadding()
     ) {
         // Main scrollable content with generous bottom clearance for the floating BottomNavBar
@@ -146,7 +149,7 @@ fun ImportScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 120.dp),
+                .padding(start = 20.dp, end = 20.dp, top = topPadding, bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Header

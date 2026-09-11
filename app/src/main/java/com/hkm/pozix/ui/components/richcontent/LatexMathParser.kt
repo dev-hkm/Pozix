@@ -8,6 +8,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.em
 
 /**
  * Robust, high-performance LaTeX and STEM mathematical parser for Pozix.
@@ -180,7 +181,8 @@ object LatexMathParser {
                             SpanStyle(
                                 fontFamily = FontFamily.Monospace,
                                 background = codeBgColor,
-                                color = codeTextColor
+                                color = codeTextColor,
+                                fontSize = 0.88.em
                             )
                         ) {
                             append(" $codeContent ")
@@ -264,7 +266,8 @@ object LatexMathParser {
                             SpanStyle(
                                 fontFamily = FontFamily.Monospace,
                                 background = codeBgColor,
-                                color = codeTextColor
+                                color = codeTextColor,
+                                fontSize = 0.88.em
                             )
                         ) {
                             append(" $codeContent ")

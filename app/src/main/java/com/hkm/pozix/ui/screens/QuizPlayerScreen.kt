@@ -235,7 +235,6 @@ fun PlayingContent(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
                     .navigationBarsPadding()
             ) {
                 // ZONE A: TOP STATS AND PROGRESS
@@ -328,15 +327,21 @@ fun TopHeaderBar(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
+        shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .statusBarsPadding()
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
             StatChip(
                 label = stringResource(R.string.quiz_stat_question),
                 value = "${currentQuestionIndex + 1} / $totalQuestions",
@@ -371,6 +376,7 @@ fun TopHeaderBar(
             }
         }
     }
+}
 }
 
 @Composable
@@ -491,7 +497,7 @@ fun AdaptiveQuestionCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             // Header Row: Question badge Qx strictly on top - NEVER overlaps question text!
             Row(
@@ -517,21 +523,21 @@ fun AdaptiveQuestionCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Scrollable Question Content (Math, Code, STEM Text) strictly below the header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 260.dp)
+                    .heightIn(max = 240.dp)
                     .verticalScroll(scrollState)
             ) {
                 RichContentText(
                     text = questionText,
                     textColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontSize = 18.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
-                    lineHeight = 26.sp
+                    lineHeight = 25.sp
                 )
             }
         }

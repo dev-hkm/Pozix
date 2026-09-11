@@ -57,7 +57,7 @@ fun KaTeXMathView(
     }
 
     val cachedHeight = remember(latex) { katexHeightCache[latex] }
-    var contentHeightDp by remember(latex) { mutableStateOf(cachedHeight ?: if (displayMode) 76.dp else 48.dp) }
+    var contentHeightDp by remember(latex) { mutableStateOf(cachedHeight ?: if (displayMode) 52.dp else 40.dp) }
     var hasError by remember(latex) { mutableStateOf(false) }
 
     if (hasError) {
@@ -89,6 +89,13 @@ fun KaTeXMathView(
                 isHorizontalScrollBarEnabled = false
                 isNestedScrollingEnabled = false
                 overScrollMode = WebView.OVER_SCROLL_NEVER
+                setOnTouchListener { v, _ ->
+                    // Disallow parent from intercepting touch if the math expression overflows horizontally
+                    if (v.canScrollHorizontally(1) || v.canScrollHorizontally(-1)) {
+                        v.parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                    false
+                }
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = false
@@ -103,7 +110,7 @@ fun KaTeXMathView(
                     fun onHeightCalculated(heightPx: Float) {
                         post {
                             if (heightPx > 0) {
-                                val calculatedDp = heightPx.dp.coerceIn(44.dp, 750.dp)
+                                val calculatedDp = heightPx.dp.coerceIn(36.dp, 500.dp)
                                 contentHeightDp = calculatedDp
                                 katexHeightCache.put(latex, calculatedDp)
                             }
@@ -135,7 +142,7 @@ fun KaTeXMathView(
         modifier = modifier
             .fillMaxWidth()
             .height(contentHeightDp)
-            .padding(vertical = 4.dp)
+            .padding(vertical = 2.dp)
     )
 }
 
@@ -160,35 +167,29 @@ private fun buildKaTeXHtml(
             <link rel="stylesheet" href="file:///android_asset/katex/katex.min.css">
             <script src="file:///android_asset/katex/katex.min.js"></script>
             <style>
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
                 html, body {
                     background: transparent;
                     width: 100%;
                     margin: 0;
                     padding: 0;
-                    overflow-y: visible !important;
                 }
                 body {
                     color: $hexColor;
                     font-size: ${fontSize}px;
                     display: flex;
-                    align-items: flex-start;
-                    justify-content: ${if (displayMode) "center" else "flex-start"};
+                    align-items: center;
+                    justify-content: flex-start;
                     overflow-x: auto;
-                    overflow-y: visible !important;
+                    overflow-y: hidden;
                     -webkit-overflow-scrolling: touch;
-                    padding: 10px 14px 28px 14px;
+                    padding: 4px 8px;
                     box-sizing: border-box;
                 }
                 #math-output {
                     margin: ${if (displayMode) "0 auto" else "0"};
                     flex-shrink: 0;
                     display: inline-block;
-                    padding: 4px 6px 14px 6px;
+                    padding: 2px 4px;
                     overflow: visible !important;
                 }
                 .katex-display {
@@ -196,6 +197,11 @@ private fun buildKaTeXHtml(
                     overflow: visible !important;
                 }
                 .katex, .katex-html {
+                    overflow: visible !important;
+                    padding-top: 4px !important;
+                    padding-bottom: 8px !important;
+                }
+                .base, .strut, .mop, .msupsub, .vlist-t, .vlist-r, .vlist {
                     overflow: visible !important;
                 }
             </style>
@@ -230,11 +236,10 @@ private fun buildKaTeXHtml(
                             }
                             
                             var renderedH = Math.ceil(maxBottom - minTop);
-                            var bodyScroll = document.body ? Math.ceil(document.body.scrollHeight) : 0;
-                            var targetOffset = target ? Math.ceil(target.offsetHeight) : 0;
-                            var maxH = Math.max(renderedH, bodyScroll, targetOffset);
-                            // +32px buffer guarantees that integrals with negative limits like -\infty and 0 never get clipped
-                            var finalH = Math.max(maxH + 32, 56);
+                            var targetH = target ? Math.ceil(target.scrollHeight) : 0;
+                            var contentH = Math.max(renderedH, targetH);
+                            // +14px buffer accommodates 4px top + 8px bottom padding on .katex-html plus baseline
+                            var finalH = Math.max(contentH + 14, 38);
                             if (window.AndroidBridge && window.AndroidBridge.onHeightCalculated) {
                                 window.AndroidBridge.onHeightCalculated(finalH);
                             }

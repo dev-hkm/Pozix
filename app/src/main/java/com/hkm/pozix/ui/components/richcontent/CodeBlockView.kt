@@ -180,7 +180,7 @@ fun CodeBlockView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 // Line numbers gutter
                 Column(horizontalAlignment = Alignment.End) {
@@ -188,15 +188,15 @@ fun CodeBlockView(
                         Text(
                             text = "${index + 1}",
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp,
-                            lineHeight = 20.sp,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp,
                             color = lineNumberColor,
                             fontWeight = FontWeight.Normal
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
                 // Code lines
                 Column {
@@ -204,8 +204,8 @@ fun CodeBlockView(
                         Text(
                             text = highlightCodeLine(line, displayLanguage, highlightEnabled),
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp,
-                            lineHeight = 20.sp,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp,
                             color = codeTextColor
                         )
                     }
