@@ -225,6 +225,18 @@ fun AIChatScreen(
                     }
                 },
                 actions = {
+                    if (onOpenTemplates != null) {
+                        IconButton(onClick = {
+                            HapticUtil.lightTap(context)
+                            onOpenTemplates()
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = "Mẫu câu lệnh & JSON"
+                            )
+                        }
+                    }
+
                     // Chat History
                     IconButton(onClick = {
                         HapticUtil.lightTap(context)

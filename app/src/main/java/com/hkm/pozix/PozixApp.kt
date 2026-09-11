@@ -5,6 +5,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -12,7 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -39,9 +40,13 @@ fun PozixApp(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Library.route
     val isKeyboardOpen = WindowInsets.isImeVisible
+
+    // Hide bottom navigation completely when in AI Chat, Quiz/Exam player, or when typing
     val showBottomBar = currentRoute !in setOf(
         Screen.QuizPlayer.route,
-        Screen.ExamPlayer.route
+        Screen.ExamPlayer.route,
+        Screen.Templates.route,
+        Screen.AIChat.route
     ) && !isKeyboardOpen
 
     Box(
@@ -57,19 +62,24 @@ fun PozixApp(
 
         AnimatedVisibility(
             visible = showBottomBar,
-            enter = fadeIn(tween(180)) + slideInVertically(
-                animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f),
+            enter = fadeIn(tween(220)) + slideInVertically(
+                animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f),
                 initialOffsetY = { it }
+            ) + scaleIn(
+                initialScale = 0.85f,
+                animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f)
             ),
-            exit = fadeOut(tween(140)) + slideOutVertically(
-                animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f),
+            exit = fadeOut(tween(160)) + slideOutVertically(
+                animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f),
                 targetOffsetY = { it }
+            ) + scaleOut(
+                targetScale = 0.85f,
+                animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f)
             ),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(start = 20.dp, end = 20.dp, bottom = 10.dp)
+                .padding(bottom = 12.dp)
         ) {
             BottomNavBar(
                 currentRoute = currentRoute,

@@ -2,6 +2,8 @@ package com.hkm.pozix.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
@@ -12,15 +14,16 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
@@ -42,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -64,8 +68,9 @@ data class NavItem(
 )
 
 /**
- * Ultra-compact, minimalist Material 3 floating pill bottom navigation bar.
- * Designed with 100% dynamic colors, spring physics, and zero screen obstruction.
+ * Ultra-compact, Apple-inspired floating pill bottom navigation bar.
+ * Shortened length (hugging content instead of edge-to-edge),
+ * tactile scale bounce on tap, icon micro-bounce, and fluid pill animations.
  */
 @Composable
 fun FloatingPillBottomNav(
@@ -78,42 +83,70 @@ fun FloatingPillBottomNav(
 
     Surface(
         modifier = modifier
-            .fillMaxWidth()
-            .height(54.dp),
-        shape = RoundedCornerShape(27.dp),
+            .wrapContentWidth()
+            .height(50.dp),
+        shape = RoundedCornerShape(25.dp),
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f),
-        tonalElevation = 3.dp,
-        shadowElevation = 8.dp,
+        tonalElevation = 4.dp,
+        shadowElevation = 10.dp,
         border = BorderStroke(
-            width = 1.dp,
+            width = 0.75.dp,
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
         )
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .wrapContentWidth()
                 .padding(horizontal = 6.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEachIndexed { index, item ->
                 val isSelected = index == selectedIndex
                 val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+
+                // Apple-style tactile spring scale on tap
+                val pressScale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.88f else 1.0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "press_scale"
+                )
+
+                // Icon micro-bounce when selected
+                val iconBounce by animateFloatAsState(
+                    targetValue = if (isSelected) 1.10f else 1.0f,
+                    animationSpec = spring(
+                        dampingRatio = 0.45f,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "icon_bounce"
+                )
 
                 val itemBgColor by animateColorAsState(
                     targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                    animationSpec = tween(200),
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
                     label = "item_bg_color"
                 )
                 val contentColor by animateColorAsState(
                     targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    animationSpec = tween(200),
+                    animationSpec = tween(180),
                     label = "item_content_color"
                 )
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(18.dp))
+                        .graphicsLayer {
+                            scaleX = pressScale
+                            scaleY = pressScale
+                        }
+                        .clip(RoundedCornerShape(20.dp))
                         .background(itemBgColor)
                         .clickable(
                             interactionSource = interactionSource,
@@ -121,7 +154,7 @@ fun FloatingPillBottomNav(
                             role = Role.Tab
                         ) {
                             if (!isSelected) {
-                                HapticUtil.navigationChange(context)
+                                HapticUtil.selectionTick(context)
                                 onItemSelected(index)
                             }
                         }
@@ -130,8 +163,8 @@ fun FloatingPillBottomNav(
                             this.contentDescription = item.label
                         }
                         .padding(
-                            horizontal = if (isSelected) 12.dp else 10.dp,
-                            vertical = 7.dp
+                            horizontal = if (isSelected) 11.dp else 9.dp,
+                            vertical = 6.dp
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -143,22 +176,33 @@ fun FloatingPillBottomNav(
                             imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                             contentDescription = null,
                             tint = contentColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier
+                                .size(19.dp)
+                                .graphicsLayer {
+                                    scaleX = iconBounce
+                                    scaleY = iconBounce
+                                }
                         )
 
                         AnimatedVisibility(
                             visible = isSelected,
                             enter = fadeIn(tween(160)) + expandHorizontally(
-                                animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f),
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = 400f
+                                ),
                                 expandFrom = Alignment.Start
                             ),
-                            exit = fadeOut(tween(100)) + shrinkHorizontally(
-                                animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f),
+                            exit = fadeOut(tween(90)) + shrinkHorizontally(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = 500f
+                                ),
                                 shrinkTowards = Alignment.Start
                             )
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Spacer(modifier = Modifier.width(5.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = item.label,
                                     color = contentColor,

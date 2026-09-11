@@ -95,6 +95,12 @@ fun PozixNavigation(
         ) {
             AIPromptsScreen(
                 initialTab = 0,
+                onNavigateBack = {
+                    navController.navigate(Screen.Library.route) {
+                        popUpTo(Screen.Library.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route) {
                         popUpTo(Screen.Library.route) { inclusive = false }
@@ -199,6 +205,12 @@ fun PozixNavigation(
         ) {
             AIPromptsScreen(
                 initialTab = 0,
+                onNavigateBack = {
+                    navController.navigate(Screen.Library.route) {
+                        popUpTo(Screen.Library.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route) {
                         popUpTo(Screen.Library.route) { inclusive = false }
