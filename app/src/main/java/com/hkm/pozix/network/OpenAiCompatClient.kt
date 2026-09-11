@@ -93,7 +93,7 @@ object OpenAiCompatClient {
 
     /**
      * Real-time Server-Sent Events (SSE) streaming flow.
-     * Emits incremental string chunks as they arrive from the model.
+     * Emits incremental string and reasoning chunks as they arrive from the model.
      */
     fun chatCompletionStream(
         baseUrl: String,
@@ -102,7 +102,7 @@ object OpenAiCompatClient {
         history: List<ChatMessage>,
         systemInstructionText: String? = null,
         reasoningEffort: String? = null
-    ): Flow<String> = flow {
+    ): Flow<StreamChunk> = flow {
         val root = baseUrl.trim().trimEnd('/')
         require(root.startsWith("http://", true) || root.startsWith("https://", true)) {
             "Invalid Base URL"
@@ -157,9 +157,11 @@ object OpenAiCompatClient {
                     }
                     try {
                         val chunk = json.decodeFromString<ChatStreamResponse>(data)
-                        val text = chunk.choices?.firstOrNull()?.delta?.extractText()
-                        if (!text.isNullOrEmpty()) {
-                            emit(text)
+                        val delta = chunk.choices?.firstOrNull()?.delta
+                        val text = delta?.extractText().orEmpty()
+                        val reasoning = delta?.extractReasoning().orEmpty()
+                        if (text.isNotEmpty() || reasoning.isNotEmpty()) {
+                            emit(StreamChunk(content = text, reasoning = reasoning))
                         }
                     } catch (_: Exception) {
                         // Skip unparseable lines or metadata chunks safely
@@ -362,11 +364,17 @@ private data class StreamChoice(
     @SerialName("finish_reason") val finishReason: String? = null
 )
 
+data class StreamChunk(
+    val content: String = "",
+    val reasoning: String = ""
+)
+
 @Serializable
 private data class StreamDelta(
     val role: String? = null,
     val content: JsonElement? = null,
-    @SerialName("reasoning_content") val reasoningContent: String? = null
+    @SerialName("reasoning_content") val reasoningContent: String? = null,
+    val reasoning: String? = null
 ) {
     fun extractText(): String? {
         val c = content ?: return null
@@ -381,6 +389,10 @@ private data class StreamDelta(
             }
             else -> null
         }
+    }
+
+    fun extractReasoning(): String? {
+        return reasoningContent?.takeIf { it.isNotEmpty() } ?: reasoning?.takeIf { it.isNotEmpty() }
     }
 }
 

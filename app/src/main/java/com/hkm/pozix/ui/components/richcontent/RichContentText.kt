@@ -18,6 +18,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.style.TextAlign
 
 /**
  * Represents a parsed segment of rich educational STEM content.
@@ -28,6 +40,11 @@ sealed interface ContentBlock {
     data class ListItem(val bullet: String, val text: String) : ContentBlock
     data class Code(val code: String, val language: String) : ContentBlock
     data class MathDisplay(val latex: String) : ContentBlock
+    data class Table(
+        val headers: List<String>,
+        val rows: List<List<String>>,
+        val alignments: List<TextAlign>
+    ) : ContentBlock
 }
 
 /**
@@ -150,6 +167,15 @@ fun RichContentText(
                         fontSizeSp = fontSize.value
                     )
                 }
+                is ContentBlock.Table -> {
+                    MarkdownTableView(
+                        headers = block.headers,
+                        rows = block.rows,
+                        alignments = block.alignments,
+                        textColor = textColor,
+                        fontSize = 14.sp
+                    )
+                }
             }
 
             if (index < blocks.lastIndex) {
@@ -159,8 +185,32 @@ fun RichContentText(
     }
 }
 
+private fun isTableSeparator(line: String): Boolean {
+    val trimmed = line.trim()
+    if (!trimmed.contains("-")) return false
+    return trimmed.matches(Regex("""^\|?\s*:?-+:?\s*(\|(\s*:?-+:?\s*))+\|?$"""))
+}
+
+private fun parseTableRow(line: String): List<String> {
+    var trimmed = line.trim()
+    if (trimmed.startsWith("|")) trimmed = trimmed.substring(1)
+    if (trimmed.endsWith("|")) trimmed = trimmed.substring(0, trimmed.length - 1)
+    return trimmed.split("|").map { it.trim() }
+}
+
+private fun parseTableAlignments(line: String): List<TextAlign> {
+    val cells = parseTableRow(line)
+    return cells.map { c ->
+        when {
+            c.startsWith(":") && c.endsWith(":") -> TextAlign.Center
+            c.endsWith(":") -> TextAlign.End
+            else -> TextAlign.Start
+        }
+    }
+}
+
 /**
- * Parses normal markdown text lines into Headings, ListItems, and Paragraphs.
+ * Parses normal markdown text lines into Headings, ListItems, Paragraphs, and Tables.
  */
 private fun parseMarkdownText(text: String): List<ContentBlock> {
     val results = mutableListOf<ContentBlock>()
@@ -175,10 +225,33 @@ private fun parseMarkdownText(text: String): List<ContentBlock> {
         }
     }
 
-    for (rawLine in lines) {
+    var lineIdx = 0
+    while (lineIdx < lines.size) {
+        val rawLine = lines[lineIdx]
         val trimmed = rawLine.trim()
         if (trimmed.isEmpty()) {
             flushParagraph()
+            lineIdx++
+            continue
+        }
+
+        // Detect Markdown Table: header row contains | and next line is table separator
+        if (trimmed.contains("|") && lineIdx + 1 < lines.size && isTableSeparator(lines[lineIdx + 1])) {
+            flushParagraph()
+            val headers = parseTableRow(trimmed)
+            val aligns = parseTableAlignments(lines[lineIdx + 1])
+            val rows = mutableListOf<List<String>>()
+            lineIdx += 2
+            while (lineIdx < lines.size && lines[lineIdx].trim().contains("|")) {
+                val rowLine = lines[lineIdx].trim()
+                if (rowLine.isNotEmpty() && !isTableSeparator(rowLine)) {
+                    rows.add(parseTableRow(rowLine))
+                }
+                lineIdx++
+            }
+            if (headers.isNotEmpty() && rows.isNotEmpty()) {
+                results.add(ContentBlock.Table(headers, rows, aligns))
+            }
             continue
         }
 
@@ -213,6 +286,7 @@ private fun parseMarkdownText(text: String): List<ContentBlock> {
                 currentParagraph.append(rawLine)
             }
         }
+        lineIdx++
     }
     flushParagraph()
     return results
@@ -313,5 +387,112 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
         parseMarkdownText(input.trim())
     } else {
         blocks
+    }
+}
+
+/**
+ * Modern scrollable Markdown Table View.
+ */
+@Composable
+fun MarkdownTableView(
+    headers: List<String>,
+    rows: List<List<String>>,
+    alignments: List<TextAlign>,
+    textColor: Color = MaterialTheme.colorScheme.onSurface,
+    fontSize: TextUnit = 14.sp
+) {
+    val scrollState = rememberScrollState()
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Box(modifier = Modifier.horizontalScroll(scrollState)) {
+            Column(modifier = Modifier.width(IntrinsicSize.Max)) {
+                // Table Header
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        headers.forEachIndexed { colIdx, headerText ->
+                            val align = alignments.getOrElse(colIdx) { TextAlign.Start }
+                            val annotated = remember(headerText) { LatexMathParser.parseToAnnotatedString(headerText) }
+                            Box(
+                                modifier = Modifier
+                                    .widthIn(min = 90.dp, max = 220.dp)
+                                    .padding(horizontal = 8.dp)
+                            ) {
+                                Text(
+                                    text = annotated,
+                                    color = textColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = fontSize,
+                                    textAlign = align,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                )
+
+                // Table Rows
+                rows.forEachIndexed { rowIdx, rowCells ->
+                    val rowBg = if (rowIdx % 2 == 1) {
+                        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.35f)
+                    } else {
+                        androidx.compose.ui.graphics.Color.Transparent
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(rowBg)
+                            .padding(horizontal = 8.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        headers.indices.forEach { colIdx ->
+                            val cellText = rowCells.getOrElse(colIdx) { "" }
+                            val align = alignments.getOrElse(colIdx) { TextAlign.Start }
+                            val annotated = remember(cellText) { LatexMathParser.parseToAnnotatedString(cellText) }
+                            Box(
+                                modifier = Modifier
+                                    .widthIn(min = 90.dp, max = 220.dp)
+                                    .padding(horizontal = 8.dp)
+                            ) {
+                                Text(
+                                    text = annotated,
+                                    color = textColor,
+                                    fontSize = fontSize,
+                                    textAlign = align,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+
+                    if (rowIdx < rows.lastIndex) {
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                        )
+                    }
+                }
+            }
+        }
     }
 }

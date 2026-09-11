@@ -179,16 +179,34 @@ fun AIChatScreen(
         }
     }
 
-    // Auto scroll to bottom when new messages arrive or while actively streaming text
+    // Smart auto-scroll: respects user gesture and scrolls to bottom of content, never jerking up
     val lastMessageTextLength = uiState.messages.lastOrNull()?.text?.length ?: 0
-    LaunchedEffect(uiState.messages.size, uiState.isLoading, lastMessageTextLength) {
-        if (uiState.messages.isNotEmpty()) {
-            val target = uiState.messages.size - 1
-            if (uiState.isLoading) {
-                listState.scrollToItem(target)
-            } else {
-                listState.animateScrollToItem(target)
+    val lastMessageReasoningLength = uiState.messages.lastOrNull()?.reasoning?.length ?: 0
+    var userScrolledUp by remember { mutableStateOf(false) }
+
+    val isScrolledToBottom by remember {
+        derivedStateOf {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val total = listState.layoutInfo.totalItemsCount
+            total == 0 || lastVisible >= total - 1
+        }
+    }
+
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) {
+            if (!isScrolledToBottom) {
+                userScrolledUp = true
             }
+        } else if (isScrolledToBottom) {
+            userScrolledUp = false
+        }
+    }
+
+    LaunchedEffect(uiState.messages.size, lastMessageTextLength, lastMessageReasoningLength) {
+        if (uiState.messages.isNotEmpty() && !userScrolledUp && !listState.isScrollInProgress) {
+            val target = uiState.messages.size - 1
+            // Use 100000 scrollOffset to pin directly to the BOTTOM of the message, NOT the top
+            listState.scrollToItem(target, scrollOffset = 100000)
         }
     }
 
@@ -198,21 +216,32 @@ fun AIChatScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets.statusBars,
+                navigationIcon = {
+                    IconButton(onClick = {
+                        HapticUtil.lightTap(context)
+                        onNavigateBack()
+                    }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Quay lại"
+                        )
+                    }
+                },
                 title = {
-                    // ChatGPT Style Centered/Left Pill Model Selector
+                    // Modern Centered Pill Model Selector
                     Surface(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(22.dp))
                             .clickable {
                                 HapticUtil.lightTap(context)
                                 showProviderPicker = true
                             },
-                        shape = RoundedCornerShape(20.dp),
+                        shape = RoundedCornerShape(22.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        tonalElevation = 1.dp
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
@@ -222,79 +251,100 @@ fun AIChatScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = uiState.activeProvider?.let { "${it.name} • ${it.modelId.takeLast(16)}" }
-                                    ?: "Chọn AI Model",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Zix Bot",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(15.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text(
+                                    text = uiState.activeProvider?.let { "${it.name} • ${it.modelId.takeLast(16)}" } ?: "Chọn AI Model",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        HapticUtil.lightTap(context)
-                        onNavigateBack()
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
                     }
                 },
                 actions = {
-                    if (onOpenTemplates != null) {
-                        IconButton(onClick = {
+                    // 1. Sleek New Chat Button
+                    Surface(
+                        onClick = {
                             HapticUtil.lightTap(context)
-                            onOpenTemplates()
-                        }) {
+                            viewModel.startNewChat()
+                        },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Default.Description,
-                                contentDescription = "Mẫu câu lệnh & JSON"
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Đoạn chat mới",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
 
-                    // Chat History
-                    IconButton(onClick = {
-                        HapticUtil.lightTap(context)
-                        showHistorySheet = true
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = "Lịch sử trò chuyện"
-                        )
-                    }
+                    Spacer(modifier = Modifier.width(6.dp))
 
-                    // New Chat
-                    IconButton(onClick = {
-                        HapticUtil.lightTap(context)
-                        viewModel.startNewChat()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.AddComment,
-                            contentDescription = "Đoạn chat mới"
-                        )
-                    }
-
-                    // More Options Dropdown Menu
+                    // 2. Options Dropdown Menu Button
                     Box {
-                        IconButton(onClick = { showMoreMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn")
+                        Surface(
+                            onClick = {
+                                HapticUtil.lightTap(context)
+                                showMoreMenu = true
+                            },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "Tùy chọn",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
+
                         DropdownMenu(
                             expanded = showMoreMenu,
                             onDismissRequest = { showMoreMenu = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Lịch sử trò chuyện") },
+                                leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
+                                onClick = {
+                                    showMoreMenu = false
+                                    HapticUtil.lightTap(context)
+                                    showHistorySheet = true
+                                }
+                            )
+                            if (onOpenTemplates != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Mẫu câu lệnh & JSON") },
+                                    leadingIcon = { Icon(Icons.Default.Description, contentDescription = null) },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        HapticUtil.lightTap(context)
+                                        onOpenTemplates()
+                                    }
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Quản lý AI Providers") },
                                 leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) },
@@ -303,9 +353,10 @@ fun AIChatScreen(
                                     onNavigateToSettings()
                                 }
                             )
+                            HorizontalDivider()
                             DropdownMenuItem(
-                                text = { Text("Xóa đoạn chat này") },
-                                leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
+                                text = { Text("Xóa đoạn chat này", color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                                 onClick = {
                                     showMoreMenu = false
                                     HapticUtil.lightTap(context)
@@ -314,6 +365,8 @@ fun AIChatScreen(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -423,6 +476,39 @@ fun AIChatScreen(
                             }
                         }
                     }
+
+                    // Floating Scroll-to-Bottom FAB when user scrolls up
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = userScrolledUp,
+                        enter = fadeIn(tween(200)) + scaleIn(spring(dampingRatio = 0.7f)),
+                        exit = fadeOut(tween(150)) + scaleOut(tween(150)),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = 12.dp)
+                    ) {
+                        FloatingActionButton(
+                            onClick = {
+                                HapticUtil.lightTap(context)
+                                userScrolledUp = false
+                                scope.launch {
+                                    if (uiState.messages.isNotEmpty()) {
+                                        listState.animateScrollToItem(uiState.messages.size - 1, scrollOffset = 100000)
+                                    }
+                                }
+                            },
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDownward,
+                                contentDescription = "Cuộn xuống đáy",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
 
                 // ChatGPT SIGNATURE CAPSULE INPUT BAR
@@ -438,6 +524,7 @@ fun AIChatScreen(
                     onSend = {
                         if (textInput.isNotBlank() || uiState.pendingAttachments.isNotEmpty()) {
                             HapticUtil.lightTap(context)
+                            userScrolledUp = false
                             viewModel.sendMessage(textInput.trim())
                             textInput = ""
                             keyboardController?.hide()
@@ -1037,7 +1124,16 @@ fun ChatBubbleItem(
                     }
                 }
 
-                // Liquid text pouring engine ("tuôn text ra") at 60fps
+                // Reasoning / Thinking Accordion Card (if model outputs thought process)
+                if (!message.reasoning.isNullOrBlank()) {
+                    ReasoningAccordionCard(
+                        reasoning = message.reasoning,
+                        isStreaming = isStreaming && fullTargetText.isBlank(),
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                }
+
+                // Liquid text pouring engine ("tuôn text ra") in true realtime
                 val flowingText = rememberLiquidStreamText(
                     targetText = fullTargetText,
                     isStreaming = isStreaming
@@ -1284,6 +1380,89 @@ private fun BadgeChip(text: String, color: Color) {
  * - If network dumps a large SSE chunk (30-100+ chars): dynamically accelerates so it never falls behind.
  * - Instantly returns targetText if not actively streaming (old messages, chat history).
  */
+/**
+ * Collapsible Thinking Process Card for Reasoning Models.
+ */
+@Composable
+fun ReasoningAccordionCard(
+    reasoning: String,
+    isStreaming: Boolean,
+    modifier: Modifier = Modifier
+) {
+    var isExpanded by remember { mutableStateOf(isStreaming) }
+
+    LaunchedEffect(isStreaming) {
+        if (isStreaming) {
+            isExpanded = true
+        }
+    }
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { isExpanded = !isExpanded }
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Psychology,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isStreaming) "Zix Bot đang suy nghĩ..." else "Quá trình suy nghĩ",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) "Thu gọn" else "Mở rộng",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(tween(250)) + fadeIn(tween(250)),
+                exit = shrinkVertically(tween(200)) + fadeOut(tween(200))
+            ) {
+                Column(modifier = Modifier.padding(top = 6.dp, start = 4.dp, end = 4.dp, bottom = 2.dp)) {
+                    HorizontalDivider(
+                        thickness = 0.75.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    RichContentText(
+                        text = reasoning,
+                        textColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp, lineHeight = 20.sp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Pure Character-by-Character Liquid Streaming Engine.
+ * Pours characters out continuously letter-by-letter at high frequency (~11ms).
+ * Never jumps large chunks at once.
+ */
 @Composable
 fun rememberLiquidStreamText(
     targetText: String,
@@ -1300,16 +1479,17 @@ fun rememberLiquidStreamText(
             val total = currentTarget.length
             if (revealedCount < total) {
                 val diff = total - revealedCount
+                // Strict character-by-character pacing:
+                // 1 char per tick normally, gently scaling to 2 or max 3 chars if buffer accumulates
                 val step = when {
-                    diff > 160 -> (diff / 3).coerceAtLeast(10)
-                    diff > 80 -> 6
-                    diff > 40 -> 4
-                    diff > 15 -> 2
+                    diff > 120 -> 4
+                    diff > 50 -> 3
+                    diff > 20 -> 2
                     else -> 1
                 }
                 revealedCount = (revealedCount + step).coerceAtMost(total)
             }
-            delay(16L) // ~60fps smooth liquid pouring
+            delay(11L) // ~90fps silky smooth character-by-character typewriter flow
         }
     }
 

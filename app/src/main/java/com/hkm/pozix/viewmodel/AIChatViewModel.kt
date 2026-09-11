@@ -364,6 +364,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             val apiHistory = updatedMessages.dropLast(1) + userMessage.copy(text = promptToSend)
 
             val assistantText = StringBuilder()
+            val assistantReasoning = StringBuilder()
             var hasStartedReceiving = false
             var lastUiUpdateTime = 0L
             val modelMsgTimestamp = System.currentTimeMillis()
@@ -380,21 +381,42 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                     if (!hasStartedReceiving) {
                         hasStartedReceiving = true
                     }
-                    assistantText.append(chunk)
+                    if (chunk.reasoning.isNotEmpty()) {
+                        assistantReasoning.append(chunk.reasoning)
+                    }
+                    if (chunk.content.isNotEmpty()) {
+                        assistantText.append(chunk.content)
+                    }
 
                     val now = System.currentTimeMillis()
-                    // Throttle state emission every ~25ms for fluid streaming
-                    if (now - lastUiUpdateTime > 25L) {
+                    // Throttle state emission every ~20ms for fluid streaming
+                    if (now - lastUiUpdateTime > 20L) {
                         lastUiUpdateTime = now
-                        val currentText = assistantText.toString()
-                        val currentModelMsg = ChatMessage(role = "model", text = currentText, timestamp = modelMsgTimestamp)
+                        val rawContent = assistantText.toString()
+                        val (parsedText, embeddedReasoning) = extractEmbeddedThinking(rawContent)
+                        val combinedReasoning = (assistantReasoning.toString() + if (embeddedReasoning.isNotBlank()) "\n$embeddedReasoning" else "").trim().takeIf { it.isNotBlank() }
+
+                        val currentModelMsg = ChatMessage(
+                            role = "model",
+                            text = parsedText,
+                            reasoning = combinedReasoning,
+                            timestamp = modelMsgTimestamp
+                        )
                         _uiState.value = _uiState.value.copy(messages = updatedMessages + currentModelMsg)
                     }
                 }
 
                 // Final flush on stream completion
-                val finalText = assistantText.toString().trim()
-                val finalModelMsg = ChatMessage(role = "model", text = finalText, timestamp = modelMsgTimestamp)
+                val rawFinalContent = assistantText.toString().trim()
+                val (finalParsedText, finalEmbeddedReasoning) = extractEmbeddedThinking(rawFinalContent)
+                val finalCombinedReasoning = (assistantReasoning.toString() + if (finalEmbeddedReasoning.isNotBlank()) "\n$finalEmbeddedReasoning" else "").trim().takeIf { it.isNotBlank() }
+
+                val finalModelMsg = ChatMessage(
+                    role = "model",
+                    text = finalParsedText,
+                    reasoning = finalCombinedReasoning,
+                    timestamp = modelMsgTimestamp
+                )
                 val finalMessages = updatedMessages + finalModelMsg
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -406,9 +428,17 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 if (e is CancellationException) {
                     // User explicitly cancelled or stopped generation
                     withContext(NonCancellable) {
-                        val partialText = assistantText.toString().trim()
-                        if (partialText.isNotEmpty()) {
-                            val partialMsg = ChatMessage(role = "model", text = partialText, timestamp = modelMsgTimestamp)
+                        val rawPartial = assistantText.toString().trim()
+                        val (partialParsed, partialEmbedded) = extractEmbeddedThinking(rawPartial)
+                        val partialReasoning = (assistantReasoning.toString() + if (partialEmbedded.isNotBlank()) "\n$partialEmbedded" else "").trim().takeIf { it.isNotBlank() }
+
+                        if (partialParsed.isNotEmpty() || partialReasoning != null) {
+                            val partialMsg = ChatMessage(
+                                role = "model",
+                                text = partialParsed,
+                                reasoning = partialReasoning,
+                                timestamp = modelMsgTimestamp
+                            )
                             val finalMessages = updatedMessages + partialMsg
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
@@ -435,7 +465,13 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
 
                     fallbackResult.fold(
                         onSuccess = { responseText ->
-                            val modelMsg = ChatMessage(role = "model", text = responseText)
+                            val (parsedText, embeddedReasoning) = extractEmbeddedThinking(responseText.trim())
+                            val modelMsg = ChatMessage(
+                                role = "model",
+                                text = parsedText,
+                                reasoning = embeddedReasoning.takeIf { it.isNotBlank() },
+                                timestamp = modelMsgTimestamp
+                            )
                             val finalMessages = updatedMessages + modelMsg
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
@@ -469,6 +505,19 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                     historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
                 }
             }
+        }
+    }
+
+    private fun extractEmbeddedThinking(raw: String): Pair<String, String> {
+        if (!raw.contains("<think>")) return Pair(raw, "")
+        return if (raw.contains("</think>")) {
+            val think = raw.substringAfter("<think>").substringBefore("</think>").trim()
+            val text = (raw.substringBefore("<think>") + raw.substringAfter("</think>")).trim()
+            Pair(text, think)
+        } else {
+            val think = raw.substringAfter("<think>").trim()
+            val text = raw.substringBefore("<think>").trim()
+            Pair(text, think)
         }
     }
 
