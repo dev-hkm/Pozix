@@ -8,6 +8,7 @@ import com.hkm.pozix.data.model.QuizProgress
 import com.hkm.pozix.data.model.QuizValidationResult
 import com.hkm.pozix.data.repository.QuizProgressRepository
 import com.hkm.pozix.data.repository.QuizRepository
+import com.hkm.pozix.data.repository.SavedQuizRepository
 import com.hkm.pozix.data.repository.SettingsRepository
 import com.hkm.pozix.util.QuizJsonParser
 import kotlinx.coroutines.Job
@@ -48,6 +49,7 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
     private val quizRepository = QuizRepository(application)
     private val settingsRepository = SettingsRepository(application)
     private val progressRepository = QuizProgressRepository(application)
+    private val savedQuizRepository = SavedQuizRepository(application)
     
     private val _quizState = MutableStateFlow<QuizState>(QuizState.Loading)
     val quizState: StateFlow<QuizState> = _quizState.asStateFlow()
@@ -178,6 +180,7 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                     questionSnapshot = currentState.questions
                 )
                 progressRepository.saveProgressForQuiz(currentState.quizSetId, progress)
+                savedQuizRepository.updateLastUsedTimestamp(currentState.quizSetId)
             }
         }
     }
@@ -236,6 +239,7 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                     questionSnapshot = currentState.questions
                 )
                 progressRepository.saveProgressForQuiz(currentState.quizSetId, completedProgress)
+                savedQuizRepository.updateLastUsedTimestamp(currentState.quizSetId)
             }
             
             _quizState.value = QuizState.Finished(

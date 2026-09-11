@@ -89,6 +89,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -546,16 +547,56 @@ fun AdaptiveQuestionCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 240.dp)
-                    .verticalScroll(scrollState)
+                    .heightIn(max = 340.dp)
             ) {
-                RichContentText(
-                    text = questionText,
-                    textColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    lineHeight = 25.sp
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(scrollState)
+                        .padding(vertical = 4.dp)
+                ) {
+                    RichContentText(
+                        text = questionText,
+                        textColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 25.sp
+                    )
+                }
+
+                if (scrollState.canScrollBackward) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(14.dp)
+                            .align(Alignment.TopCenter)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0f)
+                                    )
+                                )
+                            )
+                    )
+                }
+
+                if (scrollState.canScrollForward) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(18.dp)
+                            .align(Alignment.BottomCenter)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0f),
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                )
+                            )
+                    )
+                }
             }
         }
     }

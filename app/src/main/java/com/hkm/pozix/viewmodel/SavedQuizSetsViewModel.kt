@@ -103,13 +103,28 @@ class SavedQuizSetsViewModel(application: Application) : AndroidViewModel(applic
                         )
                     }
                 }
-                updatedSets.sortedByDescending { it.savedTimestamp }
+                updatedSets.sortedWith(
+                    compareByDescending<SavedQuizSet> { quizSet ->
+                        val progress = allProgress[quizSet.id]
+                        maxOf(
+                            quizSet.lastUsedTimestamp,
+                            progress?.completedTimestamp ?: 0L,
+                            quizSet.savedTimestamp
+                        )
+                    }.thenByDescending { it.savedTimestamp }
+                )
             }.collect { sets ->
                 _uiState.value = _uiState.value.copy(
                     quizSets = sets,
                     isLoading = false
                 )
             }
+        }
+    }
+    
+    fun markQuizAsPlayed(quizSetId: String) {
+        viewModelScope.launch {
+            savedQuizRepository.updateLastUsedTimestamp(quizSetId)
         }
     }
     

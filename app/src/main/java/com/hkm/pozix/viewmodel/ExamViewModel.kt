@@ -9,6 +9,7 @@ import com.hkm.pozix.data.model.QuizProgress
 import com.hkm.pozix.data.model.QuizValidationResult
 import com.hkm.pozix.data.repository.QuizProgressRepository
 import com.hkm.pozix.data.repository.QuizRepository
+import com.hkm.pozix.data.repository.SavedQuizRepository
 import com.hkm.pozix.data.repository.ExamSessionRepository
 import com.hkm.pozix.data.repository.SettingsRepository
 import com.hkm.pozix.util.QuizJsonParser
@@ -93,6 +94,7 @@ sealed class ExamState {
 class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
     private val quizRepository = QuizRepository(application)
+    private val savedQuizRepository = SavedQuizRepository(application)
     private val progressRepository = QuizProgressRepository(application)
     private val sessionRepository = ExamSessionRepository(application)
     private val settingsRepository = SettingsRepository(application)
@@ -475,6 +477,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
                 completedTimestamp = System.currentTimeMillis()
             )
             progressRepository.saveProgressForQuiz(current.quizSetId, progress)
+            savedQuizRepository.updateLastUsedTimestamp(current.quizSetId)
         }
     }
 

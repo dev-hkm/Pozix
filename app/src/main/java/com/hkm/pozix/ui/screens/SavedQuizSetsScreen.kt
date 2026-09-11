@@ -10,6 +10,20 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import android.os.Build
+import android.view.WindowManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,7 +47,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.rememberScrollState
@@ -227,9 +241,21 @@ fun SavedQuizSetsScreen(
                             )
                         }
                             IconButton(onClick = { gridMode = !gridMode; HapticUtil.selectionTick(context) }) {
-                                Icon(if (gridMode) Icons.Default.ViewList else Icons.Default.GridView,
-                                    stringResource(if (gridMode) R.string.quiz_list_view else R.string.quiz_grid_view),
-                                    tint = MaterialTheme.colorScheme.primary)
+                                AnimatedContent(
+                                    targetState = gridMode,
+                                    transitionSpec = {
+                                        (fadeIn(animationSpec = tween(220, delayMillis = 50)) +
+                                            scaleIn(initialScale = 0.8f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)))
+                                            .togetherWith(fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 0.8f))
+                                    },
+                                    label = "grid_view_mode_icon"
+                                ) { isGrid ->
+                                    Icon(
+                                        imageVector = if (isGrid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
+                                        contentDescription = stringResource(if (isGrid) R.string.quiz_list_view else R.string.quiz_grid_view),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
                     }
@@ -237,42 +263,57 @@ fun SavedQuizSetsScreen(
                     items(uiState.quizSets, key = { it.id }, span = {
                         GridItemSpan(if (!gridMode || uiState.expandedCardId == it.id) maxLineSpan else 1)
                     }) { quizSet ->
-                        if (gridMode && uiState.expandedCardId != quizSet.id) {
-                            CompactQuizTile(quizSet) {
-                                HapticUtil.selectionTick(context)
-                                viewModel.toggleExpand(quizSet.id)
+                        Box(
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = tween(200),
+                                fadeOutSpec = tween(150),
+                                placementSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                )
+                            )
+                        ) {
+                            if (gridMode && uiState.expandedCardId != quizSet.id) {
+                                CompactQuizTile(quizSet) {
+                                    HapticUtil.selectionTick(context)
+                                    viewModel.toggleExpand(quizSet.id)
+                                }
+                            } else {
+                                PremiumQuizCard(
+                                    quizSet = quizSet,
+                                    isExpanded = uiState.expandedCardId == quizSet.id,
+                                    onToggleExpand = {
+                                        HapticUtil.ultraLightTap(context)
+                                        viewModel.toggleExpand(quizSet.id)
+                                    },
+                                    onPlay = {
+                                        HapticUtil.lightTap(context)
+                                        viewModel.markQuizAsPlayed(quizSet.id)
+                                        viewModel.loadQuizSet(quizSet, onPlayQuiz)
+                                    },
+                                    onStartTest = {
+                                        HapticUtil.lightTap(context)
+                                        viewModel.markQuizAsPlayed(quizSet.id)
+                                        viewModel.loadQuizSet(quizSet, onStartTest)
+                                    },
+                                    onPreview = {
+                                        HapticUtil.lightTap(context)
+                                        viewModel.showPreviewWarning(quizSet)
+                                    },
+                                    onRename = {
+                                        HapticUtil.ultraLightTap(context)
+                                        viewModel.showRenameDialog(quizSet)
+                                    },
+                                    onDelete = {
+                                        HapticUtil.ultraLightTap(context)
+                                        viewModel.showDeleteDialog(quizSet)
+                                    },
+                                    onShare = { HapticUtil.lightTap(context); viewModel.shareQuizSet(quizSet) },
+                                    isSharing = uiState.sharingSetId == quizSet.id,
+                                    shareEnabled = uiState.sharingSetId == null
+                                )
                             }
-                        } else PremiumQuizCard(
-                            quizSet = quizSet,
-                            isExpanded = uiState.expandedCardId == quizSet.id,
-                            onToggleExpand = {
-                                HapticUtil.ultraLightTap(context)
-                                viewModel.toggleExpand(quizSet.id)
-                            },
-                            onPlay = {
-                                HapticUtil.lightTap(context)
-                                viewModel.loadQuizSet(quizSet, onPlayQuiz)
-                            },
-                            onStartTest = {
-                                HapticUtil.lightTap(context)
-                                viewModel.loadQuizSet(quizSet, onStartTest)
-                            },
-                            onPreview = {
-                                HapticUtil.lightTap(context)
-                                viewModel.showPreviewWarning(quizSet)
-                            },
-                            onRename = {
-                                HapticUtil.ultraLightTap(context)
-                                viewModel.showRenameDialog(quizSet)
-                            },
-                            onDelete = {
-                                HapticUtil.ultraLightTap(context)
-                                viewModel.showDeleteDialog(quizSet)
-                            },
-                            onShare = { HapticUtil.lightTap(context); viewModel.shareQuizSet(quizSet) },
-                            isSharing = uiState.sharingSetId == quizSet.id,
-                            shareEnabled = uiState.sharingSetId == null
-                        )
+                        }
                     }
                 }
             }
@@ -841,8 +882,33 @@ fun QuizPreviewDialog(
 ) {
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
+        val view = LocalView.current
+        val isDark = isSystemInDarkTheme()
+        DisposableEffect(view, isDark) {
+            val window = (view.parent as? DialogWindowProvider)?.window
+            if (window != null) {
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                @Suppress("DEPRECATION")
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                @Suppress("DEPRECATION")
+                window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    window.isStatusBarContrastEnforced = false
+                    window.isNavigationBarContrastEnforced = false
+                }
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightStatusBars = !isDark
+                insetsController.isAppearanceLightNavigationBars = !isDark
+                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            }
+            onDispose {}
+        }
+
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
@@ -850,8 +916,8 @@ fun QuizPreviewDialog(
             Column(modifier = Modifier.fillMaxSize()) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 4.dp
+                    color = MaterialTheme.colorScheme.background,
+                    shadowElevation = 0.dp
                 ) {
                     Row(
                         modifier = Modifier
@@ -881,6 +947,7 @@ fun QuizPreviewDialog(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
+                        .windowInsetsPadding(WindowInsets.navigationBars)
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
                     Text(
