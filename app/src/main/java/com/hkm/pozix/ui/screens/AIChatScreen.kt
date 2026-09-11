@@ -17,6 +17,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.lazy.itemsIndexed
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,6 +35,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -164,10 +173,16 @@ fun AIChatScreen(
         }
     }
 
-    // Auto scroll to bottom when new messages arrive
-    LaunchedEffect(uiState.messages.size, uiState.isLoading) {
+    // Auto scroll to bottom when new messages arrive or while actively streaming text
+    val lastMessageTextLength = uiState.messages.lastOrNull()?.text?.length ?: 0
+    LaunchedEffect(uiState.messages.size, uiState.isLoading, lastMessageTextLength) {
         if (uiState.messages.isNotEmpty()) {
-            listState.animateScrollToItem(uiState.messages.size - 1)
+            val target = uiState.messages.size - 1
+            if (uiState.isLoading) {
+                listState.scrollToItem(target)
+            } else {
+                listState.animateScrollToItem(target)
+            }
         }
     }
 
@@ -346,9 +361,12 @@ fun AIChatScreen(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
                         ) {
-                            items(uiState.messages) { message ->
+                            itemsIndexed(uiState.messages) { index, message ->
+                                val isLast = index == uiState.messages.lastIndex
+                                val isStreaming = uiState.isLoading && isLast && message.role == "model"
                                 ChatBubbleItem(
                                     message = message,
+                                    isStreaming = isStreaming,
                                     onImageClick = { previewImageFilePath = it },
                                     onImportPlay = { json ->
                                         HapticUtil.lightTap(context)
@@ -361,7 +379,8 @@ fun AIChatScreen(
                                 )
                             }
 
-                            if (uiState.isLoading) {
+                            // Show thinking indicator only while waiting for the first token
+                            if (uiState.isLoading && uiState.messages.lastOrNull()?.role != "model") {
                                 item {
                                     AssistantTypingIndicator()
                                 }
@@ -860,6 +879,7 @@ private fun AttachmentOptionItem(
 @Composable
 fun ChatBubbleItem(
     message: ChatMessage,
+    isStreaming: Boolean = false,
     onImageClick: (String) -> Unit,
     onImportPlay: (String) -> Unit,
     onSaveLibrary: (String) -> Unit
@@ -1000,27 +1020,50 @@ fun ChatBubbleItem(
                     )
                 }
 
-                // Assistant Action Row (Copy button)
-                Row(
-                    modifier = Modifier.padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = {
-                            HapticUtil.lightTap(context)
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("AI Message", displayText))
-                            Toast.makeText(context, "Đã sao chép nội dung", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.size(30.dp)
+                // Real-time pulsing streaming cursor
+                if (isStreaming) {
+                    val infiniteTransition = rememberInfiniteTransition(label = "cursorPulse")
+                    val cursorAlpha by infiniteTransition.animateFloat(
+                        initialValue = 1.0f,
+                        targetValue = 0.15f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(450, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "cursorAlpha"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 4.dp, bottom = 4.dp)
+                            .size(width = 8.dp, height = 16.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = cursorAlpha))
+                    )
+                }
+
+                // Assistant Action Row (Copy button) - only displayed when message has completed streaming
+                if (!isStreaming && displayText.isNotBlank()) {
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Sao chép",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        IconButton(
+                            onClick = {
+                                HapticUtil.lightTap(context)
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("AI Message", displayText))
+                                Toast.makeText(context, "Đã sao chép nội dung", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "Sao chép",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }

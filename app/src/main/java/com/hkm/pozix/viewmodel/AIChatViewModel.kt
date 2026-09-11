@@ -19,6 +19,10 @@ import com.hkm.pozix.network.OpenAiCompatClient
 import com.hkm.pozix.util.ChatAttachmentHelper
 import com.hkm.pozix.util.QuizJsonParser
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import java.util.concurrent.CancellationException
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -326,7 +330,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             if (provider == null) {
                 val errorMsg = ChatMessage(
                     role = "model",
-                    text = "No AI provider configured. Please add a provider in Settings first."
+                    text = "Chưa cấu hình AI Provider nào. Vui lòng vào Cài đặt để thêm Provider trước."
                 )
                 val finalMessages = updatedMessages + errorMsg
                 _uiState.value = _uiState.value.copy(
@@ -341,38 +345,111 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             // We construct history for API: replace last user message with promptToSend
             val apiHistory = updatedMessages.dropLast(1) + userMessage.copy(text = promptToSend)
 
-            val result = OpenAiCompatClient.chatCompletion(
-                baseUrl = provider.normalizedBaseUrl(),
-                apiKey = provider.apiKey,
-                model = provider.modelId,
-                history = apiHistory,
-                systemInstructionText = systemInstruction,
-                reasoningEffort = provider.reasoningEffort
-            )
+                        val assistantText = StringBuilder()
+            var hasStartedReceiving = false
+            var lastUiUpdateTime = 0L
 
-            result.fold(
-                onSuccess = { responseText ->
-                    val modelMsg = ChatMessage(role = "model", text = responseText)
-                    val finalMessages = updatedMessages + modelMsg
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        messages = finalMessages
+            try {
+                OpenAiCompatClient.chatCompletionStream(
+                    baseUrl = provider.normalizedBaseUrl(),
+                    apiKey = provider.apiKey,
+                    model = provider.modelId,
+                    history = apiHistory,
+                    systemInstructionText = systemInstruction,
+                    reasoningEffort = provider.reasoningEffort
+                ).collect { chunk ->
+                    if (!hasStartedReceiving) {
+                        hasStartedReceiving = true
+                    }
+                    assistantText.append(chunk)
+
+                    val now = System.currentTimeMillis()
+                    // Throttle state emission every ~35ms for silky-smooth 60fps streaming
+                    if (now - lastUiUpdateTime > 35L) {
+                        lastUiUpdateTime = now
+                        val currentText = assistantText.toString()
+                        val currentModelMsg = ChatMessage(role = "model", text = currentText)
+                        _uiState.value = _uiState.value.copy(messages = updatedMessages + currentModelMsg)
+                    }
+                }
+
+                // Final flush on stream completion
+                val finalText = assistantText.toString().trim()
+                val finalModelMsg = ChatMessage(role = "model", text = finalText)
+                val finalMessages = updatedMessages + finalModelMsg
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    messages = finalMessages
+                )
+                historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
+
+            } catch (e: Exception) {
+                if (e is CancellationException) {
+                    // User explicitly cancelled or stopped generation
+                    withContext(NonCancellable) {
+                        val partialText = assistantText.toString().trim()
+                        if (partialText.isNotEmpty()) {
+                            val partialMsg = ChatMessage(role = "model", text = partialText)
+                            val finalMessages = updatedMessages + partialMsg
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                messages = finalMessages
+                            )
+                            historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
+                        } else {
+                            _uiState.value = _uiState.value.copy(isLoading = false)
+                        }
+                    }
+                    return@launch
+                }
+
+                // If error happened BEFORE any tokens were streamed, fallback to non-streaming
+                if (!hasStartedReceiving) {
+                    val fallbackResult = OpenAiCompatClient.chatCompletion(
+                        baseUrl = provider.normalizedBaseUrl(),
+                        apiKey = provider.apiKey,
+                        model = provider.modelId,
+                        history = apiHistory,
+                        systemInstructionText = systemInstruction,
+                        reasoningEffort = provider.reasoningEffort
                     )
-                    historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
-                },
-                onFailure = { error ->
-                    val errorMsg = ChatMessage(
-                        role = "model",
-                        text = "Error generating content: ${error.message ?: "Unknown error"}"
+
+                    fallbackResult.fold(
+                        onSuccess = { responseText ->
+                            val modelMsg = ChatMessage(role = "model", text = responseText)
+                            val finalMessages = updatedMessages + modelMsg
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                messages = finalMessages
+                            )
+                            historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
+                        },
+                        onFailure = { fallbackError ->
+                            val errorMsg = ChatMessage(
+                                role = "model",
+                                text = "Lỗi khi tạo nội dung: ${fallbackError.message ?: "Lỗi không xác định"}"
+                            )
+                            val finalMessages = updatedMessages + errorMsg
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                messages = finalMessages
+                            )
+                            historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
+                        }
                     )
-                    val finalMessages = updatedMessages + errorMsg
+                } else {
+                    // Interrupted stream: preserve partial text and append notice
+                    val partialText = assistantText.toString().trim()
+                    val errorSuffix = "\n\n*(Đã dừng hoặc ngắt kết nối: ${e.message ?: "Lỗi mạng"})*"
+                    val finalMsg = ChatMessage(role = "model", text = partialText + errorSuffix)
+                    val finalMessages = updatedMessages + finalMsg
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         messages = finalMessages
                     )
                     historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
                 }
-            )
+            }
         }
     }
 
