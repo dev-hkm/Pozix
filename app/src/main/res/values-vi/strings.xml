@@ -238,7 +238,7 @@
     <string name="settings_select_font">Chọn phông chữ</string>
     <string name="settings_save">Lưu</string>
 
-    <!-- Backup & Restore -->
+    <!-- Backup &amp; Restore -->
     <string name="settings_backup_restore">Sao lưu &amp; Khôi phục</string>
     <string name="settings_export_backup">Sao lưu ra file</string>
     <string name="settings_import_backup">Khôi phục từ file</string>
@@ -399,4 +399,66 @@
     <string name="ok">OK</string>
     <string name="cancel">Hủy</string>
     <string name="close">Đóng</string>
+
+    <string name="settings_code_highlight_title">Làm nổi bật cú pháp code</string>
+    <string name="settings_code_highlight_desc">Tô màu cú pháp cho các khối mã nguồn</string>
+    <string name="code_copied">Đã sao chép mã nguồn</string>
+    <string name="code_copy_content_desc">Sao chép mã</string>
+    <string name="ai_thought_collapse">Thu gọn</string>
+    <string name="ai_thought_expand">Mở rộng</string>
+    <string name="ai_thought_process">Quá trình suy nghĩ</string>
+    <string name="ai_thinking_in_progress">Đang suy nghĩ...</string>
+    <string name="ai_thought_duration">Đã suy nghĩ trong %1$ds</string>
+    <string name="ai_chat_scroll_bottom">Cuộn xuống đáy</string>
+    <string name="ai_chat_copied_reply">Đã sao chép câu trả lời</string>
+    <string name="ai_chat_copy">Sao chép</string>
+    <string name="ai_chat_options">Tùy chọn</string>
+    <string name="ai_chat_new_chat">Đoạn chat mới</string>
+    <string name="ai_chat_history">Lịch sử trò chuyện</string>
+    <string name="ai_chat_templates">Mẫu câu lệnh &amp; JSON</string>
+    <string name="ai_chat_manage_providers">Quản lý AI Providers</string>
+    <string name="ai_chat_delete_this">Xóa đoạn chat này</string>
+    <string name="ai_chat_select_model">Chọn AI Model</string>
+    <string name="ai_chat_input_with_attachments">Nhập yêu cầu cho tệp/ảnh...</string>
+    <string name="ai_chat_stop">Dừng</string>
+    <string name="ai_chat_send">Gửi</string>
+    <string name="ai_chat_attach_title">Đính kèm vào câu hỏi</string>
+    <string name="ai_chat_photo_gallery">Thư viện ảnh</string>
+    <string name="ai_chat_photo_gallery_desc">Gửi nhiều ảnh đề thi, công thức toán hoặc bài tập</string>
+    <string name="ai_chat_take_photo">Chụp ảnh ngay</string>
+    <string name="ai_chat_take_photo_desc">Chụp trực tiếp đề bài từ sách hoặc bài làm</string>
+    <string name="ai_chat_docs">Tệp tin &amp; Tài liệu</string>
+    <string name="ai_chat_docs_desc">Tải lên tệp JSON câu hỏi, tệp văn bản TXT, Markdown...</string>
+    <string name="ai_chat_composing">Zix Bot đang soạn câu trả lời...</string>
+    <string name="ai_chat_ai_quiz_title">Bộ đề thi tạo bởi AI</string>
+    <string name="ai_chat_questions_count">%1$d câu hỏi</string>
+    <string name="ai_chat_single_choice_count">%1$d trắc nghiệm</string>
+    <string name="ai_chat_true_false_count">%1$d đúng/sai</string>
+    <string name="ai_chat_start_exam">Vào thi ngay</string>
+    <string name="ai_chat_saved_quiz">Đã lưu</string>
+    <string name="ai_chat_save_quiz">Lưu đề</string>
+    <string name="ai_chat_welcome_title">Tôi có thể giúp gì cho bạn?</string>
+    <string name="ai_chat_suggestion_1">Tạo bài kiểm tra 10 câu Tiếng Anh Ngữ pháp có giải thích chi tiết</string>
+    <string name="ai_chat_suggestion_2">Giải bài toán đạo hàm &amp; tích phân này kèm công thức LaTeX</string>
+    <string name="ai_chat_suggestion_3">Tạo đề thi 15 câu Hóa học Este - Lipit</string>
+    <string name="ai_chat_suggestion_4">Phân tích đề bài từ hình ảnh hoặc tệp JSON câu hỏi đính kèm</string>
+    <string name="ai_chat_no_history">Chưa có cuộc trò chuyện nào</string>
+    <string name="ai_chat_messages_count">%1$d tin nhắn</string>
+    <string name="ai_chat_delete">Xóa</string>
+    <string name="ai_chat_back">Quay lại</string>
+    <string name="ai_chat_no_provider_error">Chưa cấu hình AI Provider. Vui lòng thêm Provider trong Cài đặt.</string>
+    <string name="ai_chat_stream_interrupted">\n\nĐã ngắt phản hồi. Vui lòng thử lại. </string>
+    <string name="ai_chat_cannot_connect">Không thể kết nối</string>
+    <string name="ai_provider_reasoning_label">Suy nghĩ: %1$s</string>
+    <string name="ai_chat_welcome_subtitle">Tạo đề thi trắc nghiệm, giải bài tập Toán - KHTN từ ảnh chụp hoặc phân tích tệp câu hỏi</string>
+    <string name="ai_chat_view_image">Xem ảnh</string>
+    <string name="ai_chat_cannot_load_image">Không thể tải ảnh</string>
+    <string name="ai_chat_new_conversation">Cuộc trò chuyện mới</string>
+    <string name="ai_chat_prompt_photo">Hãy phân tích đề bài trong ảnh, giải chi tiết và tạo bộ câu hỏi trắc nghiệm tương ứng.</string>
+    <string name="ai_chat_prompt_doc">Hãy đọc tệp tin đính kèm ở trên, phân tích và tạo bộ câu hỏi trắc nghiệm hoặc giải bài tập.</string>
+    <string name="ai_chat_title_photo">Phân tích ảnh và giải đề bài</string>
+    <string name="ai_chat_title_doc">Phân tích tệp %1$s</string>
+    <string name="ai_chat_title_doc_and_photo">Phân tích tài liệu và hình ảnh đính kèm</string>
+    <string name="prompts_back_to_ai">Trở lại Trợ lý AI</string>
+    <string name="import_sample_stem_json">Tải mẫu JSON Toán / KHTN</string>
 </resources>

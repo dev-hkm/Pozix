@@ -55,7 +55,8 @@ data class SettingsUiState(
     val restoreProgressCount: Int = 0,
     val cloudToken: String = "",
     val cloudNotice: CloudNotice? = null,
-    val cloudBusy: Boolean = false
+    val cloudBusy: Boolean = false,
+    val codeHighlight: Boolean = true
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -133,6 +134,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     activeProviderId = active?.id.orEmpty()
                 )
             }
+        }
+        viewModelScope.launch {
+            repository.getCodeHighlight().collect { value ->
+                _uiState.value = _uiState.value.copy(codeHighlight = value)
+            }
+        }
+    }
+
+    fun setCodeHighlight(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.setCodeHighlight(enabled)
         }
     }
 

@@ -30,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,15 +40,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hkm.pozix.R
 import com.hkm.pozix.util.HapticUtil
 import kotlinx.coroutines.delay
+
+/**
+ * Ambient composition local controlling whether code syntax highlighting is active globally.
+ */
+val LocalCodeHighlight = compositionLocalOf { true }
 
 /**
  * Modern Jetpack Compose Code Block component designed for Computer Science (Tin học).
@@ -56,12 +66,13 @@ import kotlinx.coroutines.delay
  * - One-tap copy to clipboard with haptic feedback
  * - Line numbers gutter
  * - Horizontal scrolling (never breaks line structure or indentation)
- * - Clean syntax highlighting
+ * - Clean syntax highlighting with on/off switch support
  */
 @Composable
 fun CodeBlockView(
     code: String,
     language: String = "",
+    highlightEnabled: Boolean = LocalCodeHighlight.current,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -130,12 +141,13 @@ fun CodeBlockView(
                     }
                 }
 
+                val copySuccessText = stringResource(R.string.code_copied)
                 IconButton(
                     onClick = {
                         clipboardManager.setText(AnnotatedString(code))
                         HapticUtil.actionConfirm(context)
                         isCopied = true
-                        Toast.makeText(context, "Copied code", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, copySuccessText, Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.size(32.dp)
                 ) {
@@ -147,14 +159,14 @@ fun CodeBlockView(
                         if (copied) {
                             Icon(
                                 imageVector = Icons.Default.Check,
-                                contentDescription = "Copied",
+                                contentDescription = stringResource(R.string.code_copied),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Default.ContentCopy,
-                                contentDescription = "Copy code",
+                                contentDescription = stringResource(R.string.code_copy_content_desc),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -190,7 +202,7 @@ fun CodeBlockView(
                 Column {
                     lines.forEach { line ->
                         Text(
-                            text = highlightCodeLine(line),
+                            text = highlightCodeLine(line, displayLanguage, highlightEnabled),
                             fontFamily = FontFamily.Monospace,
                             fontSize = 13.sp,
                             lineHeight = 20.sp,
@@ -204,68 +216,109 @@ fun CodeBlockView(
 }
 
 /**
- * Lightweight syntax highlighter for popular languages (Python, C++, Java, Kotlin, C, SQL, JS).
+ * Universal high-performance syntax highlighter for Pozix.
+ * Supports HTML/XML, CSS, JavaScript, TypeScript, Python, C, C++, Java, Kotlin, SQL.
+ * Falls back to clean monospace text when highlighting is toggled off in Settings.
  */
-private fun highlightCodeLine(line: String): AnnotatedString {
-    return buildAnnotatedString {
-        val trimmed = line.trimStart()
+private fun highlightCodeLine(
+    line: String,
+    language: String,
+    enabled: Boolean
+): AnnotatedString {
+    if (!enabled) return AnnotatedString(line)
 
-        // Comments
-        if (trimmed.startsWith("//") || trimmed.startsWith("#") || trimmed.startsWith("--")) {
-            pushStyle(SpanStyle(color = Color(0xFF6C7086), fontStyle = androidx.compose.ui.text.font.FontStyle.Italic))
-            append(line)
-            pop()
-            return@buildAnnotatedString
+    val trimmed = line.trimStart()
+
+    // 1. Full-line Comments
+    if (trimmed.startsWith("//") || trimmed.startsWith("#") || trimmed.startsWith("--") || trimmed.startsWith("<!--")) {
+        return buildAnnotatedString {
+            withStyle(SpanStyle(color = Color(0xFF6C7086), fontStyle = FontStyle.Italic)) {
+                append(line)
+            }
         }
+    }
 
+    val isHtml = language in listOf("HTML", "XML", "SVG", "HTM")
+
+    return buildAnnotatedString {
         var i = 0
         val len = line.length
 
         while (i < len) {
-            // String literal "..." or '...'
+            // HTML comments <!-- ... -->
+            if (isHtml && line.startsWith("<!--", i)) {
+                val endIdx = line.indexOf("-->", i + 4)
+                val commentEnd = if (endIdx != -1) endIdx + 3 else len
+                withStyle(SpanStyle(color = Color(0xFF6C7086), fontStyle = FontStyle.Italic)) {
+                    append(line.substring(i, commentEnd))
+                }
+                i = commentEnd
+                continue
+            }
+
+            // String literals: "..." or '...'
             if (line[i] == '"' || line[i] == '\'') {
                 val quote = line[i]
                 val endIdx = line.indexOf(quote, i + 1)
                 if (endIdx != -1) {
-                    pushStyle(SpanStyle(color = Color(0xFFA6E3A1))) // Soft green
-                    append(line.substring(i, endIdx + 1))
-                    pop()
+                    withStyle(SpanStyle(color = Color(0xFFA6E3A1))) { // Soft green
+                        append(line.substring(i, endIdx + 1))
+                    }
                     i = endIdx + 1
                     continue
                 }
             }
 
-            // Words (keywords, types, identifiers)
+            // HTML Tags: <tag_name, </tag_name, >, />
+            if (isHtml && line[i] == '<' && i + 1 < len && (line[i + 1].isLetter() || line[i + 1] == '/' || line[i + 1] == '!')) {
+                withStyle(SpanStyle(color = Color(0xFF89DCEB), fontWeight = FontWeight.Bold)) { // Sky blue / cyan
+                    val start = i
+                    i++
+                    if (i < len && line[i] == '/') i++
+                    while (i < len && (line[i].isLetterOrDigit() || line[i] == '-' || line[i] == '_')) i++
+                    append(line.substring(start, i))
+                }
+                continue
+            }
+
+            if (isHtml && line[i] == '>') {
+                withStyle(SpanStyle(color = Color(0xFF89DCEB), fontWeight = FontWeight.Bold)) {
+                    append('>')
+                }
+                i++
+                continue
+            }
+
+            // Identifiers / Keywords / Types / HTML attributes
             if (line[i].isLetter() || line[i] == '_') {
                 val start = i
-                while (i < len && (line[i].isLetterOrDigit() || line[i] == '_')) {
+                while (i < len && (line[i].isLetterOrDigit() || line[i] == '_' || line[i] == '-')) {
                     i++
                 }
                 val word = line.substring(start, i)
-                when (word) {
-                    // Control flow / keywords
-                    "def", "class", "fun", "val", "var", "function", "return", "if", "else",
-                    "for", "while", "do", "switch", "case", "break", "continue", "import",
-                    "from", "package", "public", "private", "protected", "static", "const",
-                    "SELECT", "FROM", "WHERE", "JOIN", "ORDER", "BY", "GROUP", "INSERT",
-                    "UPDATE", "DELETE", "AND", "OR", "NOT", "IN", "IS", "NULL", "try", "catch" -> {
-                        pushStyle(SpanStyle(color = Color(0xFFCBA6F7), fontWeight = FontWeight.Bold)) // Mauve/Purple
-                        append(word)
-                        pop()
+
+                val isAttr = isHtml && i < len && line.substring(i).trimStart().startsWith("=")
+
+                when {
+                    isAttr -> {
+                        withStyle(SpanStyle(color = Color(0xFFF9E2AF), fontWeight = FontWeight.SemiBold)) { // Yellow/peach attribute
+                            append(word)
+                        }
                     }
-                    // Types
-                    "int", "float", "double", "char", "bool", "boolean", "void", "string",
-                    "String", "Int", "Boolean", "Float", "Double", "List", "Map", "Set",
-                    "vector", "auto", "long", "short", "unsigned" -> {
-                        pushStyle(SpanStyle(color = Color(0xFF89B4FA), fontWeight = FontWeight.SemiBold)) // Blue
-                        append(word)
-                        pop()
+                    word in KEYWORDS -> {
+                        withStyle(SpanStyle(color = Color(0xFFCBA6F7), fontWeight = FontWeight.Bold)) { // Mauve/Purple
+                            append(word)
+                        }
                     }
-                    // Constants / Booleans
-                    "true", "false", "True", "False", "null", "None", "nullptr" -> {
-                        pushStyle(SpanStyle(color = Color(0xFFFAB387), fontWeight = FontWeight.Bold)) // Peach/Orange
-                        append(word)
-                        pop()
+                    word in TYPES -> {
+                        withStyle(SpanStyle(color = Color(0xFF89B4FA), fontWeight = FontWeight.SemiBold)) { // Blue
+                            append(word)
+                        }
+                    }
+                    word in CONSTANTS -> {
+                        withStyle(SpanStyle(color = Color(0xFFFAB387), fontWeight = FontWeight.Bold)) { // Peach
+                            append(word)
+                        }
                     }
                     else -> {
                         append(word)
@@ -277,12 +330,12 @@ private fun highlightCodeLine(line: String): AnnotatedString {
             // Numbers
             if (line[i].isDigit()) {
                 val start = i
-                while (i < len && (line[i].isDigit() || line[i] == '.' || line[i] == 'f' || line[i] == 'L')) {
+                while (i < len && (line[i].isDigit() || line[i] == '.' || line[i] == 'f' || line[i] == 'L' || line[i] == 'x')) {
                     i++
                 }
-                pushStyle(SpanStyle(color = Color(0xFFFAB387))) // Peach
-                append(line.substring(start, i))
-                pop()
+                withStyle(SpanStyle(color = Color(0xFFFAB387))) { // Peach
+                    append(line.substring(start, i))
+                }
                 continue
             }
 
@@ -291,3 +344,23 @@ private fun highlightCodeLine(line: String): AnnotatedString {
         }
     }
 }
+
+private val KEYWORDS = setOf(
+    "def", "class", "fun", "val", "var", "function", "return", "if", "else", "elif",
+    "for", "while", "do", "switch", "case", "break", "continue", "import", "export",
+    "from", "package", "public", "private", "protected", "static", "const", "final",
+    "SELECT", "FROM", "WHERE", "JOIN", "ORDER", "BY", "GROUP", "INSERT", "INTO",
+    "UPDATE", "DELETE", "AND", "OR", "NOT", "IN", "IS", "NULL", "CREATE", "TABLE",
+    "try", "catch", "finally", "throw", "throws", "new", "this", "super", "override",
+    "async", "await", "yield", "interface", "struct", "enum", "typealias"
+)
+
+private val TYPES = setOf(
+    "int", "float", "double", "char", "bool", "boolean", "void", "string", "String",
+    "Int", "Boolean", "Float", "Double", "List", "Map", "Set", "vector", "auto",
+    "long", "short", "unsigned", "Any", "Unit", "Array", "Object"
+)
+
+private val CONSTANTS = setOf(
+    "true", "false", "True", "False", "null", "None", "nullptr", "nil", "undefined", "NaN"
+)

@@ -274,19 +274,6 @@ object LatexMathParser {
                     }
                 }
 
-                // Strip generic HTML container tags like <div ...>, </div>, <span ...>, </span>, <p ...>, </p>
-                if (cleanText[i] == '<') {
-                    val closeTag = cleanText.indexOf('>', i)
-                    if (closeTag != -1 && closeTag - i < 200) {
-                        val tagContent = cleanText.substring(i + 1, closeTag).trim().lowercase()
-                        val tagName = tagContent.substringBefore(" ").substringBefore("/")
-                        if (tagName in listOf("div", "span", "p", "/div", "/span", "/p", "table", "/table", "tr", "/tr", "td", "/td", "th", "/th", "tbody", "/tbody", "thead", "/thead")) {
-                            i = closeTag + 1
-                            continue
-                        }
-                    }
-                }
-
                 // Check for bold **...**
                 if (i + 1 < len && cleanText[i] == '*' && cleanText[i + 1] == '*') {
                     val closeIdx = cleanText.indexOf("**", i + 2)

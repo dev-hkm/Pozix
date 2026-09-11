@@ -26,6 +26,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
 
 import androidx.compose.foundation.lazy.itemsIndexed
 
@@ -252,7 +253,7 @@ fun AIChatScreen(
                     }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Quay lại"
+                            contentDescription = stringResource(R.string.ai_chat_back)
                         )
                     }
                 },
@@ -296,7 +297,7 @@ fun AIChatScreen(
                                     )
                                 }
                                 Text(
-                                    text = uiState.activeProvider?.let { "${it.name} • ${it.modelId.takeLast(16)}" } ?: "Chọn AI Model",
+                                    text = uiState.activeProvider?.let { "${it.name} • ${it.modelId.takeLast(16)}" } ?: stringResource(R.string.ai_chat_select_model),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
@@ -320,7 +321,7 @@ fun AIChatScreen(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "Đoạn chat mới",
+                                contentDescription = stringResource(R.string.ai_chat_new_chat),
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
@@ -343,7 +344,7 @@ fun AIChatScreen(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "Tùy chọn",
+                                    contentDescription = stringResource(R.string.ai_chat_options),
                                     modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
@@ -355,7 +356,7 @@ fun AIChatScreen(
                             onDismissRequest = { showMoreMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Lịch sử trò chuyện") },
+                                text = { Text(stringResource(R.string.ai_chat_history)) },
                                 leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
                                 onClick = {
                                     showMoreMenu = false
@@ -365,7 +366,7 @@ fun AIChatScreen(
                             )
                             if (onOpenTemplates != null) {
                                 DropdownMenuItem(
-                                    text = { Text("Mẫu câu lệnh & JSON") },
+                                    text = { Text(stringResource(R.string.ai_chat_templates)) },
                                     leadingIcon = { Icon(Icons.Default.Description, contentDescription = null) },
                                     onClick = {
                                         showMoreMenu = false
@@ -375,7 +376,7 @@ fun AIChatScreen(
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Quản lý AI Providers") },
+                                text = { Text(stringResource(R.string.ai_chat_manage_providers)) },
                                 leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) },
                                 onClick = {
                                     showMoreMenu = false
@@ -384,7 +385,7 @@ fun AIChatScreen(
                             )
                             HorizontalDivider()
                             DropdownMenuItem(
-                                text = { Text("Xóa đoạn chat này", color = MaterialTheme.colorScheme.error) },
+                                text = { Text(stringResource(R.string.ai_chat_delete_this), color = MaterialTheme.colorScheme.error) },
                                 leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                                 onClick = {
                                     showMoreMenu = false
@@ -533,7 +534,7 @@ fun AIChatScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ArrowDownward,
-                                contentDescription = "Cuộn xuống đáy",
+                                contentDescription = stringResource(R.string.ai_chat_scroll_bottom),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -730,7 +731,7 @@ fun ChatGPTStyleInputBar(
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
-                                            contentDescription = "Xóa",
+                                            contentDescription = stringResource(R.string.ai_chat_delete),
                                             tint = MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.size(12.dp)
                                         )
@@ -771,7 +772,7 @@ fun ChatGPTStyleInputBar(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Xóa",
+                                        contentDescription = stringResource(R.string.ai_chat_delete),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier
                                             .size(16.dp)
@@ -807,7 +808,7 @@ fun ChatGPTStyleInputBar(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "Đính kèm",
+                            contentDescription = stringResource(R.string.ai_chat_attach_title),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(22.dp)
                         )
@@ -834,8 +835,8 @@ fun ChatGPTStyleInputBar(
                     ) {
                         if (textInput.isEmpty()) {
                             Text(
-                                text = if (pendingAttachments.isNotEmpty()) "Nhập yêu cầu cho tệp/ảnh..."
-                                else "Nhắn tin cho Zix Bot...",
+                                text = if (pendingAttachments.isNotEmpty()) stringResource(R.string.ai_chat_input_with_attachments)
+                                else stringResource(R.string.ai_chat_input_placeholder),
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontSize = 15.sp,
                                     lineHeight = 20.sp,
@@ -884,7 +885,7 @@ fun ChatGPTStyleInputBar(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Stop,
-                                    contentDescription = "Dừng",
+                                    contentDescription = stringResource(R.string.ai_chat_stop),
                                     tint = MaterialTheme.colorScheme.onErrorContainer,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -906,7 +907,7 @@ fun ChatGPTStyleInputBar(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.ArrowUpward,
-                                    contentDescription = "Gửi",
+                                    contentDescription = stringResource(R.string.ai_chat_send),
                                     tint = if (canSend) MaterialTheme.colorScheme.onPrimary
                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                                     modifier = Modifier.size(20.dp)
@@ -945,7 +946,7 @@ fun AttachmentPickerBottomSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Đính kèm vào câu hỏi",
+                text = stringResource(R.string.ai_chat_attach_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 6.dp)
@@ -954,8 +955,8 @@ fun AttachmentPickerBottomSheet(
             // Option 1: Gallery
             AttachmentOptionItem(
                 icon = Icons.Default.PhotoLibrary,
-                title = "Thư viện ảnh",
-                subtitle = "Gửi nhiều ảnh đề thi, công thức toán hoặc bài tập",
+                title = stringResource(R.string.ai_chat_photo_gallery),
+                subtitle = stringResource(R.string.ai_chat_photo_gallery_desc),
                 iconBg = MaterialTheme.colorScheme.primaryContainer,
                 iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                 onClick = onPickGallery
@@ -964,8 +965,8 @@ fun AttachmentPickerBottomSheet(
             // Option 2: Camera
             AttachmentOptionItem(
                 icon = Icons.Default.CameraAlt,
-                title = "Chụp ảnh ngay",
-                subtitle = "Chụp trực tiếp đề bài từ sách hoặc bài làm",
+                title = stringResource(R.string.ai_chat_take_photo),
+                subtitle = stringResource(R.string.ai_chat_take_photo_desc),
                 iconBg = MaterialTheme.colorScheme.secondaryContainer,
                 iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                 onClick = onTakePhoto
@@ -974,8 +975,8 @@ fun AttachmentPickerBottomSheet(
             // Option 3: Document / File
             AttachmentOptionItem(
                 icon = Icons.Default.FolderOpen,
-                title = "Tệp tin & Tài liệu",
-                subtitle = "Tải lên tệp JSON câu hỏi, tệp văn bản TXT, Markdown...",
+                title = stringResource(R.string.ai_chat_docs),
+                subtitle = stringResource(R.string.ai_chat_docs_desc),
                 iconBg = MaterialTheme.colorScheme.tertiaryContainer,
                 iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
                 onClick = onPickDocument
@@ -1044,92 +1045,85 @@ fun ChatBubbleItem(
     val context = LocalContext.current
     val jsonBlock = remember(message.text) { extractJsonBlock(message.text) }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
-    ) {
-        // Assistant Sparkle Avatar (Zix Bot Iridescent Halo when streaming)
-        if (!isUser) {
-            ZixBotAvatar(isStreaming = isStreaming)
-            Spacer(modifier = Modifier.width(10.dp))
-        }
-
-        Column(
-            modifier = Modifier.weight(1f, fill = false),
-            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
+    if (isUser) {
+        // User Message: Aligned to end, compact pill layout
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.CenterEnd
         ) {
-            // Attached Images Thumbnails
-            if (message.imagePaths.isNotEmpty()) {
-                LazyRow(
-                    modifier = Modifier.padding(bottom = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(message.imagePaths) { imgPath ->
-                        val bitmap = remember(imgPath) {
-                            try {
-                                BitmapFactory.decodeFile(imgPath)?.asImageBitmap()
-                            } catch (_: Exception) {
-                                null
+            Column(
+                modifier = Modifier.widthIn(max = 320.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                // Attached Images Thumbnails
+                if (message.imagePaths.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier.padding(bottom = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(message.imagePaths) { imgPath ->
+                            val bitmap = remember(imgPath) {
+                                try {
+                                    BitmapFactory.decodeFile(imgPath)?.asImageBitmap()
+                                } catch (_: Exception) {
+                                    null
+                                }
                             }
-                        }
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap,
-                                contentDescription = "Image attachment",
-                                modifier = Modifier
-                                    .size(160.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
-                                    .clickable { onImageClick(imgPath) },
-                                contentScale = ContentScale.Crop
-                            )
+                            if (bitmap != null) {
+                                Image(
+                                    bitmap = bitmap,
+                                    contentDescription = stringResource(R.string.ai_chat_view_image),
+                                    modifier = Modifier
+                                        .size(160.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                                        .clickable { onImageClick(imgPath) },
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // Attached Documents Chips
-            val docAttachments = remember(message.attachments) {
-                message.attachments.filter { it.type == AttachmentType.DOCUMENT }
-            }
-            if (docAttachments.isNotEmpty()) {
-                Column(
-                    modifier = Modifier.padding(bottom = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    docAttachments.forEach { doc ->
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                // Attached Documents Chips
+                val docAttachments = remember(message.attachments) {
+                    message.attachments.filter { it.type == AttachmentType.DOCUMENT }
+                }
+                if (docAttachments.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier.padding(bottom = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        docAttachments.forEach { doc ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Description,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "${doc.name} (${doc.formattedSize})",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Description,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "${doc.name} (${doc.formattedSize})",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // Message Bubble Box
-            val userBubbleColor = MaterialTheme.colorScheme.primaryContainer
-            val userTextColor = MaterialTheme.colorScheme.onPrimaryContainer
-
-            if (isUser) {
                 // User Message Pill
+                val userBubbleColor = MaterialTheme.colorScheme.primaryContainer
+                val userTextColor = MaterialTheme.colorScheme.onPrimaryContainer
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = userBubbleColor
@@ -1141,109 +1135,128 @@ fun ChatBubbleItem(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                     )
                 }
-            } else {
-                // Assistant Message: Natural open layout with rich markdown, math & code blocks
-                val fullTargetText = remember(message.text) {
-                    if (jsonBlock != null) {
-                        val withoutFence = message.text.substringBefore("```json").trim()
-                        if (withoutFence.isNotEmpty()) withoutFence
-                        else message.text.replace(jsonBlock, "").replace("```json", "").replace("```", "").trim()
-                    } else {
-                        message.text
-                    }
-                }
-
-                // Reasoning / Thinking Accordion Card (if model outputs thought process)
-                if (!message.reasoning.isNullOrBlank()) {
-                    ReasoningAccordionCard(
-                        reasoning = message.reasoning,
-                        thinkingDurationMs = message.thinkingDurationMs,
-                        isStreaming = isStreaming && fullTargetText.isBlank(),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                }
-
-                // Liquid text pouring engine ("tuôn text ra") in true realtime
-                val flowingText = rememberLiquidStreamText(
-                    targetText = fullTargetText,
-                    isStreaming = isStreaming
+            }
+        }
+    } else {
+        // Assistant Message: Full width open layout with compact header, rich markdown, math & code blocks
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
+        ) {
+            // Assistant Brand Header (Avatar + Zix Bot Name)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(bottom = 6.dp)
+            ) {
+                ZixBotAvatar(isStreaming = isStreaming, size = 26.dp)
+                Text(
+                    text = "Zix Bot",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.primary
                 )
+            }
 
-                if (flowingText.isNotBlank()) {
-                    RichContentText(
-                        text = flowingText,
-                        textColor = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 23.sp),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
+            val fullTargetText = remember(message.text) {
+                if (jsonBlock != null) {
+                    val withoutFence = message.text.substringBefore("```json").trim()
+                    if (withoutFence.isNotEmpty()) withoutFence
+                    else message.text.replace(jsonBlock, "").replace("```json", "").replace("```", "").trim()
+                } else {
+                    message.text
                 }
+            }
 
-                // Zix Bot Liquid Streaming Indicator (Luminous spark + sweeping ribbon)
-                if (isStreaming) {
-                    ZixBotStreamingIndicator()
+            // Reasoning / Thinking Accordion Card (if model outputs thought process)
+            if (!message.reasoning.isNullOrBlank()) {
+                ReasoningAccordionCard(
+                    reasoning = message.reasoning,
+                    thinkingDurationMs = message.thinkingDurationMs,
+                    isStreaming = isStreaming && fullTargetText.isBlank(),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                )
+            }
+
+            // Liquid text pouring engine in true realtime
+            val flowingText = rememberLiquidStreamText(
+                targetText = fullTargetText,
+                isStreaming = isStreaming
+            )
+
+            if (flowingText.isNotBlank()) {
+                RichContentText(
+                    text = flowingText,
+                    textColor = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 23.sp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                )
+            }
+
+            // Zix Bot Liquid Streaming Indicator
+            if (isStreaming) {
+                ZixBotStreamingIndicator()
+            }
+
+            // Haptic feedback tick when streaming settles
+            var wasStreaming by remember { mutableStateOf(false) }
+            LaunchedEffect(isStreaming) {
+                if (wasStreaming && !isStreaming && fullTargetText.isNotBlank()) {
+                    HapticUtil.selectionTick(context)
                 }
+                wasStreaming = isStreaming
+            }
 
-                // Haptic feedback tick when streaming settles
-                var wasStreaming by remember { mutableStateOf(false) }
-                LaunchedEffect(isStreaming) {
-                    if (wasStreaming && !isStreaming && fullTargetText.isNotBlank()) {
-                        HapticUtil.selectionTick(context)
-                    }
-                    wasStreaming = isStreaming
-                }
-
-                // Assistant Action Row (Copy button) - smoothly animated when streaming settles
-                AnimatedVisibility(
-                    visible = !isStreaming && fullTargetText.isNotBlank(),
-                    enter = fadeIn(tween(250)) + expandVertically(tween(250))
+            // Assistant Action Row (Copy button)
+            AnimatedVisibility(
+                visible = !isStreaming && fullTargetText.isNotBlank(),
+                enter = fadeIn(tween(250)) + expandVertically(tween(250))
+            ) {
+                Row(
+                    modifier = Modifier.padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(top = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                        border = BorderStroke(0.75.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
-                            border = BorderStroke(0.75.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                        Row(
+                            modifier = Modifier
+                                .clickable {
+                                    HapticUtil.selectionTick(context)
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("Zix Bot Message", fullTargetText))
+                                    Toast.makeText(context, context.getString(R.string.ai_chat_copied_reply), Toast.LENGTH_SHORT).show()
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .clickable {
-                                        HapticUtil.selectionTick(context)
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(ClipData.newPlainText("Zix Bot Message", fullTargetText))
-                                        Toast.makeText(context, "Đã sao chép câu trả lời", Toast.LENGTH_SHORT).show()
-                                    }
-                                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ContentCopy,
-                                    contentDescription = "Sao chép",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = "Sao chép",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = stringResource(R.string.ai_chat_copy),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.ai_chat_copy),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
             }
 
-            // Interactive Quiz Card if AI generated a quiz JSON (with spring reveal animation)
+            // Interactive Quiz Card if AI generated a quiz JSON
             AnimatedVisibility(
                 visible = jsonBlock != null,
                 enter = fadeIn(tween(350)) + expandVertically(spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow)) + slideInVertically { it / 3 }
             ) {
                 if (jsonBlock != null) {
-                    Column {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Spacer(modifier = Modifier.height(10.dp))
                         GeneratedQuizCard(
                             jsonText = jsonBlock,
@@ -1309,7 +1322,7 @@ fun GeneratedQuizCard(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Bộ đề thi tạo bởi AI",
+                            text = stringResource(R.string.ai_chat_ai_quiz_title),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -1330,12 +1343,12 @@ fun GeneratedQuizCard(
 
                 // Breakdown Badges
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BadgeChip(text = "${validation.parsedQuestions.size} câu hỏi", color = MaterialTheme.colorScheme.primary)
+                    BadgeChip(text = stringResource(R.string.ai_chat_questions_count, validation.parsedQuestions.size), color = MaterialTheme.colorScheme.primary)
                     if (validation.singleChoiceCount > 0) {
-                        BadgeChip(text = "${validation.singleChoiceCount} trắc nghiệm", color = MaterialTheme.colorScheme.tertiary)
+                        BadgeChip(text = stringResource(R.string.ai_chat_single_choice_count, validation.singleChoiceCount), color = MaterialTheme.colorScheme.tertiary)
                     }
                     if (validation.trueFalseCount > 0) {
-                        BadgeChip(text = "${validation.trueFalseCount} đúng/sai", color = MaterialTheme.colorScheme.secondary)
+                        BadgeChip(text = stringResource(R.string.ai_chat_true_false_count, validation.trueFalseCount), color = MaterialTheme.colorScheme.secondary)
                     }
                 }
 
@@ -1358,7 +1371,7 @@ fun GeneratedQuizCard(
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Vào thi ngay", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(stringResource(R.string.ai_chat_start_exam), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
 
                     FilledTonalButton(
@@ -1378,7 +1391,7 @@ fun GeneratedQuizCard(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (isSaved) "Đã lưu" else "Lưu đề", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(if (isSaved) stringResource(R.string.ai_chat_saved_quiz) else stringResource(R.string.ai_chat_save_quiz), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
             }
@@ -1473,12 +1486,12 @@ fun ReasoningAccordionCard(
                 Spacer(modifier = Modifier.width(10.dp))
 
                 val headerTitle = when {
-                    isStreaming -> "Đang suy nghĩ..."
+                    isStreaming -> stringResource(R.string.ai_thinking_in_progress)
                     thinkingDurationMs != null && thinkingDurationMs > 0 -> {
-                        val sec = thinkingDurationMs / 1000.0
-                        "Đã suy nghĩ trong ${"%.1f".format(Locale.US, sec)}s"
+                        val sec = (thinkingDurationMs / 1000L).coerceAtLeast(1L)
+                        stringResource(R.string.ai_thought_duration, sec)
                     }
-                    else -> "Quá trình suy nghĩ"
+                    else -> stringResource(R.string.ai_thought_process)
                 }
 
                 Text(
@@ -1490,7 +1503,7 @@ fun ReasoningAccordionCard(
                 )
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (isExpanded) "Thu gọn" else "Mở rộng",
+                    contentDescription = if (isExpanded) stringResource(R.string.ai_thought_collapse) else stringResource(R.string.ai_thought_expand),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
@@ -1563,7 +1576,8 @@ fun rememberLiquidStreamText(
 @Composable
 fun ZixBotAvatar(
     isStreaming: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    size: Dp = 28.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "zixBotAvatar")
     val rotation by infiniteTransition.animateFloat(
@@ -1594,7 +1608,7 @@ fun ZixBotAvatar(
 
     Box(
         modifier = modifier
-            .size(36.dp)
+            .size(size)
             .scale(pulseScale),
         contentAlignment = Alignment.Center
     ) {
@@ -1610,7 +1624,7 @@ fun ZixBotAvatar(
             // Cutout circle for distinct glowing border
             Box(
                 modifier = Modifier
-                    .size(31.dp)
+                    .size(size * 0.86f)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.background)
             )
@@ -1619,7 +1633,7 @@ fun ZixBotAvatar(
         // Core avatar disc
         Box(
             modifier = Modifier
-                .size(if (isStreaming) 28.dp else 34.dp)
+                .size(if (isStreaming) size * 0.78f else size * 0.94f)
                 .clip(CircleShape)
                 .background(
                     if (isStreaming) {
@@ -1644,7 +1658,7 @@ fun ZixBotAvatar(
                 imageVector = Icons.Default.AutoAwesome,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(if (isStreaming) 16.dp else 18.dp)
+                modifier = Modifier.size(if (isStreaming) size * 0.45f else size * 0.5f)
             )
         }
     }
@@ -1741,7 +1755,7 @@ fun ZixBotStreamingIndicator(
             }
 
             Text(
-                text = "Zix Bot đang soạn câu trả lời...",
+                text = stringResource(R.string.ai_chat_composing),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 fontWeight = FontWeight.Medium
@@ -1884,7 +1898,7 @@ fun AssistantTypingIndicator() {
                 PulsingThinkingDots()
 
                 Text(
-                    text = "Zix Bot đang suy nghĩ...",
+                    text = stringResource(R.string.ai_thinking_in_progress),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -1928,7 +1942,7 @@ fun ChatWelcomeSection(
         Spacer(modifier = Modifier.height(14.dp))
 
         Text(
-            text = "Tôi có thể giúp gì cho bạn?",
+            text = stringResource(R.string.ai_chat_welcome_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -1938,7 +1952,7 @@ fun ChatWelcomeSection(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "Tạo đề thi trắc nghiệm, giải bài tập Toán - KHTN từ ảnh chụp hoặc phân tích tệp câu hỏi",
+            text = stringResource(R.string.ai_chat_welcome_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1948,10 +1962,10 @@ fun ChatWelcomeSection(
         Spacer(modifier = Modifier.height(28.dp))
 
         val prompts = listOf(
-            "Tạo bài kiểm tra 10 câu Tiếng Anh Ngữ pháp có giải thích chi tiết",
-            "Giải bài toán đạo hàm & tích phân này kèm công thức LaTeX",
-            "Tạo đề thi 15 câu Hóa học Este - Lipit",
-            "Phân tích đề bài từ hình ảnh hoặc tệp JSON câu hỏi đính kèm"
+            stringResource(R.string.ai_chat_suggestion_1),
+            stringResource(R.string.ai_chat_suggestion_2),
+            stringResource(R.string.ai_chat_suggestion_3),
+            stringResource(R.string.ai_chat_suggestion_4)
         )
 
         Column(
@@ -2025,7 +2039,7 @@ fun FullImagePreviewDialog(
                 if (bitmap != null) {
                     Image(
                         bitmap = bitmap,
-                        contentDescription = "Xem ảnh",
+                        contentDescription = stringResource(R.string.ai_chat_view_image),
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 440.dp)
@@ -2034,7 +2048,7 @@ fun FullImagePreviewDialog(
                     )
                 } else {
                     Text(
-                        text = "Không thể tải ảnh",
+                        text = stringResource(R.string.ai_chat_cannot_load_image),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2080,7 +2094,7 @@ fun ChatHistoryBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Lịch sử trò chuyện",
+                    text = stringResource(R.string.ai_chat_history),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -2093,7 +2107,7 @@ fun ChatHistoryBottomSheet(
                 ) {
                     Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Chat mới", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.ai_chat_new_chat), fontWeight = FontWeight.SemiBold)
                 }
             }
 
@@ -2107,7 +2121,7 @@ fun ChatHistoryBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Chưa có cuộc trò chuyện nào",
+                        text = stringResource(R.string.ai_chat_no_history),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2155,7 +2169,7 @@ fun ChatHistoryBottomSheet(
                                         maxLines = 1
                                     )
                                     Text(
-                                        text = "${session.messages.size} tin nhắn • ${formatSessionDate(session.updatedAt)}",
+                                        text = "${stringResource(R.string.ai_chat_messages_count, session.messages.size)} • ${formatSessionDate(session.updatedAt)}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -2166,7 +2180,7 @@ fun ChatHistoryBottomSheet(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.DeleteOutline,
-                                        contentDescription = "Xóa",
+                                        contentDescription = stringResource(R.string.ai_chat_delete),
                                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                                         modifier = Modifier.size(18.dp)
                                     )

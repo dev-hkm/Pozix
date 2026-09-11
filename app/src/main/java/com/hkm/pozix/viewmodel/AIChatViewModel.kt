@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.hkm.pozix.R
 import com.hkm.pozix.data.model.AiProvider
 import com.hkm.pozix.data.model.AttachmentType
 import com.hkm.pozix.data.model.ChatAttachment
@@ -31,7 +32,7 @@ import java.util.UUID
 
 data class AIChatUiState(
     val currentSessionId: String? = null,
-    val currentSessionTitle: String = "Cuộc trò chuyện mới",
+    val currentSessionTitle: String = "",
     val sessions: List<ChatSession> = emptyList(),
     val messages: List<ChatMessage> = emptyList(),
     val pendingAttachments: List<ChatAttachment> = emptyList(),
@@ -162,7 +163,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         val newId = UUID.randomUUID().toString()
         _uiState.value = _uiState.value.copy(
             currentSessionId = newId,
-            currentSessionTitle = "Cuộc trò chuyện mới",
+            currentSessionTitle = getApplication<Application>().getString(R.string.ai_chat_new_conversation),
             messages = emptyList(),
             pendingAttachments = emptyList(),
             isLoading = false
@@ -307,24 +308,26 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                     appendLine()
                 }
             }
+            val app = getApplication<Application>()
             if (trimmedText.isNotBlank()) {
                 append(trimmedText)
             } else if (imagePaths.isNotEmpty()) {
-                append("Hãy phân tích đề bài trong ảnh, giải chi tiết và tạo bộ câu hỏi trắc nghiệm tương ứng.")
+                append(app.getString(R.string.ai_chat_prompt_photo))
             } else if (docAttachments.isNotEmpty()) {
-                append("Hãy đọc tệp tin đính kèm ở trên, phân tích và tạo bộ câu hỏi trắc nghiệm hoặc giải bài tập.")
+                append(app.getString(R.string.ai_chat_prompt_doc))
             }
         }.trim()
 
         // Display text shown in the user chat bubble
+        val app = getApplication<Application>()
         val userBubbleText = if (trimmedText.isNotBlank()) {
             trimmedText
         } else if (imagePaths.isNotEmpty() && docAttachments.isEmpty()) {
-            "Phân tích ảnh và giải đề bài"
+            app.getString(R.string.ai_chat_title_photo)
         } else if (docAttachments.isNotEmpty() && imagePaths.isEmpty()) {
-            "Phân tích tệp ${docAttachments.joinToString { it.name }}"
+            app.getString(R.string.ai_chat_title_doc, docAttachments.joinToString { it.name })
         } else {
-            "Phân tích tài liệu và hình ảnh đính kèm"
+            app.getString(R.string.ai_chat_title_doc_and_photo)
         }
 
         val sessionId = _uiState.value.currentSessionId ?: UUID.randomUUID().toString()
@@ -378,7 +381,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 historyRepository.updateSessionMessages(sessionId, updatedMessages, derivedTitle)
                 val provider = providerRepository.getActiveProvider()
-                    ?: error("Chưa cấu hình AI Provider. Vui lòng thêm Provider trong Cài đặt.")
+                    ?: error(getApplication<Application>().getString(R.string.ai_chat_no_provider_error))
                 if (!isCurrent()) return@launch
                 _uiState.value = _uiState.value.copy(activeProvider = provider)
                 val apiHistory = updatedMessages.dropLast(1) + userMessage.copy(text = promptToSend)
@@ -413,8 +416,9 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 if (e is CancellationException || !isCurrent()) return@launch
                 // Preserve partial output; never silently resend a paid request without streaming.
                 val partial = snapshot()
-                val notice = "\n\nĐã ngắt phản hồi. Vui lòng thử lại. " +
-                    (e.message ?: "Không thể kết nối").take(180)
+                val app = getApplication<Application>()
+                val notice = app.getString(R.string.ai_chat_stream_interrupted) +
+                    (e.message ?: app.getString(R.string.ai_chat_cannot_connect)).take(180)
                 val finalMessages = updatedMessages + partial.copy(text = partial.text + notice)
                 _uiState.value = _uiState.value.copy(isLoading = false, messages = finalMessages)
                 try {

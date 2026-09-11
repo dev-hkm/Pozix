@@ -17,6 +17,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalView
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.hkm.pozix.data.repository.SettingsRepository
+import com.hkm.pozix.ui.components.richcontent.LocalCodeHighlight
 import com.hkm.pozix.ui.theme.PozixTheme
 import com.hkm.pozix.util.LocaleHelper
 import kotlinx.coroutines.flow.first
@@ -84,6 +86,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 
+                val codeHighlight by settingsRepository.getCodeHighlight().collectAsState(initial = true)
                 PozixTheme(
                     darkTheme = isDark,
                     dynamicColor = true,
@@ -93,16 +96,18 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        PozixApp(
-                            onLanguageChanged = {
-                                lifecycleScope.launch {
-                                    val newLanguage = settingsRepository.getLanguage().first()
-                                    applyLocale(newLanguage)
-                                    // Recreate activity to apply new locale
-                                    recreate()
+                        CompositionLocalProvider(LocalCodeHighlight provides codeHighlight) {
+                            PozixApp(
+                                onLanguageChanged = {
+                                    lifecycleScope.launch {
+                                        val newLanguage = settingsRepository.getLanguage().first()
+                                        applyLocale(newLanguage)
+                                        // Recreate activity to apply new locale
+                                        recreate()
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }

@@ -234,7 +234,7 @@ fun ImportScreen(
                         HapticUtil.selectionTick(context)
                         viewModel.updateJsonText(SAMPLE_STEM_JSON)
                     },
-                    label = { Text("Tải mẫu JSON Toán / KHTN", fontSize = 12.sp) },
+                    label = { Text(stringResource(R.string.import_sample_stem_json), fontSize = 12.sp) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.DataObject,

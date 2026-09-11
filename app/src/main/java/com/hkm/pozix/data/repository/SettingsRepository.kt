@@ -22,6 +22,7 @@ class SettingsRepository(private val context: Context) {
     private val SHOW_EXPLANATION_KEY = booleanPreferencesKey("show_explanation")
     private val GEMINI_API_KEY_KEY = stringPreferencesKey("gemini_api_key")
     private val CLOUD_BACKUP_TOKEN_KEY = stringPreferencesKey("cloud_backup_token")
+    private val CODE_HIGHLIGHT_KEY = booleanPreferencesKey("code_highlight")
     
     suspend fun setThemeMode(mode: String) {
         context.settingsDataStore.edit { preferences ->
@@ -110,4 +111,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setCloudBackupToken(token: String) = context.settingsDataStore.edit { it[CLOUD_BACKUP_TOKEN_KEY] = token }
     fun getCloudBackupToken(): Flow<String> = context.settingsDataStore.data.map { it[CLOUD_BACKUP_TOKEN_KEY] ?: "" }
     suspend fun clearCloudBackupToken() = context.settingsDataStore.edit { it.remove(CLOUD_BACKUP_TOKEN_KEY) }
+
+    suspend fun setCodeHighlight(enabled: Boolean) = context.settingsDataStore.edit { it[CODE_HIGHLIGHT_KEY] = enabled }
+    fun getCodeHighlight(): Flow<Boolean> = context.settingsDataStore.data.map { it[CODE_HIGHLIGHT_KEY] ?: true }
 }

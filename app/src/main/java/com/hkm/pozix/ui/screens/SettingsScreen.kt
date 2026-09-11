@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudDownload
@@ -325,6 +326,47 @@ fun SettingsScreen(
                         HapticUtil.selectionTick(context)
                         showFontSheet = true
                     }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            text = stringResource(R.string.settings_code_highlight_title),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            text = stringResource(R.string.settings_code_highlight_desc),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Default.Code,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = uiState.codeHighlight,
+                            onCheckedChange = {
+                                HapticUtil.selectionTick(context)
+                                viewModel.setCodeHighlight(it)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
             }
         }
@@ -968,7 +1010,7 @@ fun SettingsScreen(
                                 if (!provider.reasoningEffort.isNullOrBlank() && provider.reasoningEffort != "default") {
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = "Reasoning: ${provider.reasoningEffort.replaceFirstChar { it.uppercase() }}",
+                                        text = stringResource(R.string.ai_provider_reasoning_label, provider.reasoningEffort.replaceFirstChar { it.uppercase() }),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
                                         fontWeight = FontWeight.Medium
