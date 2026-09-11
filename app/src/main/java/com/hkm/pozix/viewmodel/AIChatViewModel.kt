@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hkm.pozix.data.model.AiProvider
+import com.hkm.pozix.data.model.AttachmentType
+import com.hkm.pozix.data.model.ChatAttachment
 import com.hkm.pozix.data.model.ChatMessage
 import com.hkm.pozix.data.model.ChatSession
 import com.hkm.pozix.data.model.QuizValidationResult
@@ -14,8 +16,9 @@ import com.hkm.pozix.data.repository.AiProviderRepository
 import com.hkm.pozix.data.repository.QuizRepository
 import com.hkm.pozix.data.repository.SavedQuizRepository
 import com.hkm.pozix.network.OpenAiCompatClient
-import com.hkm.pozix.util.ChatImageStorage
+import com.hkm.pozix.util.ChatAttachmentHelper
 import com.hkm.pozix.util.QuizJsonParser
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,9 +30,9 @@ data class AIChatUiState(
     val currentSessionTitle: String = "Cuộc trò chuyện mới",
     val sessions: List<ChatSession> = emptyList(),
     val messages: List<ChatMessage> = emptyList(),
-    val pendingImages: List<String> = emptyList(),
+    val pendingAttachments: List<ChatAttachment> = emptyList(),
     val isLoading: Boolean = false,
-    val isAttachingImage: Boolean = false,
+    val isAttaching: Boolean = false,
     val providers: List<AiProvider> = emptyList(),
     val activeProvider: AiProvider? = null,
     val importStatus: ImportStatus = ImportStatus.Idle
@@ -50,6 +53,8 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _uiState = MutableStateFlow(AIChatUiState())
     val uiState: StateFlow<AIChatUiState> = _uiState.asStateFlow()
+
+    private var currentGenerationJob: Job? = null
 
     private val systemInstruction = """
         You are Pozix AI Quiz Assistant, a helpful assistant specialized in creating custom quiz sets and solving academic problems.
@@ -89,11 +94,11 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
               * Chemistry: Use `\\text{...}` or `\\ce{...}` (e.g. `${'$'}\\text{Fe} + 2\\text{HCl} \to \\text{FeCl}_2 + \\text{H}_2\uparrow${'$'}`).
               * Critical for JSON: In JSON strings, ALWAYS escape all backslashes with double backslashes: `\\frac{a}{b}`, `\\sqrt{x}`, `\\cdot`, `\\alpha`, `\\beta`, `\\Delta`.
            - For Computer Science / Programming questions: Include multi-line code snippets inside the `question` or `explanation` string using markdown code blocks with the language tag (e.g. ```python ... ```, ```cpp ... ```, ```java ... ```) and backticks (` `code` `) for inline code.
-        5. Multimodal & Image Inputs:
-           - When the user uploads an image containing exam questions, textbook pages, math formulas, geometry diagrams, or science homework:
-             * Carefully transcribe and read all questions and options from the image.
+        5. Multimodal & Attached Files Inputs:
+           - When the user provides images (textbook pages, exam photos, geometry figures, diagrams) or attached files (JSON quiz sets, text files, question banks):
+             * Read and analyze the entire attached file content or image thoroughly.
              * If the user wants solutions: provide step-by-step mathematical reasoning and solutions formatted in standard LaTeX.
-             * If the user wants a quiz: convert the questions from the image into the Pozix Quiz JSON schema.
+             * If the user wants a quiz: convert the questions from the file/image into the Pozix Quiz JSON schema.
         6. Keep the conversational tone encouraging, smart, and helpful.
     """.trimIndent()
 
@@ -128,7 +133,6 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 if (currentSession != null && currentId == null) {
-                    // Initialize with the most recent session
                     _uiState.value = _uiState.value.copy(
                         sessions = sessionList,
                         currentSessionId = currentSession.id,
@@ -145,24 +149,26 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun startNewChat() {
+        cancelGeneration()
         val newId = UUID.randomUUID().toString()
         _uiState.value = _uiState.value.copy(
             currentSessionId = newId,
             currentSessionTitle = "Cuộc trò chuyện mới",
             messages = emptyList(),
-            pendingImages = emptyList(),
+            pendingAttachments = emptyList(),
             isLoading = false
         )
     }
 
     fun loadSession(sessionId: String) {
+        cancelGeneration()
         val session = _uiState.value.sessions.find { it.id == sessionId }
         if (session != null) {
             _uiState.value = _uiState.value.copy(
                 currentSessionId = session.id,
                 currentSessionTitle = session.title,
                 messages = session.messages,
-                pendingImages = emptyList(),
+                pendingAttachments = emptyList(),
                 isLoading = false
             )
         }
@@ -186,33 +192,34 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun attachImage(uri: Uri) {
+    fun attachUri(uri: Uri, isExplicitImage: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isAttachingImage = true)
-            val path = ChatImageStorage.saveAndOptimizeImage(getApplication(), uri)
-            _uiState.value = if (path != null) {
+            _uiState.value = _uiState.value.copy(isAttaching = true)
+            val attachment = ChatAttachmentHelper.processUri(getApplication(), uri, isExplicitImage)
+            _uiState.value = if (attachment != null) {
                 _uiState.value.copy(
-                    pendingImages = _uiState.value.pendingImages + path,
-                    isAttachingImage = false
+                    pendingAttachments = _uiState.value.pendingAttachments + attachment,
+                    isAttaching = false
                 )
             } else {
-                _uiState.value.copy(isAttachingImage = false)
+                _uiState.value.copy(isAttaching = false)
             }
         }
     }
 
-    fun removePendingImage(path: String) {
-        ChatImageStorage.deleteImage(path)
+    fun removePendingAttachment(attachmentId: String) {
+        val target = _uiState.value.pendingAttachments.find { it.id == attachmentId }
+        target?.let { ChatAttachmentHelper.deleteAttachment(it.localPath) }
         _uiState.value = _uiState.value.copy(
-            pendingImages = _uiState.value.pendingImages.filter { it != path }
+            pendingAttachments = _uiState.value.pendingAttachments.filter { it.id != attachmentId }
         )
     }
 
-    fun clearPendingImages() {
-        _uiState.value.pendingImages.forEach { path ->
-            ChatImageStorage.deleteImage(path)
+    fun clearPendingAttachments() {
+        _uiState.value.pendingAttachments.forEach {
+            ChatAttachmentHelper.deleteAttachment(it.localPath)
         }
-        _uiState.value = _uiState.value.copy(pendingImages = emptyList())
+        _uiState.value = _uiState.value.copy(pendingAttachments = emptyList())
     }
 
     fun refreshProviders() {
@@ -230,30 +237,72 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun cancelGeneration() {
+        currentGenerationJob?.cancel()
+        currentGenerationJob = null
+        if (_uiState.value.isLoading) {
+            _uiState.value = _uiState.value.copy(isLoading = false)
+        }
+    }
+
     fun sendMessage(text: String) {
         val trimmedText = text.trim()
-        val images = _uiState.value.pendingImages.toList()
+        val currentAttachments = _uiState.value.pendingAttachments.toList()
 
-        if (trimmedText.isBlank() && images.isEmpty()) return
+        if (trimmedText.isBlank() && currentAttachments.isEmpty()) return
         if (_uiState.value.isLoading) return
 
-        val promptText = if (trimmedText.isNotBlank()) {
+        // Separate images and document files
+        val imagePaths = currentAttachments.filter { it.type == AttachmentType.IMAGE }.map { it.localPath }
+        val docAttachments = currentAttachments.filter { it.type == AttachmentType.DOCUMENT }
+
+        // Build prompt sent to model (inject text file contents if available)
+        val promptToSend = buildString {
+            if (docAttachments.isNotEmpty()) {
+                appendLine("User attached the following file(s):")
+                docAttachments.forEach { doc ->
+                    appendLine("--- File: ${doc.name} (${doc.formattedSize}) ---")
+                    if (!doc.textContent.isNullOrBlank()) {
+                        appendLine(doc.textContent)
+                    } else {
+                        appendLine("[Document file stored locally: ${doc.name}]")
+                    }
+                    appendLine("--- End of file ---")
+                    appendLine()
+                }
+            }
+            if (trimmedText.isNotBlank()) {
+                append(trimmedText)
+            } else if (imagePaths.isNotEmpty()) {
+                append("Hãy phân tích đề bài trong ảnh, giải chi tiết và tạo bộ câu hỏi trắc nghiệm tương ứng.")
+            } else if (docAttachments.isNotEmpty()) {
+                append("Hãy đọc tệp tin đính kèm ở trên, phân tích và tạo bộ câu hỏi trắc nghiệm hoặc giải bài tập.")
+            }
+        }.trim()
+
+        // Display text shown in the user chat bubble
+        val userBubbleText = if (trimmedText.isNotBlank()) {
             trimmedText
+        } else if (imagePaths.isNotEmpty() && docAttachments.isEmpty()) {
+            "Phân tích ảnh và giải đề bài"
+        } else if (docAttachments.isNotEmpty() && imagePaths.isEmpty()) {
+            "Phân tích tệp ${docAttachments.joinToString { it.name }}"
         } else {
-            "Hãy phân tích đề bài trong ảnh, giải chi tiết và tạo bộ câu hỏi trắc nghiệm tương ứng."
+            "Phân tích tài liệu và hình ảnh đính kèm"
         }
 
         val sessionId = _uiState.value.currentSessionId ?: UUID.randomUUID().toString()
         val userMessage = ChatMessage(
             role = "user",
-            text = promptText,
-            imagePaths = images
+            text = userBubbleText,
+            imagePaths = imagePaths,
+            attachments = currentAttachments
         )
 
         val updatedMessages = _uiState.value.messages + userMessage
         val isFirstMessage = _uiState.value.messages.isEmpty()
         val derivedTitle = if (isFirstMessage) {
-            val preview = promptText.lines().firstOrNull { it.isNotBlank() }?.trim() ?: promptText
+            val preview = userBubbleText.lines().firstOrNull { it.isNotBlank() }?.trim() ?: userBubbleText
             if (preview.length > 32) preview.take(30) + "..." else preview
         } else {
             _uiState.value.currentSessionTitle
@@ -263,7 +312,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             currentSessionId = sessionId,
             currentSessionTitle = derivedTitle,
             messages = updatedMessages,
-            pendingImages = emptyList(),
+            pendingAttachments = emptyList(),
             isLoading = true
         )
 
@@ -272,7 +321,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             historyRepository.updateSessionMessages(sessionId, updatedMessages, derivedTitle)
         }
 
-        viewModelScope.launch {
+        currentGenerationJob = viewModelScope.launch {
             val provider = providerRepository.getActiveProvider()
             if (provider == null) {
                 val errorMsg = ChatMessage(
@@ -287,14 +336,16 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 historyRepository.updateSessionMessages(sessionId, finalMessages, derivedTitle)
                 return@launch
             }
-            // Keep the header chip in sync in case the provider changed in Settings.
             _uiState.value = _uiState.value.copy(activeProvider = provider)
+
+            // We construct history for API: replace last user message with promptToSend
+            val apiHistory = updatedMessages.dropLast(1) + userMessage.copy(text = promptToSend)
 
             val result = OpenAiCompatClient.chatCompletion(
                 baseUrl = provider.normalizedBaseUrl(),
                 apiKey = provider.apiKey,
                 model = provider.modelId,
-                history = updatedMessages,
+                history = apiHistory,
                 systemInstructionText = systemInstruction,
                 reasoningEffort = provider.reasoningEffort
             )
@@ -342,10 +393,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         description = validation.quiz.description ?: "",
                         lastUsedTimestamp = System.currentTimeMillis()
                     )
-                    // Save to library
                     savedQuizRepository.saveQuizSet(quizSet)
-
-                    // Set as current active quiz
                     quizRepository.saveQuizJson(jsonText, quizSetId)
 
                     _uiState.value = _uiState.value.copy(
@@ -384,7 +432,6 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         trueFalseCount = validation.trueFalseCount,
                         description = validation.quiz.description ?: ""
                     )
-                    // Save to library
                     savedQuizRepository.saveQuizSet(quizSet)
 
                     _uiState.value = _uiState.value.copy(
@@ -411,10 +458,11 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun clearChat() {
+        cancelGeneration()
         val sessionId = _uiState.value.currentSessionId
         _uiState.value = _uiState.value.copy(
             messages = emptyList(),
-            pendingImages = emptyList()
+            pendingAttachments = emptyList()
         )
         if (sessionId != null) {
             viewModelScope.launch {

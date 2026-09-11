@@ -7,5 +7,6 @@ data class ChatMessage(
     val role: String, // "user" or "model"
     val text: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val imagePaths: List<String> = emptyList()
+    val imagePaths: List<String> = emptyList(),
+    val attachments: List<ChatAttachment> = emptyList()
 )
