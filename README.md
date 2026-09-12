@@ -2,7 +2,7 @@
 
   <img src="app/src/main/ic_launcher-playstore.png" alt="Pozix Logo" width="112" height="112" />
 
-  # Pozix 🎯
+  # Pozix
 
   **A fast, beautiful, offline-first quiz and exam study app for Android.**
 
