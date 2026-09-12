@@ -1025,11 +1025,11 @@ fun BottomActionStack(
                     .height(42.dp),
                 shape = RoundedCornerShape(21.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.Transparent,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
-                elevation = null,
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 1.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
                 Icon(
@@ -1057,7 +1057,7 @@ fun BottomActionStack(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ),
-            elevation = null,
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 1.dp),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
         ) {
             Text(
