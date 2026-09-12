@@ -85,7 +85,7 @@ fun RichContentText(
 ) {
     if (text.isBlank()) return
 
-    if (inlineOnly) {
+    if (inlineOnly && !text.contains("```")) {
         // Fast path for answer options (A, B, C, D)
         val annotated = rememberStyledInline(text)
         Text(

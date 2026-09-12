@@ -6,6 +6,37 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LatexMathParserTest {
+    @Test
+    fun htmlBreakTagsRemainVisibleInEducationalText() {
+        listOf("<br>", "<br/>", "<br />").forEach { tag ->
+            val text = "Thẻ $tag dùng để làm gì?"
+            assertEquals(text, LatexMathParser.parseToAnnotatedString(text).text)
+        }
+        assertEquals("Thẻ <br>", LatexMathParser.parseToAnnotatedString("Thẻ &lt;br&gt;").text)
+    }
+
+    @Test
+    fun inlineCodeInheritsTextColorWithoutOpaqueRectangles() {
+        val parsed = LatexMathParser.parseToAnnotatedString(
+            "`<input type=\"number\">`",
+            androidx.compose.ui.graphics.Color.White,
+            androidx.compose.ui.graphics.Color.Black
+        )
+        val span = parsed.spanStyles.first().item
+        assertEquals(androidx.compose.ui.graphics.Color.Transparent, span.background)
+        assertEquals(androidx.compose.ui.graphics.Color.Unspecified, span.color)
+        assertTrue(parsed.text.contains("<input type=\"number\">"))
+    }
+
+    @Test
+    fun fencedHtmlIsACodeBlockNotInlineBackticks() {
+        val blocks = com.hkm.pozix.ui.components.richcontent.parseContentBlocks(
+            "```html\n<input type=\"number\" min=\"1\" max=\"100\">\n```"
+        )
+        val code = blocks.single() as com.hkm.pozix.ui.components.richcontent.ContentBlock.Code
+        assertEquals("html", code.language)
+        assertEquals("<input type=\"number\" min=\"1\" max=\"100\">", code.code)
+    }
 
     @Test
     fun testDfracAndFracFormatting() {

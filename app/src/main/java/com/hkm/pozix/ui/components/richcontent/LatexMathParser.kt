@@ -190,8 +190,8 @@ object LatexMathParser {
                         withStyle(
                             SpanStyle(
                                 fontFamily = FontFamily.Monospace,
-                                background = codeBgColor,
-                                color = codeTextColor,
+                                background = Color.Transparent,
+                                color = Color.Unspecified,
                                 fontSize = 0.88.em
                             )
                         ) {
@@ -202,22 +202,9 @@ object LatexMathParser {
                     }
                 }
 
-                // Check for <br>, <br/>, <br />
-                if (cleanText.startsWith("<br>", i, ignoreCase = true)) {
-                    append("\n")
-                    i += 4
-                    continue
-                }
-                if (cleanText.startsWith("<br/>", i, ignoreCase = true)) {
-                    append("\n")
-                    i += 5
-                    continue
-                }
-                if (cleanText.startsWith("<br />", i, ignoreCase = true)) {
-                    append("\n")
-                    i += 6
-                    continue
-                }
+                // Educational prose may ask what <br> does. Raw HTML tags are
+                // source text here, not browser instructions. Real newlines
+                // already provide line breaks without silently eating a tag.
 
                 // Check for <strong>...</strong> or <b>...</b>
                 if (cleanText.startsWith("<strong>", i, ignoreCase = true)) {
@@ -275,8 +262,8 @@ object LatexMathParser {
                         withStyle(
                             SpanStyle(
                                 fontFamily = FontFamily.Monospace,
-                                background = codeBgColor,
-                                color = codeTextColor,
+                                background = Color.Transparent,
+                                color = Color.Unspecified,
                                 fontSize = 0.88.em
                             )
                         ) {

@@ -94,12 +94,12 @@ fun CodeBlockView(
 
     // Code editor palette follows the app theme: bright paper-like light mode, rich contrast dark mode.
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val editorBg = if (isDark) Color(0xFF1E1E2E) else MaterialTheme.colorScheme.surfaceContainerHighest
-    val headerBg = if (isDark) Color(0xFF181825) else MaterialTheme.colorScheme.surfaceContainer
+    val editorBg = MaterialTheme.colorScheme.surfaceContainer
+    val headerBg = MaterialTheme.colorScheme.surfaceContainerHigh
     val lineNumberColor = if (isDark) Color(0xFF6C7086) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
-    val codeTextColor = if (isDark) Color(0xFFCDD6F4) else MaterialTheme.colorScheme.onSurface
-    val badgeBg = if (isDark) Color(0xFF313244) else MaterialTheme.colorScheme.primaryContainer
-    val badgeText = if (isDark) Color(0xFF89B4FA) else MaterialTheme.colorScheme.onPrimaryContainer
+    val codeTextColor = MaterialTheme.colorScheme.onSurface
+    val badgeBg = MaterialTheme.colorScheme.secondaryContainer
+    val badgeText = MaterialTheme.colorScheme.onSecondaryContainer
 
     Surface(
         modifier = modifier
@@ -107,7 +107,7 @@ fun CodeBlockView(
             .padding(vertical = 6.dp),
         shape = RoundedCornerShape(14.dp),
         color = editorBg,
-        shadowElevation = 3.dp,
+        shadowElevation = 0.dp,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
