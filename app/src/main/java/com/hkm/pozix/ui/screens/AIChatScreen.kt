@@ -16,6 +16,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -807,6 +810,29 @@ fun DeepSeekStyleFloatingInputCard(
 ) {
     val isDark = isSystemInDarkTheme()
     val canSend = (textInput.isNotBlank() || pendingAttachments.isNotEmpty()) && !isLoading
+    var inputFocused by remember { mutableStateOf(false) }
+    val expanded = inputFocused || showAttachmentTray || textInput.isNotEmpty() || pendingAttachments.isNotEmpty() || isAttaching
+    val inset by animateDpAsState(
+        if (expanded) 12.dp else 22.dp,
+        spring(dampingRatio = 0.88f, stiffness = 380f), label = "composerInset"
+    )
+    val corner by animateDpAsState(
+        if (expanded) 28.dp else 32.dp,
+        spring(dampingRatio = 0.88f, stiffness = 380f), label = "composerCorner"
+    )
+    val verticalPadding by animateDpAsState(
+        if (expanded) 14.dp else 10.dp,
+        spring(dampingRatio = 1f, stiffness = 380f), label = "composerPadding"
+    )
+    val elevation by animateDpAsState(
+        if (inputFocused) 6.dp else 3.dp,
+        spring(dampingRatio = 1f, stiffness = 380f), label = "composerElevation"
+    )
+    val composerBorder by animateColorAsState(
+        if (inputFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)
+        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDark) 0.35f else 0.5f),
+        tween(180), label = "composerBorder"
+    )
 
     val plusRotation by animateFloatAsState(
         targetValue = if (showAttachmentTray) 45f else 0f,
@@ -818,25 +844,25 @@ fun DeepSeekStyleFloatingInputCard(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = inset, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Floating Island Container Card
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(26.dp),
+            shape = RoundedCornerShape(corner),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             border = BorderStroke(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDark) 0.35f else 0.5f)
+                color = composerBorder
             ),
-            shadowElevation = 8.dp,
+            shadowElevation = elevation,
             tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .padding(horizontal = 14.dp, vertical = verticalPadding)
             ) {
                 // 1. Attached Items Preview Row (Images & Document Chips)
                 AnimatedVisibility(
@@ -952,6 +978,10 @@ fun DeepSeekStyleFloatingInputCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .animateContentSize(
+                            animationSpec = spring(dampingRatio = 1f, stiffness = 500f),
+                            alignment = Alignment.BottomStart
+                        )
                         .padding(horizontal = 4.dp, vertical = 4.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
@@ -972,15 +1002,17 @@ fun DeepSeekStyleFloatingInputCard(
                     BasicTextField(
                         value = textInput,
                         onValueChange = onTextChanged,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().onFocusChanged { inputFocused = it.isFocused },
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
                             fontSize = 15.sp,
                             lineHeight = 21.sp,
                             color = MaterialTheme.colorScheme.onSurface
                         ),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        maxLines = 5,
+                        maxLines = 6,
                         keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            autoCorrectEnabled = true,
                             imeAction = ImeAction.Default,
                             keyboardType = KeyboardType.Text
                         )
