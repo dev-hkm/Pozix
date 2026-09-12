@@ -131,6 +131,14 @@ fun AIChatScreen(
     var previewImageFilePath by remember { mutableStateOf<String?>(null) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var textInput by remember { mutableStateOf("") }
+    val pendingReview by com.hkm.pozix.util.QuizAiFollowUp.pending.collectAsState()
+    LaunchedEffect(pendingReview, uiState.activeProvider, uiState.isLoading, uiState.isAttaching) {
+        val review = pendingReview
+        if (review != null && uiState.activeProvider != null && !uiState.isLoading && !uiState.isAttaching) {
+            viewModel.sendQuizReview(review, reasoningEffort)
+            com.hkm.pozix.util.QuizAiFollowUp.clear(context)
+        }
+    }
     LaunchedEffect(initialPrompt) {
         if (!initialPrompt.isNullOrBlank()) {
             textInput = initialPrompt
@@ -1466,7 +1474,9 @@ fun ChatBubbleItem(
                     color = userBubbleColor
                 ) {
                     Text(
-                        text = message.text,
+                        text = message.quizReviewJson?.let { com.hkm.pozix.util.QuizAiFollowUp.decode(it) }
+                            ?.let { "${it.title}\n${it.score} / ${it.totalQuestions}\n${stringResource(R.string.ai_review_results)}" }
+                            ?: message.text,
                         color = userTextColor,
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 22.sp),
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
