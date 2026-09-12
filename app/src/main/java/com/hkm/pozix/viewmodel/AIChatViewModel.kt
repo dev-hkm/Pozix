@@ -50,6 +50,7 @@ enum class AiPhase {
 }
 
 data class AIChatUiState(
+    val quizToolEnabled: Boolean = false,
     val phase: AiPhase = AiPhase.IDLE,
     val currentSessionId: String? = null,
     val currentSessionTitle: String = "",
@@ -79,6 +80,10 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _uiState = MutableStateFlow(AIChatUiState())
     val uiState: StateFlow<AIChatUiState> = _uiState.asStateFlow()
+
+    fun toggleQuizTool() {
+        _uiState.value = _uiState.value.copy(quizToolEnabled = !_uiState.value.quizToolEnabled)
+    }
 
     private var currentGenerationJob: Job? = null
     private var generationVersion = 0L
@@ -148,7 +153,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             """
 
             [POZIX_ACTIVE_QUIZ_TOOL]
-            The user explicitly requested quiz generation in this turn. Generate the complete Pozix quiz artifact now. Do not stream or display the raw JSON as conversational prose; the app will extract it and render the quiz card.
+            enabled. The user has made quiz creation available, NOT requested a quiz on every turn. Decide from their current request and conversation whether to create a quiz or respond normally. For explanations, reviews, greetings and clarifications, reply normally. When creating a quiz, return the complete Pozix JSON artifact; the app renders it as a card. Never ask the user to activate an internal marker or describe implementation controls.
             [/POZIX_ACTIVE_QUIZ_TOOL]
             """
         } else {
@@ -418,13 +423,13 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         )
 
         val generation = ++generationVersion
+        val quizPermissionForTurn = _uiState.value.quizToolEnabled
         currentGenerationJob = viewModelScope.launch {
             val assistantText = StringBuilder()
             val assistantReasoning = StringBuilder()
             val timestamp = System.currentTimeMillis()
             val started = android.os.SystemClock.elapsedRealtime()
-            val expectsQuiz = reviewJson.isNullOrBlank() &&
-                (youtubeLink != null || AiQuizOutput.requested(trimmedText)) &&
+            val expectsQuiz = reviewJson.isNullOrBlank() && quizPermissionForTurn &&
                 docAttachments.all { !it.textContent.isNullOrBlank() }
             var reasoningFinished: Long? = null
             var conversationMessages = updatedMessages
@@ -438,10 +443,12 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 // Only an explicitly enabled quiz tool may hide JSON transport. A
                 // normal answer that happens to mention a schema must remain visible.
-                val displayAnswer = com.hkm.pozix.util.AiQuizOutput.visibleWhileStreaming(answer, expectsQuiz)
+                val generatingQuiz = expectsQuiz && (AiQuizOutput.looksLikeQuizArtifact(answer) ||
+                    Regex("\\\"title\\\"\\s*:").containsMatchIn(answer))
+                val displayAnswer = AiQuizOutput.visibleWhileStreaming(answer, generatingQuiz)
                 return ChatMessage(role = "model", text = displayAnswer, reasoning = reasoning,
                     thinkingDurationMs = reasoningFinished, timestamp = timestamp,
-                    quizGeneration = expectsQuiz)
+                    quizGeneration = generatingQuiz)
             }
             var publisher: Job? = null
             var completedMessage: ChatMessage? = null
@@ -522,7 +529,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 var artifact = if (reviewJson.isNullOrBlank() && expectsQuiz) {
                     withContext(kotlinx.coroutines.Dispatchers.Default) { AiQuizOutput.extract(rawAnswer) }
                 } else null
-                if (artifact == null && expectsQuiz) {
+                if (artifact == null && expectsQuiz && AiQuizOutput.looksLikeQuizArtifact(rawAnswer)) {
                     // One bounded correction, only after a successful stream with a missing/invalid artifact.
                     _uiState.value = _uiState.value.copy(phase = AiPhase.REPAIRING)
                     val repair = StringBuilder()

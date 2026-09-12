@@ -249,7 +249,7 @@ fun PlayingContent(
     val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val answerContentPadding = PaddingValues(
         top = 4.dp,
-        bottom = if (showBottomActions) 80.dp + navBarBottom else 24.dp + navBarBottom
+        bottom = 16.dp
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -260,7 +260,7 @@ fun PlayingContent(
             Box(modifier = Modifier.fillMaxSize()) {
                 // ZONE A, B, C in Main Full-Height Column (Answers flow underneath floating buttons)
                 Column(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize().padding(bottom = if (showBottomActions) 88.dp + navBarBottom else navBarBottom)
                 ) {
                     // ZONE A: TOP STATS AND PROGRESS
                     TopHeaderBar(
@@ -593,9 +593,9 @@ fun AdaptiveQuestionCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 380.dp)
+                    .heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.38f).dp)
             ) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(scrollState)
@@ -679,7 +679,7 @@ fun GiantButtonLayout(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(
             space = 12.dp,
-            alignment = Alignment.CenterVertically
+            alignment = Alignment.Top
         ),
         contentPadding = contentPadding
     ) {

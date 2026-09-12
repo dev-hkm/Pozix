@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
@@ -112,6 +114,16 @@ private fun QuestionMediaCard(media: QuestionMedia) {
                 )
             }
 
+            if (media.type == "diagram" || media.type == "mind_map") {
+                val names = media.nodes.associate { it.id to it.label }
+                media.edges.filter { !it.label.isNullOrBlank() }.forEach { edge ->
+                    Text(
+                        text = "${names[edge.from].orEmpty()} — ${edge.label} → ${names[edge.to].orEmpty()}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
             media.caption?.takeIf { it.isNotBlank() }?.let { caption ->
                 Text(
                     text = caption,
@@ -200,7 +212,10 @@ private fun VisualCanvas(
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(ratio)
+            .then(if (media.type == "geometry") Modifier.aspectRatio(ratio)
+                else Modifier.height((((media.nodes.size + 1) / 2).coerceAtLeast(1) *
+                    maxOf(116f, (media.nodes.maxOfOrNull { it.label.length } ?: 0) * 1.8f) *
+                    androidx.compose.ui.platform.LocalDensity.current.fontScale).dp))
             .clip(shape)
             .background(background)
     ) {
@@ -501,7 +516,13 @@ private fun DrawScope.drawDiagram(
     onPrimary: Color,
     outline: Color
 ) {
-    val nodes = media.nodes
+    // Allocate non-overlapping cells; AI-provided coordinates are only ordering hints.
+    val rows = ((media.nodes.size + 1) / 2).coerceAtLeast(1)
+    val nodes = media.nodes.sortedWith(compareBy<DiagramNode> { it.y }.thenBy { it.x })
+        .mapIndexed { index, node ->
+            node.copy(x = if (index % 2 == 0) 0.24f else 0.76f,
+                y = (index / 2 + 0.5f) / rows)
+        }
     val byId = nodes.associateBy { it.id }
     media.edges.forEach { edge ->
         val from = byId[edge.from] ?: return@forEach
@@ -514,16 +535,6 @@ private fun DrawScope.drawDiagram(
             color = outline.copy(alpha = if (edge.hidden) 0.48f else 0.82f),
             hidden = edge.hidden
         )
-        edge.label?.takeIf { it.isNotBlank() }?.let { label ->
-            val fromOffset = normalized(Point(from.x, from.y))
-            val toOffset = normalized(Point(to.x, to.y))
-            drawCanvasLabel(
-                label,
-                Offset((fromOffset.x + toOffset.x) / 2f, (fromOffset.y + toOffset.y) / 2f - 14f),
-                textMeasurer,
-                onSurface.copy(alpha = 0.82f)
-            )
-        }
     }
 
     nodes.forEachIndexed { index, node ->
@@ -532,13 +543,14 @@ private fun DrawScope.drawDiagram(
             fallback = if (index == 0 && media.type == "mind_map") primary else if (index % 2 == 0) secondary else tertiary
         )
         val textStyle = TextStyle(
-            color = if (index == 0 && media.type == "mind_map") onPrimary else onSurface,
+            color = onSurface,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold
         )
-        val measured = textMeasurer.measure(AnnotatedString(node.label), textStyle)
-        val nodeWidth = (measured.size.width + 26f).coerceIn(76f, 170f)
-        val nodeHeight = (measured.size.height + 18f).coerceIn(34f, 58f)
+        val nodeWidth = size.width * 0.43f
+        val measured = textMeasurer.measure(AnnotatedString(node.label), textStyle,
+            constraints = Constraints(maxWidth = (nodeWidth - 16.dp.toPx()).toInt().coerceAtLeast(1)))
+        val nodeHeight = measured.size.height + 20.dp.toPx()
         val left = (center.x - nodeWidth / 2f).coerceIn(8f, size.width - nodeWidth - 8f)
         val top = (center.y - nodeHeight / 2f).coerceIn(8f, size.height - nodeHeight - 8f)
         drawRoundRect(
@@ -555,13 +567,11 @@ private fun DrawScope.drawDiagram(
             style = Stroke(width = 2.2f)
         )
         drawText(
-            textMeasurer = textMeasurer,
-            text = AnnotatedString(node.label),
+            textLayoutResult = measured,
             topLeft = Offset(
                 left + (nodeWidth - measured.size.width) / 2f,
                 top + (nodeHeight - measured.size.height) / 2f
-            ),
-            style = textStyle
+            )
         )
     }
 }

@@ -645,13 +645,10 @@ fun AIChatScreen(
                     HapticUtil.lightTap(context)
                     showReasoningSheet = true
                 },
-                onNavigateToTemplates = {
+                quizToolEnabled = uiState.quizToolEnabled,
+                onToggleQuizTool = {
                     HapticUtil.lightTap(context)
-                    if (onOpenTemplates != null) {
-                        onOpenTemplates()
-                    } else {
-                        Toast.makeText(context, context.getString(R.string.ai_chat_templates), Toast.LENGTH_SHORT).show()
-                    }
+                    viewModel.toggleQuizTool()
                 },
                 showAttachmentTray = showAttachmentTray,
                 onToggleAttachmentTray = {
@@ -788,7 +785,8 @@ fun DeepSeekStyleFloatingInputCard(
     pendingAttachments: List<ChatAttachment>,
     reasoningEffort: String,
     onOpenReasoningSelector: () -> Unit,
-    onNavigateToTemplates: () -> Unit,
+    quizToolEnabled: Boolean,
+    onToggleQuizTool: () -> Unit,
     showAttachmentTray: Boolean,
     onToggleAttachmentTray: () -> Unit,
     onPickGallery: () -> Unit,
@@ -1040,11 +1038,12 @@ fun DeepSeekStyleFloatingInputCard(
                             }
                         }
 
-                        // Prompts & Templates Pill
+                        // Quiz availability: permission, not forced generation.
                         Surface(
-                            onClick = onNavigateToTemplates,
+                            onClick = onToggleQuizTool,
                             shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
+                            color = if (quizToolEnabled) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
                             border = BorderStroke(
                                 width = 0.8.dp,
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
@@ -1057,12 +1056,12 @@ fun DeepSeekStyleFloatingInputCard(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesomeMotion,
-                                    contentDescription = stringResource(R.string.ai_chat_prompts_pill),
+                                    contentDescription = if (quizToolEnabled) "Quiz: On" else "Quiz: Off",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Text(
-                                    text = stringResource(R.string.ai_chat_prompts_pill),
+                                    text = if (quizToolEnabled) "Quiz: On" else "Quiz: Off",
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
