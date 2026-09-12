@@ -27,6 +27,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -82,16 +83,18 @@ fun PozixApp(
             onLanguageChanged = onLanguageChanged
         )
 
+        val navAlpha by androidx.compose.animation.core.animateFloatAsState(
+            if (showBottomBar) 1f else 0f, tween(if (showBottomBar) 180 else 140), label = "navFade")
         AnimatedVisibility(
             visible = showBottomBar,
-            enter = fadeIn(tween(180)) + slideInVertically(
+            enter = slideInVertically(
                 animationSpec = spring(
                     dampingRatio = 0.8f,
                     stiffness = Spring.StiffnessMediumLow
                 ),
                 initialOffsetY = { it }
             ),
-            exit = fadeOut(tween(140)) + slideOutVertically(
+            exit = slideOutVertically(
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
                     stiffness = Spring.StiffnessMedium
@@ -99,6 +102,11 @@ fun PozixApp(
                 targetOffsetY = { it }
             ),
             modifier = Modifier
+                .graphicsLayer {
+                    alpha = navAlpha
+                    clip = false
+                    compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+                }
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 .padding(bottom = 12.dp)

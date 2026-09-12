@@ -246,6 +246,9 @@ fun PlayingContent(
     val currentQuestion = state.questions[state.currentQuestionIndex]
     val context = LocalContext.current
     val showBottomActions = state.isAnswered
+    val actionAlpha by androidx.compose.animation.core.animateFloatAsState(
+        if (showBottomActions) 1f else 0f,
+        tween(if (showBottomActions) 200 else 140, easing = FastOutSlowInEasing), label = "actionFade")
     val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val answerContentPadding = PaddingValues(
         top = 4.dp,
@@ -332,14 +335,14 @@ fun PlayingContent(
                 // ZONE D: FLOATING COMPACT ACTION BUTTONS (Floating island over scrolling cards - NO background layer!)
                 AnimatedVisibility(
                     visible = showBottomActions,
-                    enter = fadeIn(tween(200, easing = FastOutSlowInEasing)) + slideInVertically(
+                    enter = slideInVertically(
                         animationSpec = spring(
                             dampingRatio = 0.78f,
                             stiffness = Spring.StiffnessMediumLow
                         ),
                         initialOffsetY = { it }
                     ),
-                    exit = fadeOut(tween(140, easing = FastOutSlowInEasing)) + slideOutVertically(
+                    exit = slideOutVertically(
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioNoBouncy,
                             stiffness = Spring.StiffnessMedium
@@ -347,6 +350,11 @@ fun PlayingContent(
                         targetOffsetY = { it }
                     ),
                     modifier = Modifier
+                        .graphicsLayer {
+                            alpha = actionAlpha
+                            clip = false
+                            compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+                        }
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp)

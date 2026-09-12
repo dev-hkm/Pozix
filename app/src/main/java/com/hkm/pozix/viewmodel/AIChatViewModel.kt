@@ -78,6 +78,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
     private val historyRepository = AiChatHistoryRepository(application)
     private val youtubeTranscriptClient = YoutubeTranscriptClient()
 
+    private val chatSelection = application.getSharedPreferences("ai_chat_selection", android.content.Context.MODE_PRIVATE)
     private val _uiState = MutableStateFlow(AIChatUiState())
     val uiState: StateFlow<AIChatUiState> = _uiState.asStateFlow()
 
@@ -194,10 +195,13 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 val currentSession = if (currentId != null) {
                     sessionList.find { it.id == currentId }
                 } else {
-                    sessionList.firstOrNull()
+                    chatSelection.getString("session_id", null)?.let { saved ->
+                        sessionList.find { it.id == saved }
+                    } ?: if (chatSelection.contains("session_id")) null else sessionList.firstOrNull()
                 }
 
                 if (currentSession != null && currentId == null) {
+                    chatSelection.edit().putString("session_id", currentSession.id).apply()
                     _uiState.value = _uiState.value.copy(
                         sessions = sessionList,
                         currentSessionId = currentSession.id,
@@ -206,7 +210,8 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(
-                        sessions = sessionList
+                        sessions = sessionList,
+                        currentSessionId = currentId ?: chatSelection.getString("session_id", null)
                     )
                 }
             }
@@ -216,6 +221,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
     fun startNewChat() {
         cancelGeneration()
         val newId = UUID.randomUUID().toString()
+        chatSelection.edit().putString("session_id", newId).apply()
         _uiState.value = _uiState.value.copy(
             currentSessionId = newId,
             currentSessionTitle = getApplication<Application>().getString(R.string.ai_chat_new_conversation),
@@ -229,6 +235,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         cancelGeneration()
         val session = _uiState.value.sessions.find { it.id == sessionId }
         if (session != null) {
+            chatSelection.edit().putString("session_id", session.id).apply()
             _uiState.value = _uiState.value.copy(
                 currentSessionId = session.id,
                 currentSessionTitle = session.title,
@@ -394,6 +401,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         val sessionId = _uiState.value.currentSessionId ?: UUID.randomUUID().toString()
+        chatSelection.edit().putString("session_id", sessionId).apply()
         com.hkm.pozix.util.QuizAiFollowUp.clear(getApplication())
         val userMessage = ChatMessage(
             role = "user",
