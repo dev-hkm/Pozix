@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ai_sidebar_search">Tìm cuộc trò chuyện</string>
+    <string name="ai_sidebar_empty">Chưa có cuộc trò chuyện phù hợp</string>
+    <string name="ai_sidebar_pinned">Đã ghim</string>
+    <string name="ai_sidebar_recent">Gần đây</string>
+    <string name="ai_sidebar_pin">Ghim cuộc trò chuyện</string>
+    <string name="ai_sidebar_unpin">Bỏ ghim</string>
+    <string name="ai_sidebar_delete_warning">Cuộc trò chuyện và các tệp đính kèm sẽ bị xóa.</string>
+    <string name="ai_suggestion_summary">Tóm tắt ghi chú thành những ý chính</string>
+    <string name="ai_suggestion_plan">Giúp tôi lập kế hoạch học tập hiệu quả</string>
+    <string name="ai_suggestion_compare">So sánh hai khái niệm bằng ví dụ dễ hiểu</string>
+    <string name="ai_suggestion_review">Phân tích lỗi sai và hướng dẫn tôi cải thiện</string>
+</resources>

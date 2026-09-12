@@ -127,13 +127,15 @@ fun AIChatScreen(
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
     var showProviderPicker by remember { mutableStateOf(false) }
-    var showHistorySheet by remember { mutableStateOf(false) }
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    LaunchedEffect(drawerState.targetValue) {
+        if (drawerState.targetValue == DrawerValue.Open) keyboardController?.hide()
+    }
     var showAttachmentSheet by remember { mutableStateOf(false) }
     var showAttachmentTray by remember { mutableStateOf(false) }
     var reasoningEffort by remember { mutableStateOf("off") }
     var showReasoningSheet by remember { mutableStateOf(false) }
     var previewImageFilePath by remember { mutableStateOf<String?>(null) }
-    var showMoreMenu by remember { mutableStateOf(false) }
     var textInput by remember { mutableStateOf("") }
     val pendingReviewText by com.hkm.pozix.util.QuizAiFollowUp.pending.collectAsState()
     LaunchedEffect(initialPrompt) {
@@ -276,6 +278,42 @@ fun AIChatScreen(
         }
     }
 
+    androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) {
+        scope.launch { drawerState.close() }
+    }
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = !showProviderPicker && !showReasoningSheet,
+        drawerContent = {
+            ModalDrawerSheet(
+                modifier = Modifier.fillMaxWidth(0.86f).widthIn(max = 360.dp),
+                drawerShape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp)
+            ) {
+                ChatSidebar(
+                    sessions = uiState.sessions, currentId = uiState.currentSessionId,
+                    onSelect = { id ->
+                        HapticUtil.lightTap(context)
+                        viewModel.loadSession(id)
+                        textInput = ""
+                        showAttachmentTray = false
+                        scope.launch { drawerState.close() }
+                    },
+                    onTemplates = {
+                        scope.launch {
+                            drawerState.close()
+                            onOpenTemplates?.invoke()
+                        }
+                    },
+                    onProviders = {
+                        scope.launch { drawerState.close(); showProviderPicker = true }
+                    },
+                    onPin = { viewModel.toggleSessionPinned(it) },
+                    onRename = { id, title -> viewModel.renameSession(id, title) },
+                    onDelete = { viewModel.deleteSession(it) }
+                )
+            }
+        }
+    ) {
     // Root layout using imePadding to guarantee input bar is NEVER hidden by the keyboard
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -295,7 +333,7 @@ fun AIChatScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     ProviderSetupCard(
-                        onNavigateToSettings = onNavigateToSettings,
+                        onNavigateToSettings = { showProviderPicker = true },
                         modifier = Modifier.padding(24.dp)
                     )
                 }
@@ -324,7 +362,7 @@ fun AIChatScreen(
                                 ChatWelcomeSection(
                                     onSuggestionClick = { suggestion ->
                                         HapticUtil.lightTap(context)
-                                        viewModel.sendMessage(suggestion)
+                                        textInput = suggestion
                                     },
                                     onAttachClick = { showAttachmentTray = true }
                                 )
@@ -427,11 +465,8 @@ fun AIChatScreen(
                     Surface(
                         onClick = {
                             HapticUtil.lightTap(context)
-                            if (showBackButton) {
-                                onNavigateBack()
-                            } else {
-                                showHistorySheet = true
-                            }
+                            keyboardController?.hide()
+                            scope.launch { drawerState.open() }
                         },
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
@@ -441,165 +476,27 @@ fun AIChatScreen(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = if (showBackButton) Icons.AutoMirrored.Filled.ArrowBack else Icons.Default.Menu,
-                                contentDescription = stringResource(R.string.ai_chat_back),
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = stringResource(R.string.ai_chat_history),
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
 
-                    // 2. Center: Modern Floating Pill Model Selector
-                    Surface(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(22.dp))
-                            .clickable {
-                                HapticUtil.lightTap(context)
-                                showProviderPicker = true
-                            },
-                        shape = RoundedCornerShape(22.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                        shadowElevation = 2.dp
+                    FilledTonalIconButton(
+                        onClick = {
+                            HapticUtil.lightTap(context)
+                            viewModel.startNewChat()
+                            textInput = ""
+                            showAttachmentTray = false
+                        },
+                        shape = RoundedCornerShape(18.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
+                        )
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "Zix Bot",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.KeyboardArrowDown,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(15.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Text(
-                                    text = uiState.activeProvider?.let { "${it.name} • ${it.modelId.takeLast(16)}" } ?: stringResource(R.string.ai_chat_select_model),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-
-                    // 3. Right: Floating Dual-Action Pill (New Chat + Options) matching ChatGPT in media_1789121761075.png
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                        shadowElevation = 2.dp
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            var newChatAnimTrigger by remember { mutableStateOf(false) }
-                            val newChatScale by animateFloatAsState(
-                                targetValue = if (newChatAnimTrigger) 0.82f else 1f,
-                                animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium),
-                                finishedListener = { newChatAnimTrigger = false },
-                                label = "newChatScale"
-                            )
-
-                            IconButton(
-                                onClick = {
-                                    HapticUtil.lightTap(context)
-                                    newChatAnimTrigger = true
-                                    viewModel.startNewChat()
-                                },
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .graphicsLayer {
-                                        scaleX = newChatScale
-                                        scaleY = newChatScale
-                                    }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = stringResource(R.string.ai_chat_new_chat),
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            Box {
-                                IconButton(
-                                    onClick = {
-                                        HapticUtil.lightTap(context)
-                                        showMoreMenu = true
-                                    },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.MoreVert,
-                                        contentDescription = stringResource(R.string.ai_chat_options),
-                                        modifier = Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-
-                                DropdownMenu(
-                                    expanded = showMoreMenu,
-                                    onDismissRequest = { showMoreMenu = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.ai_chat_history)) },
-                                        leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            HapticUtil.lightTap(context)
-                                            showHistorySheet = true
-                                        }
-                                    )
-                                    if (onOpenTemplates != null) {
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(R.string.ai_chat_templates)) },
-                                            leadingIcon = { Icon(Icons.Default.Description, contentDescription = null) },
-                                            onClick = {
-                                                showMoreMenu = false
-                                                HapticUtil.lightTap(context)
-                                                onOpenTemplates()
-                                            }
-                                        )
-                                    }
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.ai_chat_manage_providers)) },
-                                        leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            onNavigateToSettings()
-                                        }
-                                    )
-                                    HorizontalDivider()
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.ai_chat_delete_this), color = MaterialTheme.colorScheme.error) },
-                                        leadingIcon = { Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            HapticUtil.lightTap(context)
-                                            viewModel.clearChat()
-                                        }
-                                    )
-                                }
-                            }
-                        }
+                        Icon(NewChatIcon, stringResource(R.string.ai_chat_new_chat))
                     }
                 }
             }
@@ -640,6 +537,7 @@ fun AIChatScreen(
             // LAYER 4: DeepSeek SIGNATURE FLOATING ISLAND INPUT CARD
             DeepSeekStyleFloatingInputCard(
                 modifier = Modifier.align(Alignment.BottomCenter),
+                showIdleGlow = uiState.messages.isEmpty(),
                 textInput = textInput,
                 onTextChanged = { textInput = it },
                 isLoading = uiState.isLoading,
@@ -709,6 +607,8 @@ fun AIChatScreen(
         }
     }
 
+    }
+
     // Full Screen Image Preview Dialog
     if (previewImageFilePath != null) {
         FullImagePreviewDialog(
@@ -738,39 +638,11 @@ fun AIChatScreen(
         )
     }
 
-    // Chat History Bottom Sheet
-    if (showHistorySheet) {
-        ChatHistoryBottomSheet(
-            sessions = uiState.sessions,
-            currentSessionId = uiState.currentSessionId,
-            onSelectSession = { id ->
-                HapticUtil.lightTap(context)
-                viewModel.loadSession(id)
-            },
-            onNewChat = {
-                HapticUtil.lightTap(context)
-                viewModel.startNewChat()
-            },
-            onDeleteSession = { id ->
-                HapticUtil.lightTap(context)
-                viewModel.deleteSession(id)
-            },
-            onDismiss = { showHistorySheet = false }
-        )
-    }
-
-    // Provider Picker Dialog
-    if (showProviderPicker && uiState.providers.size > 1) {
-        ProviderPickerDialog(
-            providers = uiState.providers,
-            activeId = uiState.activeProvider?.id,
-            onSelect = { id ->
-                HapticUtil.lightTap(context)
-                viewModel.selectProvider(id)
-                showProviderPicker = false
-            },
-            onDismiss = { showProviderPicker = false }
-        )
+    if (showProviderPicker) {
+        ChatProviderManager(onDismiss = {
+            showProviderPicker = false
+            viewModel.refreshProviders()
+        })
     }
 
     // Reasoning Effort Bottom Sheet
@@ -814,7 +686,8 @@ fun DeepSeekStyleFloatingInputCard(
     onRemoveAttachment: (String) -> Unit,
     onPreviewImage: (String) -> Unit,
     onSend: () -> Unit,
-    onCancelGeneration: () -> Unit
+    onCancelGeneration: () -> Unit,
+    showIdleGlow: Boolean = false
 ) {
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val canSend = (textInput.isNotBlank() || pendingAttachments.isNotEmpty()) && !isLoading
@@ -866,7 +739,10 @@ fun DeepSeekStyleFloatingInputCard(
     ) {
         // Floating Island Container Card
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().composerIdleGlow(
+                enabled = showIdleGlow && !imeTargetVisible && !expanded && !isLoading,
+                corner = corner
+            ),
             shape = RoundedCornerShape(corner),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             border = BorderStroke(
@@ -2402,7 +2278,7 @@ fun ChatWelcomeSection(
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
@@ -2414,7 +2290,7 @@ fun ChatWelcomeSection(
             Icon(
                 imageVector = Icons.Default.AutoAwesome,
                 contentDescription = null,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(28.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
         }
@@ -2423,7 +2299,7 @@ fun ChatWelcomeSection(
 
         Text(
             text = stringResource(R.string.ai_chat_welcome_title),
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
@@ -2433,23 +2309,28 @@ fun ChatWelcomeSection(
 
         Text(
             text = stringResource(R.string.ai_chat_welcome_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 24.dp)
         )
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         val prompts = listOf(
             stringResource(R.string.ai_chat_suggestion_1),
             stringResource(R.string.ai_chat_suggestion_2),
             stringResource(R.string.ai_chat_suggestion_3),
-            stringResource(R.string.ai_chat_suggestion_4)
+            stringResource(R.string.ai_chat_suggestion_4),
+            stringResource(R.string.ai_suggestion_summary),
+            stringResource(R.string.ai_suggestion_plan),
+            stringResource(R.string.ai_suggestion_compare),
+            stringResource(R.string.ai_suggestion_review)
         )
 
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             prompts.forEach { text ->
@@ -2459,11 +2340,11 @@ fun ChatWelcomeSection(
                         .clip(RoundedCornerShape(16.dp))
                         .clickable { onSuggestionClick(text) },
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.25f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -2475,6 +2356,8 @@ fun ChatWelcomeSection(
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = text,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)

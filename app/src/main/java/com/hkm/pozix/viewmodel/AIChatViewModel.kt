@@ -255,6 +255,10 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun toggleSessionPinned(sessionId: String) {
+        viewModelScope.launch { historyRepository.togglePinned(sessionId) }
+    }
+
     fun renameSession(sessionId: String, newTitle: String) {
         viewModelScope.launch {
             historyRepository.renameSession(sessionId, newTitle)

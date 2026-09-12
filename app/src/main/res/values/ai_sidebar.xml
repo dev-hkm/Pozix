@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ai_sidebar_search">Search chats</string>
+    <string name="ai_sidebar_empty">No conversations found</string>
+    <string name="ai_sidebar_pinned">Pinned</string>
+    <string name="ai_sidebar_recent">Recent</string>
+    <string name="ai_sidebar_pin">Pin chat</string>
+    <string name="ai_sidebar_unpin">Unpin chat</string>
+    <string name="ai_sidebar_delete_warning">This conversation and its attachments will be deleted.</string>
+    <string name="ai_suggestion_summary">Summarize my notes into the key ideas</string>
+    <string name="ai_suggestion_plan">Help me build a focused study plan</string>
+    <string name="ai_suggestion_compare">Compare two concepts with simple examples</string>
+    <string name="ai_suggestion_review">Review my mistakes and explain how to improve</string>
+</resources>

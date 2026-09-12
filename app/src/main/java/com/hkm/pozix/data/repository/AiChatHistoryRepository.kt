@@ -50,7 +50,7 @@ class AiChatHistoryRepository(private val context: Context) {
             val list = (readForMutation(preferences) ?: return@edit).toMutableList()
             val index = list.indexOfFirst { it.id == session.id }
             if (index != -1) {
-                list[index] = session.copy(updatedAt = System.currentTimeMillis())
+                list[index] = session.copy(updatedAt = System.currentTimeMillis(), isPinned = list[index].isPinned)
             } else {
                 list.add(0, session.copy(updatedAt = System.currentTimeMillis()))
             }
@@ -85,6 +85,15 @@ class AiChatHistoryRepository(private val context: Context) {
                 list.add(0, newSession)
             }
             list.sortByDescending { it.updatedAt }
+            preferences[SESSIONS_KEY] = json.encodeToString(list)
+        }
+    }
+
+    suspend fun togglePinned(sessionId: String) {
+        context.aiChatHistoryDataStore.edit { preferences ->
+            val list = (readForMutation(preferences) ?: return@edit).map { session ->
+                if (session.id == sessionId) session.copy(isPinned = !session.isPinned) else session
+            }
             preferences[SESSIONS_KEY] = json.encodeToString(list)
         }
     }
