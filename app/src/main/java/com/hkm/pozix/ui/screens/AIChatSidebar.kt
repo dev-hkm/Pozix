@@ -47,6 +47,52 @@ internal val NewChatIcon: ImageVector by lazy {
     }.build()
 }
 
+private val TemplateIcon: ImageVector by lazy {
+    ImageVector.Builder("PromptLibrary", 24.dp, 24.dp, 24f, 24f).apply {
+        path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = 1.7f,
+            strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+            moveTo(5f, 3f); lineTo(16f, 3f); curveTo(18f, 3f, 19f, 4f, 19f, 6f)
+            lineTo(19f, 21f); lineTo(6f, 21f); curveTo(3f, 21f, 3f, 17f, 6f, 17f)
+            lineTo(19f, 17f); moveTo(3f, 19f); lineTo(3f, 6f)
+            curveTo(3f, 4f, 3f, 3f, 5f, 3f)
+            moveTo(8f, 8f); lineTo(14f, 8f); moveTo(8f, 12f); lineTo(12f, 12f)
+        }
+    }.build()
+}
+private val ProviderIcon: ImageVector by lazy {
+    ImageVector.Builder("ProviderControls", 24.dp, 24.dp, 24f, 24f).apply {
+        path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = 1.7f,
+            strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+            moveTo(4f, 7f); lineTo(8f, 7f); moveTo(14f, 7f); lineTo(20f, 7f)
+            moveTo(4f, 17f); lineTo(12f, 17f); moveTo(18f, 17f); lineTo(20f, 17f)
+            moveTo(14f, 7f); curveTo(14f, 3f, 8f, 3f, 8f, 7f)
+            curveTo(8f, 11f, 14f, 11f, 14f, 7f)
+            moveTo(18f, 17f); curveTo(18f, 13f, 12f, 13f, 12f, 17f)
+            curveTo(12f, 21f, 18f, 21f, 18f, 17f)
+        }
+    }.build()
+}
+private val HistoryIcon: ImageVector by lazy {
+    ImageVector.Builder("Conversation", 24.dp, 24.dp, 24f, 24f).apply {
+        path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = 1.7f,
+            strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+            moveTo(8f, 20f); lineTo(3f, 21f); lineTo(4f, 16f)
+            curveTo(-1f, 4f, 14f, -2f, 20f, 6f)
+            curveTo(27f, 15f, 17f, 24f, 8f, 20f)
+        }
+    }.build()
+}
+private val PinIcon: ImageVector by lazy {
+    ImageVector.Builder("PinnedChat", 24.dp, 24.dp, 24f, 24f).apply {
+        path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = 1.7f,
+            strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+            moveTo(8f, 3f); lineTo(16f, 3f); lineTo(15f, 10f)
+            lineTo(18f, 14f); lineTo(6f, 14f); lineTo(9f, 10f); close()
+            moveTo(12f, 14f); lineTo(12f, 21f)
+        }
+    }.build()
+}
+
 @Composable
 internal fun ChatSidebar(
     sessions: List<ChatSession>,
@@ -73,12 +119,12 @@ internal fun ChatSidebar(
         NavigationDrawerItem(
             label = { Text(stringResource(R.string.ai_chat_templates)) },
             selected = false, onClick = onTemplates,
-            icon = { Icon(Icons.Default.AutoAwesomeMotion, null) }
+            icon = { Icon(TemplateIcon, null) }
         )
         NavigationDrawerItem(
             label = { Text(stringResource(R.string.ai_chat_manage_providers)) },
             selected = false, onClick = onProviders,
-            icon = { Icon(Icons.Default.Tune, null) }
+            icon = { Icon(ProviderIcon, null) }
         )
         OutlinedTextField(
             value = query, onValueChange = { query = it }, singleLine = true,
@@ -113,7 +159,7 @@ internal fun ChatSidebar(
                                 onLongClick = { optionsId = session.id })
                         ) {
                             Row(Modifier.padding(start = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (pinned) Icons.Default.PushPin else Icons.AutoMirrored.Filled.Chat,
+                                Icon(if (pinned) PinIcon else HistoryIcon,
                                     null, modifier = Modifier.size(18.dp))
                                 Text(session.title, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -135,11 +181,11 @@ internal fun ChatSidebar(
             text = {
                 Column {
                     TextButton(onClick = { onPin(session.id); optionsId = null }) {
-                        Icon(Icons.Default.PushPin, null); Spacer(Modifier.width(12.dp))
+                        Icon(PinIcon, null); Spacer(Modifier.width(12.dp))
                         Text(stringResource(if (session.isPinned) R.string.ai_sidebar_unpin else R.string.ai_sidebar_pin))
                     }
                     TextButton(onClick = { title = session.title; renameId = session.id; optionsId = null }) {
-                        Icon(Icons.Default.Edit, null); Spacer(Modifier.width(12.dp))
+                        Icon(NewChatIcon, null); Spacer(Modifier.width(12.dp))
                         Text(stringResource(R.string.saved_quiz_sets_rename))
                     }
                     TextButton(onClick = { deleteId = session.id; optionsId = null }) {

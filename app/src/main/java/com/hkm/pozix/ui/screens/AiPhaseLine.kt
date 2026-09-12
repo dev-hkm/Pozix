@@ -63,7 +63,7 @@ fun ExpressiveMorphingAiIndicator(
     )
 
     val primaryColor = MaterialTheme.colorScheme.primary
-    val sparkColor = Color(0xFF7A8FC8)
+    val sparkColor = MaterialTheme.colorScheme.secondary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
 
     Row(

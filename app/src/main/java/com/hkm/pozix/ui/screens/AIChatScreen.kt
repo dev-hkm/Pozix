@@ -359,17 +359,13 @@ fun AIChatScreen(
                     modifier = Modifier.fillMaxSize()
                 ) { (_, isEmpty) ->
                     if (isEmpty) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
-                            contentPadding = PaddingValues(
-                                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 62.dp,
-                                bottom = 140.dp
-                            ),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        Box(
+                            Modifier.fillMaxSize().statusBarsPadding()
+                                .padding(top = 56.dp, bottom = 96.dp, start = 16.dp, end = 16.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            item {
+                            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                                horizontalAlignment = Alignment.CenterHorizontally) {
                                 ChatWelcomeSection(
                                     onSuggestionClick = { suggestion ->
                                         HapticUtil.lightTap(context)
@@ -398,11 +394,14 @@ fun AIChatScreen(
                                         text = "block",
                                         blocksOverride = remember(entry.block) { listOf(entry.block) },
                                         fontSize = 15.sp, lineHeight = 23.sp,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth().softStreamEntry(
+                                            uiState.isLoading && entry.key == renderEntries.lastOrNull { it.block != null }?.key
+                                        )
                                     )
                                 } else {
                                     ChatBubbleItem(
-                                        message = entry.message, isStreaming = entry.streaming,
+                                        message = entry.message,
+                                        isStreaming = uiState.isLoading && entry.message.timestamp == uiState.messages.lastOrNull()?.timestamp,
                                         section = entry.section, phase = uiState.phase,
                                         onImageClick = { previewImageFilePath = it },
                                         onImportPlay = { viewModel.importQuizSet(it, onPlayQuiz) },
@@ -411,20 +410,16 @@ fun AIChatScreen(
                                 }
                             }
 
-                            // Show thinking indicator with entrance animation while waiting for first token
-                            if (uiState.isLoading && uiState.messages.lastOrNull()?.role != "model") {
-                                item(key = "typing_indicator") {
-                                    Box(
-                                        modifier = Modifier.animateItem(
-                                            fadeInSpec = tween(250),
-                                            fadeOutSpec = tween(200),
-                                            placementSpec = spring(dampingRatio = 0.8f)
-                                        )
-                                    ) {
-                                        AiPhaseLine(uiState.phase)
-                                    }
+                            // A single live status item; never cached in a message
+                            // or animated as a disappearing overlay by LazyColumn.
+                            val generatingQuiz = uiState.messages.lastOrNull()?.quizGeneration == true
+                            if (uiState.isLoading && uiState.phase != AiPhase.IDLE &&
+                                (uiState.phase != AiPhase.RESPONDING || generatingQuiz)) {
+                                item(key = "live_ai_status", contentType = "status") {
+                                    AiPhaseLine(uiState.phase, quizGeneration = generatingQuiz)
                                 }
                             }
+
                         }
                     }
                 }
@@ -1539,10 +1534,6 @@ fun ChatBubbleItem(
                 }
             }
 
-            // Zix Bot Liquid Streaming Indicator
-            if (isStreaming) {
-                AiPhaseLine(phase)
-            }
 
             // Haptic feedback tick when streaming settles
             var wasStreaming by remember { mutableStateOf(false) }
