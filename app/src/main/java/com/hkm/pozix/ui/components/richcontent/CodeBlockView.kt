@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
@@ -39,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -93,7 +93,7 @@ fun CodeBlockView(
     }
 
     // Code editor palette follows the app theme: bright paper-like light mode, rich contrast dark mode.
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val editorBg = if (isDark) Color(0xFF1E1E2E) else MaterialTheme.colorScheme.surfaceContainerHighest
     val headerBg = if (isDark) Color(0xFF181825) else MaterialTheme.colorScheme.surfaceContainer
     val lineNumberColor = if (isDark) Color(0xFF6C7086) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)

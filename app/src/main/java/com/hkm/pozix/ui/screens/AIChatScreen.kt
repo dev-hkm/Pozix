@@ -39,7 +39,6 @@ import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -63,9 +62,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -123,7 +124,7 @@ fun AIChatScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
     var showProviderPicker by remember { mutableStateOf(false) }
     var showHistorySheet by remember { mutableStateOf(false) }
@@ -134,14 +135,7 @@ fun AIChatScreen(
     var previewImageFilePath by remember { mutableStateOf<String?>(null) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var textInput by remember { mutableStateOf("") }
-    val pendingReview by com.hkm.pozix.util.QuizAiFollowUp.pending.collectAsState()
-    LaunchedEffect(pendingReview, uiState.activeProvider, uiState.isLoading, uiState.isAttaching) {
-        val review = pendingReview
-        if (review != null && uiState.activeProvider != null && !uiState.isLoading && !uiState.isAttaching) {
-            viewModel.sendQuizReview(review, reasoningEffort)
-            com.hkm.pozix.util.QuizAiFollowUp.clear(context)
-        }
-    }
+    val pendingReviewText by com.hkm.pozix.util.QuizAiFollowUp.pending.collectAsState()
     LaunchedEffect(initialPrompt) {
         if (!initialPrompt.isNullOrBlank()) {
             textInput = initialPrompt
@@ -652,6 +646,15 @@ fun AIChatScreen(
                 isAttaching = uiState.isAttaching,
                 pendingAttachments = uiState.pendingAttachments,
                 reasoningEffort = reasoningEffort,
+                pendingReview = pendingReviewText,
+                canSendReview = uiState.activeProvider != null && !uiState.isLoading && !uiState.isAttaching,
+                onSendReview = {
+                    pendingReviewText?.let { review ->
+                        viewModel.sendQuizReview(review, reasoningEffort)
+                        com.hkm.pozix.util.QuizAiFollowUp.clear(context)
+                    }
+                },
+                onDismissReview = { com.hkm.pozix.util.QuizAiFollowUp.clear(context) },
                 onOpenReasoningSelector = {
                     HapticUtil.lightTap(context)
                     showReasoningSheet = true
@@ -795,6 +798,10 @@ fun DeepSeekStyleFloatingInputCard(
     isAttaching: Boolean,
     pendingAttachments: List<ChatAttachment>,
     reasoningEffort: String,
+    pendingReview: String? = null,
+    canSendReview: Boolean = false,
+    onSendReview: () -> Unit = {},
+    onDismissReview: () -> Unit = {},
     onOpenReasoningSelector: () -> Unit,
     quizToolEnabled: Boolean,
     onToggleQuizTool: () -> Unit,
@@ -808,30 +815,34 @@ fun DeepSeekStyleFloatingInputCard(
     onSend: () -> Unit,
     onCancelGeneration: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val canSend = (textInput.isNotBlank() || pendingAttachments.isNotEmpty()) && !isLoading
     var inputFocused by remember { mutableStateOf(false) }
-    val expanded = inputFocused || showAttachmentTray || textInput.isNotEmpty() || pendingAttachments.isNotEmpty() || isAttaching
+    // Focus can remain on BasicTextField after the IME is dismissed. Drive the
+    // visual "hover/expanded" state from the real IME inset, not focus alone.
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val interactiveFocus = inputFocused && imeVisible
+    val expanded = interactiveFocus || showAttachmentTray || isAttaching || pendingReview != null
     val inset by animateDpAsState(
-        if (expanded) 12.dp else 22.dp,
-        spring(dampingRatio = 0.88f, stiffness = 380f), label = "composerInset"
+        if (expanded) 8.dp else 26.dp,
+        spring(dampingRatio = 0.72f, stiffness = 300f), label = "composerInset"
     )
     val corner by animateDpAsState(
-        if (expanded) 28.dp else 32.dp,
-        spring(dampingRatio = 0.88f, stiffness = 380f), label = "composerCorner"
+        if (expanded) 24.dp else 34.dp,
+        spring(dampingRatio = 0.72f, stiffness = 300f), label = "composerCorner"
     )
     val verticalPadding by animateDpAsState(
-        if (expanded) 14.dp else 10.dp,
-        spring(dampingRatio = 1f, stiffness = 380f), label = "composerPadding"
+        if (expanded) 16.dp else 8.dp,
+        spring(dampingRatio = 0.76f, stiffness = 320f), label = "composerPadding"
     )
     val elevation by animateDpAsState(
-        if (inputFocused) 6.dp else 3.dp,
-        spring(dampingRatio = 1f, stiffness = 380f), label = "composerElevation"
+        if (interactiveFocus) 9.dp else 2.dp,
+        spring(dampingRatio = 0.72f, stiffness = 300f), label = "composerElevation"
     )
     val composerBorder by animateColorAsState(
-        if (inputFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)
+        if (interactiveFocus) MaterialTheme.colorScheme.primary.copy(alpha = 0.42f)
         else MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDark) 0.35f else 0.5f),
-        tween(180), label = "composerBorder"
+        tween(220), label = "composerBorder"
     )
 
     val plusRotation by animateFloatAsState(
@@ -864,6 +875,25 @@ fun DeepSeekStyleFloatingInputCard(
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = verticalPadding)
             ) {
+                val reviewPayload = remember(pendingReview) {
+                    pendingReview?.let(com.hkm.pozix.util.QuizAiFollowUp::decode)
+                }
+
+                AnimatedVisibility(
+                    visible = reviewPayload != null,
+                    enter = expandVertically(spring(dampingRatio = 0.82f)) + fadeIn(tween(180)),
+                    exit = shrinkVertically(spring(dampingRatio = 0.82f)) + fadeOut(tween(140))
+                ) {
+                    reviewPayload?.let { payload ->
+                        QuizReviewDraftCard(
+                            payload = payload,
+                            enabled = canSendReview,
+                            onSend = onSendReview,
+                            onDismiss = onDismissReview
+                        )
+                    }
+                }
+
                 // 1. Attached Items Preview Row (Images & Document Chips)
                 AnimatedVisibility(
                     visible = pendingAttachments.isNotEmpty() || isAttaching,
@@ -1079,14 +1109,28 @@ fun DeepSeekStyleFloatingInputCard(
                         }
 
                         // Quiz availability: permission, not forced generation.
+                        val quizContainer by animateColorAsState(
+                            targetValue = if (quizToolEnabled) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.24f else 0.12f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f)
+                            },
+                            animationSpec = tween(220),
+                            label = "quizToolContainer"
+                        )
+                        val quizContent = if (quizToolEnabled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                         Surface(
                             onClick = onToggleQuizTool,
                             shape = RoundedCornerShape(20.dp),
-                            color = if (quizToolEnabled) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
+                            color = quizContainer,
                             border = BorderStroke(
-                                width = 0.8.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                                width = if (quizToolEnabled) 1.1.dp else 0.8.dp,
+                                color = if (quizToolEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                             )
                         ) {
                             Row(
@@ -1097,16 +1141,16 @@ fun DeepSeekStyleFloatingInputCard(
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesomeMotion,
                                     contentDescription = if (quizToolEnabled) "Quiz: On" else "Quiz: Off",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = quizContent,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     text = if (quizToolEnabled) "Quiz: On" else "Quiz: Off",
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = if (quizToolEnabled) FontWeight.SemiBold else FontWeight.Medium
                                     ),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = quizContent
                                 )
                             }
                         }
@@ -1356,7 +1400,7 @@ private fun AttachmentOptionItem(
     iconTint: Color = MaterialTheme.colorScheme.onPrimaryContainer,
     onClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1404,7 +1448,7 @@ fun ChatBubbleItem(
     onSaveLibrary: (String) -> Unit
 ) {
     val isUser = message.role == "user"
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val context = LocalContext.current
     val artifact by produceState<AiQuizOutput.Artifact?>(null, message.quizGeneration, message.quizJson, message.text, isStreaming) {
         if (!isStreaming && !isUser) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
@@ -1686,7 +1730,7 @@ fun GeneratedQuizCard(
     }
     val validation = parsed
     var isSaved by remember { mutableStateOf(false) }
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
     if (validation is QuizValidationResult.Success) {
         Card(
@@ -2328,7 +2372,7 @@ fun ChatWelcomeSection(
     onSuggestionClick: (String) -> Unit,
     onAttachClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     Column(
         modifier = Modifier
             .fillMaxWidth()

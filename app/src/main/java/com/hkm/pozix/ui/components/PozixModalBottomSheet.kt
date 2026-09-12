@@ -1,6 +1,5 @@
 package com.hkm.pozix.ui.components
 
-import android.app.Activity
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -44,6 +43,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
+import com.hkm.pozix.util.findActivity
 
 /**
  * BouncyContainer adds smooth, tactile rubber-band spring overscroll physics
@@ -167,7 +167,7 @@ fun PozixModalBottomSheet(
             val dialogWindow = generateSequence(sheetView.parent) { it.parent }
                 .filterIsInstance<DialogWindowProvider>()
                 .firstOrNull()?.window
-                ?: (sheetView.context as? Activity)?.window
+                ?: sheetView.context.findActivity()?.window
 
             if (dialogWindow != null) {
                 WindowCompat.setDecorFitsSystemWindows(dialogWindow, false)
@@ -177,7 +177,7 @@ fun PozixModalBottomSheet(
             }
 
             // Ensure host Activity window also maintains correct status bar contrast
-            (sheetView.context as? Activity)?.window?.let { actWindow ->
+            sheetView.context.findActivity()?.window?.let { actWindow ->
                 val actController = WindowCompat.getInsetsController(actWindow, actWindow.decorView)
                 actController.isAppearanceLightStatusBars = !isDark
                 actController.isAppearanceLightNavigationBars = !isDark
@@ -185,7 +185,7 @@ fun PozixModalBottomSheet(
 
             onDispose {
                 // Restore host Activity status bar upon sheet dismiss
-                (sheetView.context as? Activity)?.window?.let { actWindow ->
+                sheetView.context.findActivity()?.window?.let { actWindow ->
                     val actController = WindowCompat.getInsetsController(actWindow, actWindow.decorView)
                     actController.isAppearanceLightStatusBars = !isDark
                     actController.isAppearanceLightNavigationBars = !isDark

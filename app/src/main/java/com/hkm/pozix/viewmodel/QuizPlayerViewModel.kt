@@ -77,8 +77,6 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                 if (currentState is QuizState.Playing) {
                     val elapsed = System.currentTimeMillis() - startTimeMillis
                     _quizState.value = currentState.copy(elapsedTimeMillis = elapsed)
-                    // Do not serialize the entire question bank every second on the UI thread.
-                    if (elapsed / 1000 % 10 == 0L) saveProgress()
                 }
             }
         }
@@ -160,6 +158,7 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                         answeredQuestions = emptyList()
                     )
                 }
+                savedQuizRepository.updateLastUsedTimestamp(quizSetId)
             } else {
                 _quizState.value = QuizState.Error
             }

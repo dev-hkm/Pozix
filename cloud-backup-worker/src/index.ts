@@ -25,13 +25,18 @@ const rateLimited = async (request: Request, env: Env) => {
   const group = pathname.startsWith("/v1/shares") ? "shares" : "backups";
   const bucket = Math.floor(Date.now() / 60_000);
   const key = `${ip}:${group}:${bucket}`;
-  await env.POZIX_BACKUPS.prepare("DELETE FROM rate_limits WHERE expires_at < ?").bind(Date.now()).run();
-  await env.POZIX_BACKUPS.prepare("INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1").bind(key,(bucket+2)*60_000).run();
-  const row = await env.POZIX_BACKUPS.prepare("SELECT count FROM rate_limits WHERE key=?").bind(key).first<{count:number}>();
+  const row = await env.POZIX_BACKUPS.prepare(
+    "INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count"
+  ).bind(key,(bucket+2)*60_000).first<{count:number}>();
   return (row?.count || 0) > 60;
 };
+const cleanupRateLimits = (env: Env) =>
+  env.POZIX_BACKUPS.prepare("DELETE FROM rate_limits WHERE expires_at < ?").bind(Date.now()).run();
 
 const worker: ExportedHandler<Env> = {
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(cleanupRateLimits(env));
+  },
   async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
@@ -53,7 +58,9 @@ const worker: ExportedHandler<Env> = {
           `${url.origin}/__youtube_transcript_cache/${parsed.videoId}/${encodeURIComponent(cacheLanguage)}`,
           { method: "GET" }
         );
-        const cache = typeof caches !== "undefined" ? caches.default : null;
+        const cache = typeof caches !== "undefined"
+          ? (caches as unknown as { default: Cache }).default
+          : null;
         const cached = cache ? await cache.match(cacheKey) : undefined;
         if (cached) return cached;
 

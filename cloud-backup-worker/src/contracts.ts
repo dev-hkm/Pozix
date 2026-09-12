@@ -1,4 +1,5 @@
-export const MAX_PAYLOAD_BYTES = 1_048_576;
+export const MAX_BACKUP_PAYLOAD_BYTES = 8 * 1_048_576;
+export const MAX_SHARE_PAYLOAD_BYTES = 1_048_576;
 
 export type BackupPayload = { verifier: string; salt: string; ciphertext: string };
 
@@ -27,7 +28,7 @@ export function isValidBackupPayload(value: unknown): value is BackupPayload {
   ) return false;
   return new TextEncoder().encode(
     `${payload.verifier}${payload.salt}${payload.ciphertext}`
-  ).byteLength <= MAX_PAYLOAD_BYTES;
+  ).byteLength <= MAX_BACKUP_PAYLOAD_BYTES;
 }
 
 export function validateSharePayload(value: unknown): ValidationResult {
@@ -38,7 +39,7 @@ export function validateSharePayload(value: unknown): ValidationResult {
   if (typeof quizJson !== "string" || quizJson.trim().length === 0) {
     return { ok: false, message: "quizJson must be a non-empty string" };
   }
-  if (new TextEncoder().encode(quizJson).byteLength > MAX_PAYLOAD_BYTES) {
+  if (new TextEncoder().encode(quizJson).byteLength > MAX_SHARE_PAYLOAD_BYTES) {
     return { ok: false, message: "quizJson is too large" };
   }
   let quiz: unknown;

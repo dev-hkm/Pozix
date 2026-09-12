@@ -555,8 +555,8 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         if (!AiQuizOutput.looksLikeQuizArtifact(feedbackText)) result = result.copy(text = feedbackText)
                     }
                     result = result.copy(text = result.text.ifBlank {
-                        if (!reviewJson.isNullOrBlank()) "Không nhận được phần nhận xét hợp lệ. Vui lòng yêu cầu AI nhận xét lại kết quả."
-                        else "Quiz đang tắt. Bật Quiz nếu bạn muốn tạo bộ câu hỏi."
+                        if (!reviewJson.isNullOrBlank()) app.getString(R.string.ai_review_missing_feedback)
+                        else app.getString(R.string.ai_quiz_tool_disabled)
                     }, quizGeneration = false)
                 }
                 var artifact = if (reviewJson.isNullOrBlank() && expectsQuiz) {

@@ -33,8 +33,13 @@ fun KaTeXMathView(latex: String, modifier: Modifier = Modifier,
     val density = LocalDensity.current
     var width by remember { mutableIntStateOf(0) }
     val fontSize = fontSizeSp * density.fontScale
-    val cacheKey = "$latex|$width|${density.density}|$fontSize|$displayMode"
-    var height by remember(cacheKey) { mutableFloatStateOf(katexHeightCache[cacheKey] ?: 48f) }
+    // Width controls WebView reflow, but it must not reset the measured height
+    // cache. Doing so caused every question transition to flash at 48.dp.
+    val measurementKey = "$latex|${density.density}|$fontSize|$displayMode"
+    val renderKey = "$measurementKey|width=$width"
+    var height by remember(measurementKey) {
+        mutableFloatStateOf(katexHeightCache[measurementKey] ?: 48f)
+    }
     var failed by remember(latex) { mutableStateOf(false) }
     val color = String.format("#%06X", textColor.toArgb() and 0xFFFFFF)
     if (failed) {
@@ -47,11 +52,11 @@ fun KaTeXMathView(latex: String, modifier: Modifier = Modifier,
         view.onHeight = { measured ->
             if (measured.isFinite() && measured > 0 && abs(height - measured) >= 1f) {
                 height = measured
-                katexHeightCache.put(cacheKey, measured)
+                katexHeightCache.put(measurementKey, measured)
             }
         }
         view.onError = { failed = true }
-        view.render(latex, color, fontSize, displayMode, cacheKey)
+        view.render(latex, color, fontSize, displayMode, renderKey)
     }, onReset = { it.resetForReuse() }, onRelease = { it.dispose() },
         modifier = modifier.fillMaxWidth().onSizeChanged { width = it.width }.height(ceil(height).toInt().dp))
 }

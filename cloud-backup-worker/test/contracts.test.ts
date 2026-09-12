@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidBackupPayload, isValidBackupToken, validateSharePayload } from "../src/contracts";
+import { isValidBackupPayload, isValidBackupToken, validateSharePayload, MAX_BACKUP_PAYLOAD_BYTES, MAX_SHARE_PAYLOAD_BYTES } from "../src/contracts";
 
 describe("cloud backup contracts", () => {
   it("accepts a generated Pozix token and rejects arbitrary token strings", () => {
@@ -22,7 +22,7 @@ describe("cloud backup contracts", () => {
     expect(validateSharePayload({
       quizJson: '{"title":"Empty","questions":[]}'
     }).ok).toBe(false);
-    expect(validateSharePayload({ quizJson: "x".repeat(1_048_577) }).ok).toBe(false);
+    expect(validateSharePayload({ quizJson: "x".repeat(MAX_SHARE_PAYLOAD_BYTES + 1) }).ok).toBe(false);
   });
 
   it("requires a bounded verifier, salt, and ciphertext for backups", () => {
@@ -35,6 +35,6 @@ describe("cloud backup contracts", () => {
     expect(isValidBackupPayload({ ...valid, verifier: "short" })).toBe(false);
     expect(isValidBackupPayload({ ...valid, salt: "bad+base64" })).toBe(false);
     expect(isValidBackupPayload({ ...valid, ciphertext: "short" })).toBe(false);
-    expect(isValidBackupPayload({ ...valid, ciphertext: "x".repeat(1_048_577) })).toBe(false);
+    expect(isValidBackupPayload({ ...valid, ciphertext: "x".repeat(MAX_BACKUP_PAYLOAD_BYTES + 1) })).toBe(false);
   });
 });

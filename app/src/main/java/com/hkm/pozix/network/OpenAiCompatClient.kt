@@ -97,8 +97,12 @@ object OpenAiCompatClient {
             val youtubeContext = msg.youtubeSource?.let(YoutubeTranscriptStore::promptBlock).orEmpty()
             val messageText = contextText(msg.text, index == boundedHistory.lastIndex) + documentContext + youtubeContext +
                 (msg.quizJson?.let { "\n```json\n$it\n```" } ?: "") + reviewContext
-            if (msg.imagePaths.isEmpty()) {
-                add(ChatMsgRequest(role = role, content = JsonPrimitive(messageText)))
+            val canAttachImages = index == boundedHistory.lastIndex
+            if (msg.imagePaths.isEmpty() || !canAttachImages) {
+                val textWithImageNote = if (msg.imagePaths.isNotEmpty() && !canAttachImages) {
+                    messageText + "\n[Earlier attached images omitted from this request to keep context responsive.]"
+                } else messageText
+                add(ChatMsgRequest(role = role, content = JsonPrimitive(textWithImageNote)))
             } else {
                 val parts = buildJsonArray {
                     if (messageText.isNotBlank()) {
@@ -247,7 +251,8 @@ object OpenAiCompatClient {
                 }
             }
             if (!received) throw IOException("Provider returned an empty stream")
-            if (!completed) throw IOException("Stream disconnected before completion")
+            // Some OpenAI-compatible proxies close a valid SSE response without
+            // emitting [DONE]. Content already received is still a complete answer.
         } catch (e: IOException) {
             currentCoroutineContext().ensureActive()
             throw e

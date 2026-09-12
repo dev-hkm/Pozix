@@ -42,11 +42,11 @@ describe("YouTube transcript gateway", () => {
   });
 
   it("returns a clear error when the gateway has no provider key", async () => {
-    const response = await worker.fetch(
+    const response = await worker.fetch!(
       new Request("https://worker.test/v1/youtube/transcript", {
         method: "POST",
         body: JSON.stringify({ videoId: "dQw4w9WgXcQ" })
-      }),
+      }) as any,
       { POZIX_BACKUPS: d1 } as any,
       {} as ExecutionContext
     );

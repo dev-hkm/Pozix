@@ -6,6 +6,9 @@
     <string name="ai_review_card_correct">%1$d correct</string>
     <string name="ai_review_card_questions">%1$d questions</string>
     <string name="ai_review_card_unanswered">%1$d unanswered</string>
+    <string name="ai_review_card_send">Send review to AI</string>
+    <string name="ai_review_card_dismiss">Dismiss review draft</string>
+    <string name="ai_new_conversation">New conversation</string>
     <string name="ai_phase_quiz_receiving">Receiving quiz data from AI…</string>
     <string name="ai_phase_quiz_validating">Checking quiz structure…</string>
     <string name="ai_phase_quiz_repairing">Requesting a complete quiz response…</string>
@@ -111,7 +114,7 @@
     <string name="import_file_empty">The selected file is empty</string>
     <string name="import_file_open_failed">Unable to open the selected file</string>
     <string name="import_file_read_error">Error reading file: %s</string>
-    <string name="import_file_too_large">File is too large (maximum 5MB)</string>
+    <string name="import_file_too_large">File is too large (maximum 8MB)</string>
     <string name="import_or">or</string>
     <string name="import_source">Import Source</string>
     <string name="import_smart_paste">Smart Paste &amp; Validate</string>
@@ -502,6 +505,8 @@
     <string name="ai_chat_prompts_pill">Templates</string>
     <string name="ai_quiz_ready">Your quiz is ready below.</string>
     <string name="ai_quiz_missing">The model did not return valid quiz data after one correction. No quiz was created. Please try again.</string>
+    <string name="ai_review_missing_feedback">The model did not return valid review feedback. Please ask it to review the result again.</string>
+    <string name="ai_quiz_tool_disabled">Quiz creation is currently unavailable for this turn. Enable the Quiz tool when you want to create a quiz.</string>
     <string name="ai_phase_waiting">Waiting for the model…</string>
     <string name="ai_phase_reasoning">Receiving reasoning…</string>
     <string name="ai_phase_responding">Receiving response…</string>

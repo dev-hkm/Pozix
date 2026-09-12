@@ -3,11 +3,13 @@ package com.hkm.pozix.data.repository
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.hkm.pozix.data.model.ChatMessage
 import com.hkm.pozix.data.model.ChatSession
+import com.hkm.pozix.R
 import com.hkm.pozix.util.ChatImageStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -22,11 +24,13 @@ private val Context.aiChatHistoryDataStore: DataStore<Preferences> by preference
 class AiChatHistoryRepository(private val context: Context) {
 
     private val SESSIONS_KEY = stringPreferencesKey("chat_sessions")
+    private val CORRUPT_BACKUP_KEY = stringPreferencesKey("chat_sessions_corrupt_backup")
 
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
         coerceInputValues = true
+        isLenient = true
     }
 
     fun getSessions(): Flow<List<ChatSession>> {
@@ -43,7 +47,7 @@ class AiChatHistoryRepository(private val context: Context) {
 
     suspend fun saveSession(session: ChatSession) {
         context.aiChatHistoryDataStore.edit { preferences ->
-            val list = getSessionsSync(preferences).toMutableList()
+            val list = (readForMutation(preferences) ?: return@edit).toMutableList()
             val index = list.indexOfFirst { it.id == session.id }
             if (index != -1) {
                 list[index] = session.copy(updatedAt = System.currentTimeMillis())
@@ -58,7 +62,7 @@ class AiChatHistoryRepository(private val context: Context) {
 
     suspend fun updateSessionMessages(sessionId: String, messages: List<ChatMessage>, title: String? = null) {
         context.aiChatHistoryDataStore.edit { preferences ->
-            val list = getSessionsSync(preferences).toMutableList()
+            val list = (readForMutation(preferences) ?: return@edit).toMutableList()
             val index = list.indexOfFirst { it.id == sessionId }
             val now = System.currentTimeMillis()
             if (index != -1) {
@@ -88,7 +92,7 @@ class AiChatHistoryRepository(private val context: Context) {
     suspend fun renameSession(sessionId: String, newTitle: String) {
         if (newTitle.isBlank()) return
         context.aiChatHistoryDataStore.edit { preferences ->
-            val list = getSessionsSync(preferences).map { session ->
+            val list = (readForMutation(preferences) ?: return@edit).map { session ->
                 if (session.id == sessionId) {
                     session.copy(title = newTitle.trim(), updatedAt = System.currentTimeMillis())
                 } else session
@@ -99,7 +103,7 @@ class AiChatHistoryRepository(private val context: Context) {
 
     suspend fun deleteSession(sessionId: String) {
         context.aiChatHistoryDataStore.edit { preferences ->
-            val list = getSessionsSync(preferences).toMutableList()
+            val list = (readForMutation(preferences) ?: return@edit).toMutableList()
             val target = list.find { it.id == sessionId }
             target?.messages?.forEach { msg ->
                 msg.imagePaths.forEach { path ->
@@ -125,10 +129,10 @@ class AiChatHistoryRepository(private val context: Context) {
         }
     }
 
-    fun createNewSession(initialTitle: String = "Cuộc trò chuyện mới"): ChatSession {
+    fun createNewSession(initialTitle: String? = null): ChatSession {
         return ChatSession(
             id = UUID.randomUUID().toString(),
-            title = initialTitle,
+            title = initialTitle ?: context.getString(R.string.ai_new_conversation),
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis(),
             messages = emptyList()
@@ -141,16 +145,28 @@ class AiChatHistoryRepository(private val context: Context) {
             val preview = firstUserMsg.lines().firstOrNull { it.isNotBlank() }?.trim() ?: firstUserMsg
             if (preview.length > 32) preview.take(30) + "..." else preview
         } else {
-            "Cuộc trò chuyện mới"
+            context.getString(R.string.ai_new_conversation)
         }
     }
 
     private fun getSessionsSync(preferences: Preferences): List<ChatSession> {
         val jsonString = preferences[SESSIONS_KEY] ?: return emptyList()
         return try {
-            json.decodeFromString<List<ChatSession>>(jsonString)
+            json.decodeFromString<List<ChatSession>>(jsonString).map { session ->
+                if (session.title.isBlank()) session.copy(title = context.getString(R.string.ai_new_conversation)) else session
+            }
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    private fun readForMutation(preferences: MutablePreferences): List<ChatSession>? {
+        val raw = preferences[SESSIONS_KEY] ?: return emptyList()
+        return try {
+            json.decodeFromString<List<ChatSession>>(raw)
+        } catch (_: Exception) {
+            if (preferences[CORRUPT_BACKUP_KEY] == null) preferences[CORRUPT_BACKUP_KEY] = raw
+            null
         }
     }
 }

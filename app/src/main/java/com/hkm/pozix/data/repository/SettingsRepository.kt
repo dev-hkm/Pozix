@@ -40,6 +40,11 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { preferences ->
             preferences[LANGUAGE_KEY] = languageCode
         }
+        // attachBaseContext must be synchronous and never block on DataStore.
+        context.getSharedPreferences(LOCALE_CACHE_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(CACHED_LANGUAGE_KEY, languageCode)
+            .apply()
     }
     
     fun getLanguage(): Flow<String> {
@@ -114,4 +119,9 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setCodeHighlight(enabled: Boolean) = context.settingsDataStore.edit { it[CODE_HIGHLIGHT_KEY] = enabled }
     fun getCodeHighlight(): Flow<Boolean> = context.settingsDataStore.data.map { it[CODE_HIGHLIGHT_KEY] ?: true }
+
+    companion object {
+        const val LOCALE_CACHE_NAME = "pozix_locale_cache"
+        const val CACHED_LANGUAGE_KEY = "language"
+    }
 }

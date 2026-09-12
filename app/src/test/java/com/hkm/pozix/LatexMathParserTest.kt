@@ -33,6 +33,19 @@ class LatexMathParserTest {
     }
 
     @Test
+    fun inlineDollarTextDoesNotTreatCurrencyAsMath() {
+        val parsed = LatexMathParser.parseToAnnotatedString("Price is $10 and $5 today.")
+        assertEquals("Price is $10 and $5 today.", parsed.text)
+    }
+
+    @Test
+    fun unwrappedLatexDoesNotConsumeFollowingSentence() {
+        val parsed = LatexMathParser.parseToAnnotatedString("Use \\frac{1}{2}. Then continue reading.")
+        assertTrue(parsed.text.contains("½"))
+        assertTrue(parsed.text.contains("Then continue reading."))
+    }
+
+    @Test
     fun testRootsAndGreekLetters() {
         val sqrt = LatexMathParser.formatMathString("\\sqrt{\\Delta}")
         assertEquals("√Δ", sqrt)

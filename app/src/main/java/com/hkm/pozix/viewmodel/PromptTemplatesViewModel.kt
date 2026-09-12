@@ -1,6 +1,7 @@
 package com.hkm.pozix.viewmodel
 
 import android.app.Application
+import com.hkm.pozix.R
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hkm.pozix.data.repository.SettingsRepository
@@ -160,7 +161,7 @@ Requirements:
         return listOf(
             PromptItem(
                 id = "general_trivia",
-                title = "General Trivia",
+                title = getApplication<Application>().getString(R.string.prompt_general_trivia),
                 content = """
 Generate a general trivia quiz in JSON format. Return ONLY valid JSON without markdown fences or any commentary.
 
@@ -197,7 +198,7 @@ Requirements:
             ),
             PromptItem(
                 id = "riddles",
-                title = "Riddles & Logic",
+                title = getApplication<Application>().getString(R.string.prompt_riddles),
                 content = """
 Generate a riddles and logic puzzle quiz in JSON format. Return ONLY valid JSON without markdown fences or any commentary.
 
@@ -227,7 +228,7 @@ Requirements:
             ),
             PromptItem(
                 id = "school",
-                title = "School Knowledge",
+                title = getApplication<Application>().getString(R.string.prompt_school),
                 content = """
 Generate a school knowledge quiz in JSON format. Return ONLY valid JSON without markdown fences or any commentary.
 
@@ -263,7 +264,7 @@ Requirements:
             ),
             PromptItem(
                 id = "fun_mixed",
-                title = "Fun Mixed Quiz",
+                title = getApplication<Application>().getString(R.string.prompt_fun_mixed),
                 content = """
 Generate a fun mixed quiz in JSON format. Return ONLY valid JSON without markdown fences or any commentary.
 
@@ -299,7 +300,7 @@ Requirements:
             ),
             PromptItem(
                 id = "true_false",
-                title = "True/False Focused",
+                title = getApplication<Application>().getString(R.string.prompt_true_false),
                 content = """
 Generate a true/false focused quiz in JSON format. Return ONLY valid JSON without markdown fences or any commentary.
 
@@ -333,7 +334,7 @@ Requirements:
         return listOf(
             PromptItem(
                 id = "general_trivia",
-                title = "Kiến thức tổng hợp",
+                title = getApplication<Application>().getString(R.string.prompt_general_trivia),
                 content = """
 Tạo một bộ quiz kiến thức tổng hợp ở định dạng JSON. Chỉ trả về JSON hợp lệ, không có markdown fences hay bình luận.
 
@@ -370,7 +371,7 @@ Yêu cầu:
             ),
             PromptItem(
                 id = "riddles",
-                title = "Câu đố & Logic",
+                title = getApplication<Application>().getString(R.string.prompt_riddles),
                 content = """
 Tạo một bộ quiz câu đố và logic ở định dạng JSON. Chỉ trả về JSON hợp lệ, không có markdown fences hay bình luận.
 
@@ -400,7 +401,7 @@ Yêu cầu:
             ),
             PromptItem(
                 id = "school",
-                title = "Kiến thức học đường",
+                title = getApplication<Application>().getString(R.string.prompt_school),
                 content = """
 Tạo một bộ quiz kiến thức học đường ở định dạng JSON. Chỉ trả về JSON hợp lệ, không có markdown fences hay bình luận.
 
@@ -436,7 +437,7 @@ Yêu cầu:
             ),
             PromptItem(
                 id = "fun_mixed",
-                title = "Quiz vui nhộn",
+                title = getApplication<Application>().getString(R.string.prompt_fun_mixed),
                 content = """
 Tạo một bộ quiz vui nhộn đa dạng ở định dạng JSON. Chỉ trả về JSON hợp lệ, không có markdown fences hay bình luận.
 
@@ -472,7 +473,7 @@ Yêu cầu:
             ),
             PromptItem(
                 id = "true_false",
-                title = "Tập trung Đúng/Sai",
+                title = getApplication<Application>().getString(R.string.prompt_true_false),
                 content = """
 Tạo một bộ quiz tập trung vào Đúng/Sai ở định dạng JSON. Chỉ trả về JSON hợp lệ, không có markdown fences hay bình luận.
 

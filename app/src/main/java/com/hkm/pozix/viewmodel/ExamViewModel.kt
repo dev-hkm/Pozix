@@ -250,7 +250,6 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
                     isTimeWarning = newRemaining <= 60_000
                 )
                 _examState.value = updated
-                persist(updated)
             }
         }
     }

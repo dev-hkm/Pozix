@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import worker from "../src/index";
+import type { Env } from "../src/index";
 
 describe("worker routes", () => {
   it("reports healthy only when D1 is reachable", async () => {
@@ -8,8 +9,8 @@ describe("worker routes", () => {
         prepare: () => ({ first: async () => ({ ok: 1 }) })
       }
     } as unknown as Env;
-    const response = await worker.fetch(
-      new Request("https://worker.test/health"),
+    const response = await worker.fetch!(
+      new Request("https://worker.test/health") as any,
       env,
       {} as ExecutionContext
     );
@@ -23,8 +24,8 @@ describe("worker routes", () => {
         prepare: () => ({ first: async () => { throw new Error("D1 unavailable"); } })
       }
     } as unknown as Env;
-    const response = await worker.fetch(
-      new Request("https://worker.test/health"),
+    const response = await worker.fetch!(
+      new Request("https://worker.test/health") as any,
       env,
       {} as ExecutionContext
     );

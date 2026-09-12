@@ -7,6 +7,9 @@
     <string name="ai_review_card_correct">%1$d câu đúng</string>
     <string name="ai_review_card_questions">%1$d câu hỏi</string>
     <string name="ai_review_card_unanswered">%1$d câu chưa trả lời</string>
+    <string name="ai_review_card_send">Gửi kết quả cho AI</string>
+    <string name="ai_review_card_dismiss">Bỏ bản nháp phân tích</string>
+    <string name="ai_new_conversation">Cuộc trò chuyện mới</string>
     <string name="ai_phase_quiz_receiving">Đang nhận dữ liệu quiz từ AI…</string>
     <string name="ai_phase_quiz_validating">Đang kiểm tra cấu trúc quiz…</string>
     <string name="ai_phase_quiz_repairing">Đang yêu cầu AI hoàn thiện phản hồi…</string>
@@ -112,7 +115,7 @@
     <string name="import_file_empty">Tệp đã chọn trống</string>
     <string name="import_file_open_failed">Không thể mở tệp đã chọn</string>
     <string name="import_file_read_error">Lỗi đọc tệp: %s</string>
-    <string name="import_file_too_large">Tệp quá lớn (tối đa 5MB)</string>
+    <string name="import_file_too_large">Tệp quá lớn (tối đa 8MB)</string>
     <string name="import_or">hoặc</string>
     <string name="import_source">Nguồn nhập</string>
     <string name="import_smart_paste">Dán &amp; Kiểm tra ngay</string>
@@ -503,6 +506,8 @@
     <string name="ai_chat_prompts_pill">Mẫu đề</string>
     <string name="ai_quiz_ready">Bộ câu hỏi đã sẵn sàng bên dưới.</string>
     <string name="ai_quiz_missing">AI vẫn chưa trả về dữ liệu quiz hợp lệ sau một lần bổ sung. Chưa tạo được quiz. Vui lòng thử lại.</string>
+    <string name="ai_review_missing_feedback">AI chưa trả về phần nhận xét hợp lệ. Vui lòng yêu cầu AI nhận xét lại kết quả.</string>
+    <string name="ai_quiz_tool_disabled">Tính năng tạo quiz đang tắt cho lượt này. Hãy bật công cụ Quiz khi muốn tạo bộ câu hỏi.</string>
     <string name="ai_phase_waiting">Đang chờ mô hình phản hồi…</string>
     <string name="ai_phase_reasoning">Đang nhận nội dung suy luận…</string>
     <string name="ai_phase_responding">Đang nhận câu trả lời…</string>

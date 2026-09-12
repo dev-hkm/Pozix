@@ -15,8 +15,8 @@ object DocumentTextReader {
                 val output = object : java.io.Writer() {
                     val text = StringBuilder()
                     override fun write(chars: CharArray, offset: Int, length: Int) {
-                        require(text.length + length <= MAX_BYTES) { "Document text exceeds 2 MB" }
-                        text.append(chars, offset, length)
+                        val remaining = MAX_BYTES - text.length
+                        if (remaining > 0) text.append(chars, offset, minOf(length, remaining))
                     }
                     override fun flush() {}
                     override fun close() {}
@@ -84,7 +84,7 @@ object DocumentTextReader {
                             "tc", "c", "table-cell" -> append('\t')
                         }
                     }
-                    require(length <= MAX_BYTES) { "Document text exceeds 2 MB" }
+                    if (length >= MAX_BYTES) break
                     parser.nextToken()
                 }
             }.trim()
@@ -96,7 +96,8 @@ object DocumentTextReader {
             bytes.size >= 2 && bytes[0] == 0xfe.toByte() && bytes[1] == 0xff.toByte() -> bytes.toString(Charsets.UTF_16BE)
             else -> bytes.toString(Charsets.UTF_8)
         }.removePrefix("\uFEFF")
-        if (text.count { it == '\uFFFD' || (it.code < 32 && it !in "\n\r\t") } > text.length / 100) return null
+        val invalidCount = text.count { it == '\uFFFD' || (it.code < 32 && it !in "\n\r\t") }
+        if (invalidCount > 0 && (text.length < 64 || invalidCount.toDouble() / text.length > 0.05)) return null
         return (if (name.endsWith(".html", true) || mime.contains("html")) android.text.Html.fromHtml(text, android.text.Html.FROM_HTML_MODE_LEGACY).toString()
             else text).trim().takeIf { it.isNotBlank() }
     }
@@ -106,8 +107,10 @@ object DocumentTextReader {
         while (true) {
             val count = read(buffer)
             if (count < 0) break
-            require(output.size() + count <= MAX_BYTES) { "Document text exceeds 2 MB" }
-            output.write(buffer, 0, count)
+            val remaining = MAX_BYTES - output.size()
+            if (remaining <= 0) break
+            output.write(buffer, 0, minOf(count, remaining))
+            if (count > remaining) break
         }
         return output.toByteArray()
     }

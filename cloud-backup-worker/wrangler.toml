@@ -3,6 +3,9 @@ main = "src/index.ts"
 compatibility_date = "2026-07-15"
 workers_dev = true
 
+[triggers]
+crons = ["0 * * * *"]
+
 # Configure with: npx wrangler secret put SUPADATA_API_KEY
 
 [[d1_databases]]

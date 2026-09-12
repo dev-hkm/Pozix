@@ -10,6 +10,7 @@ import com.hkm.pozix.data.model.SavedQuizSet
 import com.hkm.pozix.data.repository.QuizRepository
 import com.hkm.pozix.data.repository.SavedQuizRepository
 import com.hkm.pozix.util.QuizJsonParser
+import com.hkm.pozix.util.QuizMediaBundleImporter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -107,13 +108,8 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
                         ?: throw java.io.IOException(context.getString(R.string.import_file_open_failed))
                     
                     stream.use { input ->
-                        // Check size limit: 5MB max
-                        val maxBytes = 5 * 1024 * 1024
-                        val bytes = input.readBytes()
-                        if (bytes.size > maxBytes) {
-                            throw IllegalArgumentException(context.getString(R.string.import_file_too_large))
-                        }
-                        val text = bytes.toString(Charsets.UTF_8)
+                        val bytes = QuizMediaBundleImporter.readBounded(input)
+                        val text = QuizMediaBundleImporter.decode(context, bytes, fileName.orEmpty())
                         if (text.isBlank()) {
                             throw IllegalArgumentException(context.getString(R.string.import_file_empty))
                         }

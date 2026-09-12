@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
-import android.app.Activity
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalView
@@ -29,7 +28,9 @@ import com.hkm.pozix.data.repository.SettingsRepository
 import com.hkm.pozix.ui.components.richcontent.LocalCodeHighlight
 import com.hkm.pozix.ui.theme.PozixTheme
 import com.hkm.pozix.util.LocaleHelper
+import com.hkm.pozix.util.QuizMediaBundleImporter
 import com.hkm.pozix.util.SharedImportManager
+import com.hkm.pozix.util.findActivity
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -84,7 +85,7 @@ class MainActivity : ComponentActivity() {
                 val view = LocalView.current
                 if (!view.isInEditMode) {
                     SideEffect {
-                        val window = (view.context as Activity).window
+                        val window = view.context.findActivity()?.window ?: return@SideEffect
                         val insetsController = WindowCompat.getInsetsController(window, view)
                         insetsController.isAppearanceLightStatusBars = !isDark
                         insetsController.isAppearanceLightNavigationBars = !isDark
@@ -175,13 +176,14 @@ class MainActivity : ComponentActivity() {
     private fun readJsonFromUri(uri: Uri) {
         try {
             contentResolver.openInputStream(uri)?.use { stream ->
-                val maxBytes = 5 * 1024 * 1024 // 5MB limit
-                val bytes = stream.readBytes()
-                if (bytes.size <= maxBytes) {
-                    val text = bytes.toString(Charsets.UTF_8)
-                    if (text.isNotBlank()) {
-                        SharedImportManager.pendingJson.value = text
-                    }
+                val bytes = QuizMediaBundleImporter.readBounded(stream)
+                val text = QuizMediaBundleImporter.decode(
+                    applicationContext,
+                    bytes,
+                    uri.lastPathSegment.orEmpty()
+                )
+                if (text.isNotBlank()) {
+                    SharedImportManager.pendingJson.value = text
                 }
             }
         } catch (_: Exception) {}
@@ -194,17 +196,9 @@ class MainActivity : ComponentActivity() {
     }
     
     override fun attachBaseContext(newBase: Context) {
-        val settingsRepo = SettingsRepository(newBase)
-        var languageCode = "en"
-        
-        // Try to get saved language synchronously
-        try {
-            kotlinx.coroutines.runBlocking {
-                languageCode = settingsRepo.getLanguage().first()
-            }
-        } catch (e: Exception) {
-            // Use default
-        }
+        val languageCode = newBase
+            .getSharedPreferences(SettingsRepository.LOCALE_CACHE_NAME, Context.MODE_PRIVATE)
+            .getString(SettingsRepository.CACHED_LANGUAGE_KEY, "en") ?: "en"
         
         val context = LocaleHelper.setLocale(newBase, languageCode)
         super.attachBaseContext(context)

@@ -133,7 +133,7 @@ object QuestionMediaSanitizer {
 
     private fun normalizeCoordinate(value: Float): Float? {
         if (!value.isFinite() || value < -1f || value > 1f) return null
-        return if (value < 0f) (value + 1f) / 2f else value.coerceIn(0f, 1f)
+        return ((value + 1f) / 2f).coerceIn(0f, 1f)
     }
 
     private fun normalizeGeometryPreset(value: String?): String? {

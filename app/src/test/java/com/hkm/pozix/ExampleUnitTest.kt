@@ -36,6 +36,13 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun compressedBackupRoundTripKeepsLegacyFormatReadable() {
+        val value = "x".repeat(20_000)
+        val encrypted = BackupCrypto.encrypt(value, "password123")
+        assertEquals(value, BackupCrypto.decrypt(encrypted, "password123"))
+    }
+
+    @Test
     fun portablePbkdf2MatchesThePlatformImplementation() {
         val password = "portable-password"
         val salt = "pozix-fixed-salt".toByteArray()

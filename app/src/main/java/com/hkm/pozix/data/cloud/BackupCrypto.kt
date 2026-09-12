@@ -2,6 +2,10 @@ package com.hkm.pozix.data.cloud
 
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 import javax.crypto.Cipher
 import javax.crypto.Mac
 import javax.crypto.spec.GCMParameterSpec
@@ -30,7 +34,7 @@ object BackupCrypto {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
             init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))
         }
-        val encrypted = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
+        val encrypted = cipher.doFinal(gzip(plainText.toByteArray(Charsets.UTF_8)))
         return EncryptedBackup(
             verifier = encode(MessageDigest.getInstance("SHA-256").digest(key)),
             salt = encode(salt),
@@ -47,7 +51,12 @@ object BackupCrypto {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
             init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, packed.copyOfRange(0, IV_BYTES)))
         }
-        return cipher.doFinal(packed.copyOfRange(IV_BYTES, packed.size)).toString(Charsets.UTF_8)
+        val decrypted = cipher.doFinal(packed.copyOfRange(IV_BYTES, packed.size))
+        // New backups are compressed; keep old uncompressed backups readable.
+        val plain = if (decrypted.size >= 2 && decrypted[0] == 0x1f.toByte() && decrypted[1] == 0x8b.toByte()) {
+            GZIPInputStream(ByteArrayInputStream(decrypted)).use { it.readBytes() }
+        } else decrypted
+        return plain.toString(Charsets.UTF_8)
     }
 
     fun verifierFor(password: String, saltEncoded: String): String =
@@ -83,5 +92,10 @@ object BackupCrypto {
     private fun decode(value: String): ByteArray {
         val padding = (4 - value.length % 4) % 4
         return Base64.UrlSafe.decode(value + "=".repeat(padding))
+    }
+
+    private fun gzip(value: ByteArray): ByteArray = ByteArrayOutputStream(value.size).use { output ->
+        GZIPOutputStream(output).use { it.write(value) }
+        output.toByteArray()
     }
 }

@@ -146,8 +146,13 @@ object LatexMathParser {
 
                 // Check for inline math $...$
                 if (cleanText[i] == '$' && (i == 0 || cleanText[i - 1] != '\\')) {
+                    val openingNext = cleanText.getOrNull(i + 1)
                     val closeIdx = cleanText.indexOf('$', i + 1)
-                    if (closeIdx != -1 && closeIdx > i + 1) {
+                    val closingPrevious = closeIdx.takeIf { it > i + 1 }?.let { cleanText.getOrNull(it - 1) }
+                    if (openingNext != null && !openingNext.isWhitespace() &&
+                        closeIdx != -1 && closeIdx > i + 1 &&
+                        closingPrevious != null && !closingPrevious.isWhitespace() &&
+                        !cleanText.substring(i + 1, closeIdx).contains('\n')) {
                         val mathContent = cleanText.substring(i + 1, closeIdx)
                         appendMathFormatted(mathContent)
                         i = closeIdx + 1
@@ -327,11 +332,13 @@ object LatexMathParser {
 
                 // Check if current position starts an unescaped LaTeX macro (e.g. \dfrac, \frac, \sqrt, \alpha)
                 if (cleanText[i] == '\\' && i + 1 < len && cleanText[i + 1].isLetter()) {
-                    val segment = cleanText.substring(i)
+                    val end = findLatexMacroEnd(cleanText, i)
+                    val segment = cleanText.substring(i, end)
                     val formatted = formatMathString(segment)
                     if (formatted != segment) {
                         appendMathFormatted(segment)
-                        break
+                        i = end
+                        continue
                     }
                 }
 
@@ -339,6 +346,49 @@ object LatexMathParser {
                 i++
             }
         }
+    }
+
+    /** Finds one macro plus its balanced arguments, leaving following prose intact. */
+    private fun findLatexMacroEnd(text: String, start: Int): Int {
+        var cursor = start + 1
+        while (cursor < text.length && text[cursor].isLetter()) cursor++
+
+        fun consumeBalanced(open: Char, close: Char): Boolean {
+            if (cursor >= text.length || text[cursor] != open) return false
+            var depth = 0
+            while (cursor < text.length) {
+                when (text[cursor]) {
+                    open -> depth++
+                    close -> {
+                        depth--
+                        cursor++
+                        if (depth == 0) return true
+                        continue
+                    }
+                }
+                cursor++
+            }
+            return false
+        }
+
+        while (cursor < text.length && text[cursor].isWhitespace()) cursor++
+        consumeBalanced('[', ']')
+        while (cursor < text.length && text[cursor].isWhitespace()) cursor++
+        while (cursor < text.length && text[cursor] == '{') {
+            if (!consumeBalanced('{', '}')) break
+            while (cursor < text.length && text[cursor].isWhitespace()) cursor++
+        }
+        while (cursor < text.length && (text[cursor] == '^' || text[cursor] == '_')) {
+            cursor++
+            while (cursor < text.length && text[cursor].isWhitespace()) cursor++
+            if (cursor < text.length && text[cursor] == '{') {
+                if (!consumeBalanced('{', '}')) break
+            } else if (cursor < text.length) {
+                cursor++
+            }
+            while (cursor < text.length && text[cursor].isWhitespace()) cursor++
+        }
+        return cursor.coerceAtLeast(start + 2)
     }
 
     /**

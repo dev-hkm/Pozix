@@ -544,8 +544,8 @@ fun MarkdownTableView(
             val availableWidth = maxWidth
             val totalBaseWidth = baseColWidths.fold(0.dp) { acc, w -> acc + w }
             val finalWidths = remember(baseColWidths, availableWidth) {
-                if (totalBaseWidth < availableWidth && totalBaseWidth > 0.dp) {
-                    val scale = availableWidth / totalBaseWidth
+                if (availableWidth.value.isFinite() && totalBaseWidth < availableWidth && totalBaseWidth > 0.dp) {
+                    val scale = (availableWidth / totalBaseWidth).coerceAtMost(3f)
                     baseColWidths.map { it * scale }
                 } else {
                     baseColWidths
