@@ -249,7 +249,7 @@ fun PlayingContent(
     val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val answerContentPadding = PaddingValues(
         top = 4.dp,
-        bottom = 16.dp
+        bottom = if (showBottomActions) 84.dp + navBarBottom else 24.dp + navBarBottom
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -260,7 +260,7 @@ fun PlayingContent(
             Box(modifier = Modifier.fillMaxSize()) {
                 // ZONE A, B, C in Main Full-Height Column (Answers flow underneath floating buttons)
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(bottom = if (showBottomActions) 88.dp + navBarBottom else navBarBottom)
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     // ZONE A: TOP STATS AND PROGRESS
                     TopHeaderBar(

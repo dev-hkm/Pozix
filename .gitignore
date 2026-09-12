@@ -18,3 +18,8 @@ cloud-backup-worker/node_modules/
 cloud-backup-worker/.dev.vars
 HKM Keystore
 release-signing.jks
+.codex-remote-attachments/
+*.apk
+*.aab
+*.keystore
+

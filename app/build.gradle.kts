@@ -16,20 +16,28 @@ android {
         applicationId = "com.hkm.pozix"
         minSdk = 24
         targetSdk = 36
-        versionCode = 21
-        versionName = "1.7.0"
+        versionCode = 22
+        versionName = "1.7.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
         create("release") {
-            val keystoreFile = file("D:/Downloads/Web Projects/HKM Keystore")
-            if (keystoreFile.exists()) {
-                storeFile = keystoreFile
-                storePassword = "khanhminh"
-                keyAlias = "khanhminh"
-                keyPassword = "khanhminh"
+            val localProperties = java.util.Properties()
+            val localPropertiesFile = rootProject.file("local.properties")
+            if (localPropertiesFile.exists()) {
+                localPropertiesFile.inputStream().use { localProperties.load(it) }
+            }
+            val keystorePath = localProperties.getProperty("KEYSTORE_FILE") ?: System.getenv("KEYSTORE_FILE")
+            val storePass = localProperties.getProperty("KEYSTORE_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD")
+            val alias = localProperties.getProperty("KEY_ALIAS") ?: System.getenv("KEY_ALIAS")
+            val keyPass = localProperties.getProperty("KEY_PASSWORD") ?: System.getenv("KEY_PASSWORD")
+            if (keystorePath != null && file(keystorePath).exists() && storePass != null) {
+                storeFile = file(keystorePath)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
             }
         }
     }
