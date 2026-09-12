@@ -549,7 +549,8 @@ fun AIChatScreen(
                 canSendReview = uiState.activeProvider != null && !uiState.isLoading && !uiState.isAttaching,
                 onSendReview = {
                     pendingReviewText?.let { review ->
-                        viewModel.sendQuizReview(review, reasoningEffort)
+                        viewModel.sendQuizReview(review, reasoningEffort, textInput)
+                        textInput = ""
                     }
                 },
                 onDismissReview = { com.hkm.pozix.util.QuizAiFollowUp.clear(context) },
@@ -593,7 +594,9 @@ fun AIChatScreen(
                         } else {
                             textInput.trim()
                         }
-                        viewModel.sendMessage(promptText, reasoningEffort)
+                        val review = pendingReviewText
+                        if (review != null) viewModel.sendQuizReview(review, reasoningEffort, promptText)
+                        else viewModel.sendMessage(promptText, reasoningEffort)
                         textInput = ""
                         keyboardController?.hide()
                         showAttachmentTray = false

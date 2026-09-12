@@ -363,11 +363,12 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         return true
     }
 
-    fun sendQuizReview(reviewJson: String, reasoningEffort: String? = null) {
+    fun sendQuizReview(reviewJson: String, reasoningEffort: String? = null, note: String = "") {
         if (_uiState.value.isLoading || _uiState.value.isAttaching || _uiState.value.activeProvider == null) return
         if (!prepareQuizReview(reviewJson)) return
         sendMessageInternal(
-            text = "Review the completed quiz result attached to this message. Analyze it and do not create a new quiz.",
+            text = "Review the completed quiz result attached to this message. Analyze it and do not create a new quiz." +
+                note.trim().takeIf { it.isNotEmpty() }?.let { "\nAdditional request: $it" }.orEmpty(),
             reasoningEffort = reasoningEffort,
             reviewJson = reviewJson
         )
