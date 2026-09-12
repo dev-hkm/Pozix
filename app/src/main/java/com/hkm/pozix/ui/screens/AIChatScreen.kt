@@ -826,29 +826,29 @@ fun DeepSeekStyleFloatingInputCard(
         pendingReview != null || pendingAttachments.isNotEmpty()
     val inset by animateDpAsState(
         if (expanded) 8.dp else 44.dp,
-        spring(dampingRatio = 0.72f, stiffness = 380f), label = "composerInset"
+        spring(dampingRatio = 0.78f, stiffness = 190f), label = "composerInset"
     )
     val corner by animateDpAsState(
         if (expanded) 28.dp else 32.dp,
-        spring(dampingRatio = 0.72f, stiffness = 380f), label = "composerCorner"
+        spring(dampingRatio = 0.78f, stiffness = 190f), label = "composerCorner"
     )
     val verticalPadding by animateDpAsState(
         if (expanded) 8.dp else 4.dp,
-        spring(dampingRatio = 0.76f, stiffness = 320f), label = "composerPadding"
+        spring(dampingRatio = 0.78f, stiffness = 190f), label = "composerPadding"
     )
     val elevation by animateDpAsState(
         if (interactiveFocus) 9.dp else 2.dp,
-        spring(dampingRatio = 0.72f, stiffness = 380f), label = "composerElevation"
+        spring(dampingRatio = 0.78f, stiffness = 190f), label = "composerElevation"
     )
     val composerBorder by animateColorAsState(
         if (interactiveFocus) MaterialTheme.colorScheme.primary.copy(alpha = 0.42f)
         else MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDark) 0.35f else 0.5f),
-        tween(220), label = "composerBorder"
+        tween(300), label = "composerBorder"
     )
 
     val plusRotation by animateFloatAsState(
         targetValue = if (showAttachmentTray) 45f else 0f,
-        animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f),
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 220f),
         label = "plusRotation"
     )
 
@@ -1144,8 +1144,8 @@ fun DeepSeekStyleFloatingInputCard(
 
                 AnimatedVisibility(
                     visible = expanded,
-                    enter = expandVertically(spring(dampingRatio = 0.86f, stiffness = 420f)) + fadeIn(tween(160)),
-                    exit = shrinkVertically(spring(dampingRatio = 0.86f, stiffness = 420f)) + fadeOut(tween(100))
+                    enter = expandVertically(spring(dampingRatio = 0.82f, stiffness = 190f)) + fadeIn(tween(260)),
+                    exit = shrinkVertically(spring(dampingRatio = 0.82f, stiffness = 190f)) + fadeOut(tween(220))
                 ) {
                 // 3. DeepSeek Signature Bottom Control Bar:
                 // [ 🧠 Think ]  [ 📋 Prompts ]   ...   [ (+) ]  [ (↑) / (■) ]
@@ -1259,8 +1259,8 @@ fun DeepSeekStyleFloatingInputCard(
                 // 4. DeepSeek Expandable Attachment Tray (Inline, expands with spring)
                 AnimatedVisibility(
                     visible = showAttachmentTray,
-                    enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(200)),
-                    exit = shrinkVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) + fadeOut(tween(150))
+                    enter = expandVertically(spring(dampingRatio = 0.82f, stiffness = 190f)) + fadeIn(tween(260)),
+                    exit = shrinkVertically(spring(dampingRatio = 0.82f, stiffness = 190f)) + fadeOut(tween(220))
                 ) {
                     Column(
                         modifier = Modifier
