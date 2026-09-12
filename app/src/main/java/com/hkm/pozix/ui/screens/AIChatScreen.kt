@@ -789,6 +789,7 @@ fun AIChatScreen(
  * Multi-layer container with auto-expanding input, Think toggle pill, Prompts pill,
  * plus button with rotating morph animation, and smooth expandable media tray.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DeepSeekStyleFloatingInputCard(
     modifier: Modifier = Modifier,
@@ -818,26 +819,26 @@ fun DeepSeekStyleFloatingInputCard(
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val canSend = (textInput.isNotBlank() || pendingAttachments.isNotEmpty()) && !isLoading
     var inputFocused by remember { mutableStateOf(false) }
-    // Focus can remain on BasicTextField after the IME is dismissed. Drive the
-    // visual "hover/expanded" state from the real IME inset, not focus alone.
-    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    val interactiveFocus = inputFocused && imeVisible
-    val expanded = interactiveFocus || showAttachmentTray || isAttaching || pendingReview != null
+    // The target inset changes at IME animation start, unlike the current inset.
+    val imeTargetVisible = WindowInsets.imeAnimationTarget.getBottom(LocalDensity.current) > 0
+    val interactiveFocus = inputFocused && imeTargetVisible
+    val expanded = interactiveFocus || showAttachmentTray || isAttaching ||
+        pendingReview != null || pendingAttachments.isNotEmpty()
     val inset by animateDpAsState(
-        if (expanded) 8.dp else 26.dp,
-        spring(dampingRatio = 0.72f, stiffness = 300f), label = "composerInset"
+        if (expanded) 8.dp else 44.dp,
+        spring(dampingRatio = 0.72f, stiffness = 380f), label = "composerInset"
     )
     val corner by animateDpAsState(
-        if (expanded) 24.dp else 34.dp,
-        spring(dampingRatio = 0.72f, stiffness = 300f), label = "composerCorner"
+        if (expanded) 28.dp else 32.dp,
+        spring(dampingRatio = 0.72f, stiffness = 380f), label = "composerCorner"
     )
     val verticalPadding by animateDpAsState(
-        if (expanded) 16.dp else 8.dp,
+        if (expanded) 8.dp else 4.dp,
         spring(dampingRatio = 0.76f, stiffness = 320f), label = "composerPadding"
     )
     val elevation by animateDpAsState(
         if (interactiveFocus) 9.dp else 2.dp,
-        spring(dampingRatio = 0.72f, stiffness = 300f), label = "composerElevation"
+        spring(dampingRatio = 0.72f, stiffness = 380f), label = "composerElevation"
     )
     val composerBorder by animateColorAsState(
         if (interactiveFocus) MaterialTheme.colorScheme.primary.copy(alpha = 0.42f)
@@ -847,10 +848,15 @@ fun DeepSeekStyleFloatingInputCard(
 
     val plusRotation by animateFloatAsState(
         targetValue = if (showAttachmentTray) 45f else 0f,
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow),
+        animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f),
         label = "plusRotation"
     )
 
+    val plusContainer by animateColorAsState(
+        if (showAttachmentTray) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+        tween(180), label = "attachmentButtonColor"
+    )
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -873,7 +879,7 @@ fun DeepSeekStyleFloatingInputCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = verticalPadding)
+                    .padding(horizontal = 10.dp, vertical = verticalPadding)
             ) {
                 val reviewPayload = remember(pendingReview) {
                     pendingReview?.let(com.hkm.pozix.util.QuizAiFollowUp::decode)
@@ -1004,10 +1010,15 @@ fun DeepSeekStyleFloatingInputCard(
                     }
                 }
 
-                // 2. Main Borderless Text Field
+                // Keep the same field and actions mounted through every morph.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .weight(1f)
                         .animateContentSize(
                             animationSpec = spring(dampingRatio = 1f, stiffness = 500f),
                             alignment = Alignment.BottomStart
@@ -1039,7 +1050,7 @@ fun DeepSeekStyleFloatingInputCard(
                             color = MaterialTheme.colorScheme.onSurface
                         ),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        maxLines = 6,
+                        maxLines = if (expanded) 6 else 1,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Sentences,
                             autoCorrectEnabled = true,
@@ -1049,12 +1060,97 @@ fun DeepSeekStyleFloatingInputCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                    // Right Side: (+) Button and Send/Stop Button
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // DeepSeek Circular (+) Expand / Rotate Button
+                        Surface(
+                            onClick = onToggleAttachmentTray,
+                            shape = CircleShape,
+                            color = plusContainer,
+                            border = BorderStroke(
+                                width = 0.8.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = stringResource(R.string.ai_chat_attach_title),
+                                    tint = if (showAttachmentTray) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .graphicsLayer { rotationZ = plusRotation }
+                                )
+                            }
+                        }
 
+                        // Send / Stop Button with smooth morphing
+                        AnimatedContent(
+                            targetState = isLoading,
+                            transitionSpec = {
+                                (scaleIn(spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(150))) togetherWith
+                                (scaleOut(tween(120)) + fadeOut(tween(120)))
+                            },
+                            label = "sendStopMorph"
+                        ) { loading ->
+                            if (loading) {
+                                Surface(
+                                    onClick = onCancelGeneration,
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Stop,
+                                            contentDescription = stringResource(R.string.ai_chat_stop),
+                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                    }
+                                }
+                            } else {
+                                Surface(
+                                    onClick = {
+                                        if (canSend) {
+                                            onSend()
+                                        }
+                                    },
+                                    enabled = canSend,
+                                    shape = CircleShape,
+                                    color = if (canSend) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowUpward,
+                                            contentDescription = stringResource(R.string.ai_chat_send),
+                                            tint = if (canSend) MaterialTheme.colorScheme.onPrimary
+                                                   else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = expandVertically(spring(dampingRatio = 0.86f, stiffness = 420f)) + fadeIn(tween(160)),
+                    exit = shrinkVertically(spring(dampingRatio = 0.86f, stiffness = 420f)) + fadeOut(tween(100))
+                ) {
                 // 3. DeepSeek Signature Bottom Control Bar:
                 // [ 🧠 Think ]  [ 📋 Prompts ]   ...   [ (+) ]  [ (↑) / (■) ]
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -1156,89 +1252,10 @@ fun DeepSeekStyleFloatingInputCard(
                         }
                     }
 
-                    // Right Side: (+) Button and Send/Stop Button
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // DeepSeek Circular (+) Expand / Rotate Button
-                        Surface(
-                            onClick = onToggleAttachmentTray,
-                            shape = CircleShape,
-                            color = if (showAttachmentTray) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
-                            border = BorderStroke(
-                                width = 0.8.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                            ),
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = stringResource(R.string.ai_chat_attach_title),
-                                    tint = if (showAttachmentTray) MaterialTheme.colorScheme.primary
-                                           else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .graphicsLayer { rotationZ = plusRotation }
-                                )
-                            }
-                        }
 
-                        // Send / Stop Button with smooth morphing
-                        AnimatedContent(
-                            targetState = isLoading,
-                            transitionSpec = {
-                                (scaleIn(spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(150))) togetherWith
-                                (scaleOut(tween(120)) + fadeOut(tween(120)))
-                            },
-                            label = "sendStopMorph"
-                        ) { loading ->
-                            if (loading) {
-                                Surface(
-                                    onClick = onCancelGeneration,
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.errorContainer,
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Stop,
-                                            contentDescription = stringResource(R.string.ai_chat_stop),
-                                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                                            modifier = Modifier.size(17.dp)
-                                        )
-                                    }
-                                }
-                            } else {
-                                Surface(
-                                    onClick = {
-                                        if (canSend) {
-                                            onSend()
-                                        }
-                                    },
-                                    enabled = canSend,
-                                    shape = CircleShape,
-                                    color = if (canSend) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.ArrowUpward,
-                                            contentDescription = stringResource(R.string.ai_chat_send),
-                                            tint = if (canSend) MaterialTheme.colorScheme.onPrimary
-                                                   else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
 
+                }
                 // 4. DeepSeek Expandable Attachment Tray (Inline, expands with spring)
                 AnimatedVisibility(
                     visible = showAttachmentTray,
@@ -1257,28 +1274,31 @@ fun DeepSeekStyleFloatingInputCard(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             // Camera tile
                             DeepSeekActionTile(
                                 icon = Icons.Default.CameraAlt,
                                 label = stringResource(R.string.ai_chat_camera),
-                                onClick = onTakePhoto
+                                onClick = onTakePhoto,
+                                modifier = Modifier.weight(1f)
                             )
 
                             // Photos tile
                             DeepSeekActionTile(
                                 icon = Icons.Default.PhotoLibrary,
                                 label = stringResource(R.string.ai_chat_photos),
-                                onClick = onPickGallery
+                                onClick = onPickGallery,
+                                modifier = Modifier.weight(1f)
                             )
 
                             // Documents tile
                             DeepSeekActionTile(
                                 icon = Icons.Default.FolderOpen,
                                 label = stringResource(R.string.ai_chat_documents),
-                                onClick = onPickDocument
+                                onClick = onPickDocument,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -1292,16 +1312,15 @@ fun DeepSeekStyleFloatingInputCard(
 private fun DeepSeekActionTile(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
         border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-        modifier = Modifier
-            .widthIn(min = 90.dp)
-            .height(70.dp)
+        modifier = modifier.height(76.dp)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -1318,6 +1337,8 @@ private fun DeepSeekActionTile(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
