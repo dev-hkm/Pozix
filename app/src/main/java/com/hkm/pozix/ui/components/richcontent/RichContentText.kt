@@ -471,11 +471,12 @@ internal fun parseContentBlocks(input: String): List<ContentBlock> {
                     }
                     currentIndex = mathEnd + mathDelimiterLen
                 } else {
-                    // Unclosed math block
-                    val math = input.substring(mathStart + mathDelimiterLen).trim()
-                    if (math.isNotEmpty()) {
-                        blocks.add(ContentBlock.MathDisplay(latex = math))
-                    }
+                    // An incomplete response must stay readable text. Sending an
+                    // unclosed delimiter to KaTeX makes the parser swallow every
+                    // later character (including a transport error) into one huge
+                    // formula and can produce the clipped line seen in chat.
+                    val remaining = input.substring(mathStart).trim()
+                    if (remaining.isNotEmpty()) blocks.addAll(parseMarkdownText(remaining))
                     break
                 }
             }

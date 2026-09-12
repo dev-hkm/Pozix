@@ -1,4 +1,16 @@
 <resources>
+    <string name="ai_review_results">Review results with AI</string>
+    <string name="ai_review_card_title">Quiz review request</string>
+    <string name="ai_review_card_sent">Sent to AI</string>
+    <string name="ai_review_card_score">Score %1$d/%2$d</string>
+    <string name="ai_review_card_correct">%1$d correct</string>
+    <string name="ai_review_card_questions">%1$d questions</string>
+    <string name="ai_review_card_unanswered">%1$d unanswered</string>
+    <string name="ai_phase_quiz_receiving">Receiving quiz data from AI…</string>
+    <string name="ai_phase_quiz_validating">Checking quiz structure…</string>
+    <string name="ai_phase_quiz_repairing">Requesting a complete quiz response…</string>
+    <string name="ai_phase_quiz_saving">Preparing your quiz card…</string>
+    <string name="ai_document_unreadable">Could not extract readable text. The file may be scanned, encrypted, binary, or too large. Export a text-based PDF, DOCX, XLSX, PPTX, or text file. Nothing was sent.</string>
     <string name="app_name">Pozix</string>
     
     <!-- Bottom Navigation -->
@@ -102,6 +114,15 @@
     <string name="import_file_too_large">File is too large (maximum 5MB)</string>
     <string name="import_or">or</string>
     <string name="import_source">Import Source</string>
+    <string name="import_smart_paste">Smart Paste &amp; Validate</string>
+    <string name="import_format_json">Format</string>
+    <string name="import_copy_json">Copy</string>
+    <string name="import_copied_toast">JSON copied to clipboard</string>
+    <string name="import_format_success">JSON formatted</string>
+    <string name="import_format_failed">Cannot format: Invalid JSON</string>
+    <string name="import_play_now">Play Now</string>
+    <string name="import_save_library">Save to Library</string>
+    <string name="import_editor_stats">%1$d lines · %2$d chars</string>
         <string name="settings_appearance_section">Appearance</string>
     <string name="settings_theme">Theme Mode</string>
     <string name="settings_theme_system">System</string>
@@ -399,6 +420,8 @@
     <string name="ai_reasoning_custom_desc">Specify custom token budget or effort level</string>
     <string name="ai_reasoning_custom_hint">e.g. 4096 or x-high</string>
     <string name="ai_reasoning_pill_format">Think: %1$s</string>
+    <string name="ai_provider_search_models">Search models…</string>
+    <string name="ai_provider_no_models_found">No matching models found</string>
     
     <!-- Home screen Banner -->
     <string name="home_ai_chat_banner_title">AI Quiz Generator</string>
@@ -485,7 +508,17 @@
     <string name="ai_phase_validating">Checking quiz data…</string>
     <string name="ai_phase_repairing">Requesting missing quiz data…</string>
     <string name="ai_phase_saving">Saving conversation…</string>
+    <string name="ai_phase_youtube_fetching">Fetching native YouTube captions…</string>
+    <string name="ai_phase_youtube_preparing">Preparing timestamped quiz evidence…</string>
     <string name="ai_history_save_failed">Could not save this conversation: </string>
+    <string name="youtube_default_prompt">Create a 10-question quiz from the supplied YouTube transcript. Use only facts supported by the transcript and include concise explanations.</string>
+    <string name="youtube_invalid_link">That YouTube link is not a supported single video link.</string>
+    <string name="youtube_no_transcript">This video has no readable native captions. Paste its transcript or try another video.</string>
+    <string name="youtube_rate_limited">The transcript service is temporarily rate-limited. Please try again later.</string>
+    <string name="youtube_provider_unavailable">The YouTube transcript service is not configured or is temporarily unavailable.</string>
+    <string name="youtube_transcript_too_large">This transcript is too large for a stable quiz request. Try a shorter video.</string>
+    <string name="youtube_storage_error">Pozix could not save the transcript safely on this device.</string>
+    <string name="youtube_fetch_failed">Pozix could not fetch a reliable transcript from this video.</string>
     <string name="quiz_previous_review">Previous</string>
     <string name="quiz_review_read_only">Answered · Read only</string>
     <string name="quiz_grid_view">Grid view</string>

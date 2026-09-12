@@ -114,6 +114,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.Question
+import com.hkm.pozix.ui.components.media.QuestionMediaContent
 import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.viewmodel.ExamConfig
 import com.hkm.pozix.viewmodel.ExamState
@@ -659,6 +660,13 @@ fun ExamPlayingContent(
                                 lineHeight = 25.sp,
                                 modifier = Modifier.fillMaxWidth()
                             )
+                            if (question.media.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                QuestionMediaContent(
+                                    media = question.media,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
                     }
 

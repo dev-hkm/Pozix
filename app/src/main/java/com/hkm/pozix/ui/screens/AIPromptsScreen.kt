@@ -38,10 +38,17 @@ fun AIPromptsScreen(
     AnimatedContent(
         targetState = selectedTab,
         transitionSpec = {
+            val enterSpec = androidx.compose.animation.core.spring<androidx.compose.ui.unit.IntOffset>(
+                dampingRatio = 0.84f,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+            )
+            val fadeSpec = androidx.compose.animation.core.tween<Float>(280)
             if (targetState > initialState) {
-                slideInHorizontally { it / 3 } + fadeIn() togetherWith slideOutHorizontally { -it / 3 } + fadeOut()
+                (slideInHorizontally(enterSpec) { it / 3 } + fadeIn(fadeSpec))
+                    .togetherWith(slideOutHorizontally(enterSpec) { -it / 3 } + fadeOut(fadeSpec))
             } else {
-                slideInHorizontally { -it / 3 } + fadeIn() togetherWith slideOutHorizontally { it / 3 } + fadeOut()
+                (slideInHorizontally(enterSpec) { -it / 3 } + fadeIn(fadeSpec))
+                    .togetherWith(slideOutHorizontally(enterSpec) { it / 3 } + fadeOut(fadeSpec))
             }
         },
         label = "AIPromptsTransition",

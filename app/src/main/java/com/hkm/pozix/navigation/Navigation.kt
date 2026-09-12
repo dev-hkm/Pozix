@@ -124,6 +124,9 @@ fun PozixNavigation(
                         popUpTo(Screen.Library.route) { inclusive = false }
                         launchSingleTop = true
                     }
+                },
+                onPlayQuiz = {
+                    navController.navigate(Screen.QuizPlayer.route)
                 }
             )
         }

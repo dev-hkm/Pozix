@@ -1,6 +1,7 @@
 package com.hkm.pozix
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -21,6 +22,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +32,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.hkm.pozix.navigation.PozixNavigation
 import com.hkm.pozix.navigation.Screen
+import com.hkm.pozix.util.SharedImportManager
+import androidx.compose.animation.core.FastOutSlowInEasing
 import com.hkm.pozix.ui.components.BottomNavBar
 
 @Composable
@@ -40,6 +45,24 @@ fun PozixApp(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Library.route
     val isKeyboardOpen = WindowInsets.isImeVisible
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val reviewDraft by com.hkm.pozix.util.QuizAiFollowUp.pending.collectAsState()
+    LaunchedEffect(Unit) { com.hkm.pozix.util.QuizAiFollowUp.restore(context) }
+    LaunchedEffect(reviewDraft) {
+        if (reviewDraft != null && currentRoute != Screen.AIChat.route) {
+            navController.navigate(Screen.AIChat.route) { launchSingleTop = true }
+        }
+    }
+
+    val pendingExternalJson by SharedImportManager.pendingJson.collectAsState()
+    LaunchedEffect(pendingExternalJson) {
+        if (!pendingExternalJson.isNullOrBlank()) {
+            navController.navigate(Screen.Import.route) {
+                popUpTo(Screen.Library.route) { inclusive = false }
+                launchSingleTop = true
+            }
+        }
+    }
 
     // Hide bottom navigation completely when in AI Chat, Quiz/Exam player, or when typing
     val showBottomBar = currentRoute !in setOf(
@@ -61,19 +84,19 @@ fun PozixApp(
 
         AnimatedVisibility(
             visible = showBottomBar,
-            enter = fadeIn(tween(220)) + slideInVertically(
-                animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f),
+            enter = fadeIn(tween(180)) + slideInVertically(
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
+                    stiffness = Spring.StiffnessMediumLow
+                ),
                 initialOffsetY = { it }
-            ) + scaleIn(
-                initialScale = 0.85f,
-                animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f)
             ),
-            exit = fadeOut(tween(160)) + slideOutVertically(
-                animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f),
+            exit = fadeOut(tween(140)) + slideOutVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMedium
+                ),
                 targetOffsetY = { it }
-            ) + scaleOut(
-                targetScale = 0.85f,
-                animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f)
             ),
             modifier = Modifier
                 .align(Alignment.BottomCenter)

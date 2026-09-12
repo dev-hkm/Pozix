@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -16,6 +17,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -60,6 +63,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.SentimentDissatisfied
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
@@ -67,6 +71,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -103,6 +108,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.Question
+import com.hkm.pozix.ui.components.media.QuestionMediaContent
 import com.hkm.pozix.ui.components.QuizResultDialog
 import com.hkm.pozix.ui.components.richcontent.RichContentText
 import com.hkm.pozix.util.HapticUtil
@@ -173,7 +179,7 @@ fun QuizPlayerScreen(
                     },
                     onNext = {
                         viewModel.nextQuestion()
-                        HapticUtil.veryLightTap(context)
+                        HapticUtil.selectionTick(context)
                     },
                     onPrevious = {
                         viewModel.previousQuestion()
@@ -184,6 +190,11 @@ fun QuizPlayerScreen(
             
             is QuizState.Finished -> {
                 QuizResultDialog(
+                    onReviewWithAi = {
+                        HapticUtil.lightTap(context)
+                        com.hkm.pozix.util.QuizAiFollowUp.queue(context, com.hkm.pozix.util.QuizAiFollowUp.report(
+                            state.quizTitle, state.questions, state.selectedAnswers, state.score, state.elapsedTimeMillis))
+                    },
                     quizTitle = state.quizTitle,
                     score = state.score,
                     totalQuestions = state.totalQuestions,
@@ -234,82 +245,112 @@ fun PlayingContent(
 ) {
     val currentQuestion = state.questions[state.currentQuestionIndex]
     val context = LocalContext.current
+    val showBottomActions = state.isAnswered
+    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val answerContentPadding = PaddingValues(
+        top = 4.dp,
+        bottom = if (showBottomActions) 80.dp + navBarBottom else 24.dp + navBarBottom
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .navigationBarsPadding()
-            ) {
-                // ZONE A: TOP STATS AND PROGRESS
-                TopHeaderBar(
-                    currentQuestionIndex = state.currentQuestionIndex,
-                    totalQuestions = state.questions.size,
-                    score = state.score,
-                    elapsedTimeMillis = state.elapsedTimeMillis,
-                    onClose = onNavigateBack
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                SmoothProgressBar(
-                    currentQuestionIndex = state.currentQuestionIndex,
-                    totalQuestions = state.questions.size
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                // ZONE B: QUESTION CARD (Adaptive height)
-                AdaptiveQuestionCard(
-                    questionNumber = state.currentQuestionIndex + 1,
-                    questionText = currentQuestion.question,
-                    readOnly = state.isAnswered
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                // ZONE C: ANSWER AREA (Adaptive layout)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 16.dp)
+            Box(modifier = Modifier.fillMaxSize()) {
+                // ZONE A, B, C in Main Full-Height Column (Answers flow underneath floating buttons)
+                Column(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    when (currentQuestion) {
-                        is Question.SingleChoice -> {
-                            SmartAnswerLayout(
-                                options = currentQuestion.options,
-                                selectedIndex = state.selectedAnswerIndex,
-                                isAnswered = state.isAnswered,
-                                correctIndex = currentQuestion.correctIndex,
-                                onSelectAnswer = onSelectAnswer,
-                                explanation = currentQuestion.explanation,
-                                showExplanation = state.showExplanation
-                            )
-                        }
-                        is Question.TrueFalse -> {
-                            SmartAnswerLayout(
-                                options = listOf(
-                                    stringResource(R.string.quiz_true),
-                                    stringResource(R.string.quiz_false)
-                                ),
-                                selectedIndex = state.selectedAnswerIndex,
-                                isAnswered = state.isAnswered,
-                                correctIndex = if (currentQuestion.correctAnswer) 0 else 1,
-                                onSelectAnswer = onSelectAnswer,
-                                explanation = currentQuestion.explanation,
-                                showExplanation = state.showExplanation
-                            )
+                    // ZONE A: TOP STATS AND PROGRESS
+                    TopHeaderBar(
+                        currentQuestionIndex = state.currentQuestionIndex,
+                        totalQuestions = state.questions.size,
+                        score = state.score,
+                        elapsedTimeMillis = state.elapsedTimeMillis,
+                        onClose = onNavigateBack
+                    )
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    SmoothProgressBar(
+                        currentQuestionIndex = state.currentQuestionIndex,
+                        totalQuestions = state.questions.size
+                    )
+                    
+                    Spacer(modifier = Modifier.height(10.dp))
+                    
+                    // ZONE B: QUESTION CARD (Adaptive height, crisp & flat)
+                    AdaptiveQuestionCard(
+                        questionNumber = state.currentQuestionIndex + 1,
+                        questionText = currentQuestion.question,
+                        media = currentQuestion.media,
+                        readOnly = state.isAnswered
+                    )
+                    
+                    Spacer(modifier = Modifier.height(10.dp))
+                    
+                    // ZONE C: ANSWER AREA (Adaptive layout - options scroll seamlessly down to bottom)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        when (currentQuestion) {
+                            is Question.SingleChoice -> {
+                                SmartAnswerLayout(
+                                    options = currentQuestion.options,
+                                    selectedIndex = state.selectedAnswerIndex,
+                                    isAnswered = state.isAnswered,
+                                    correctIndex = currentQuestion.correctIndex,
+                                    onSelectAnswer = onSelectAnswer,
+                                    explanation = currentQuestion.explanation,
+                                    showExplanation = state.showExplanation,
+                                    contentPadding = answerContentPadding
+                                )
+                            }
+                            is Question.TrueFalse -> {
+                                SmartAnswerLayout(
+                                    options = listOf(
+                                        stringResource(R.string.quiz_true),
+                                        stringResource(R.string.quiz_false)
+                                    ),
+                                    selectedIndex = state.selectedAnswerIndex,
+                                    isAnswered = state.isAnswered,
+                                    correctIndex = if (currentQuestion.correctAnswer) 0 else 1,
+                                    onSelectAnswer = onSelectAnswer,
+                                    explanation = currentQuestion.explanation,
+                                    showExplanation = state.showExplanation,
+                                    contentPadding = answerContentPadding
+                                )
+                            }
                         }
                     }
                 }
-                
-                // ZONE D: BOTTOM ACTION STACK (after answering)
-                if (state.isAnswered || state.currentQuestionIndex - 1 in state.selectedAnswers) {
+
+                // ZONE D: FLOATING COMPACT ACTION BUTTONS (Floating island over scrolling cards - NO background layer!)
+                AnimatedVisibility(
+                    visible = showBottomActions,
+                    enter = fadeIn(tween(200, easing = FastOutSlowInEasing)) + slideInVertically(
+                        animationSpec = spring(
+                            dampingRatio = 0.78f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        initialOffsetY = { it }
+                    ),
+                    exit = fadeOut(tween(140, easing = FastOutSlowInEasing)) + slideOutVertically(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        targetOffsetY = { it }
+                    ),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
                     BottomActionStack(
                         isLastQuestion = state.currentQuestionIndex == state.questions.size - 1,
                         onNext = onNext,
@@ -317,8 +358,6 @@ fun PlayingContent(
                         canPrevious = state.currentQuestionIndex - 1 in state.selectedAnswers,
                         onPrevious = onPrevious
                     )
-                } else {
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -489,6 +528,7 @@ fun SmoothProgressBar(
 fun AdaptiveQuestionCard(
     questionNumber: Int,
     questionText: String,
+    media: List<com.hkm.pozix.data.model.QuestionMedia> = emptyList(),
     readOnly: Boolean = false
 ) {
     val scrollState = rememberScrollState()
@@ -503,15 +543,19 @@ fun AdaptiveQuestionCard(
             .animateContentSize(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow))
             .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)
         ) {
             // Header Row: Question badge Qx strictly on top - NEVER overlaps question text!
             Row(
@@ -536,66 +580,38 @@ fun AdaptiveQuestionCard(
                         )
                     }
                 }
-                if (readOnly) Text(stringResource(R.string.quiz_review_read_only),
+                if (readOnly) Text(
+                    stringResource(R.string.quiz_review_read_only),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Scrollable Question Content (Math, Code, STEM Text) strictly below the header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 340.dp)
+                    .heightIn(max = 380.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(scrollState)
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 2.dp)
                 ) {
                     RichContentText(
                         text = questionText,
-                        textColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        textColor = MaterialTheme.colorScheme.onSurface,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
                         lineHeight = 25.sp
                     )
-                }
-
-                if (scrollState.canScrollBackward) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(14.dp)
-                            .align(Alignment.TopCenter)
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0f)
-                                    )
-                                )
-                            )
-                    )
-                }
-
-                if (scrollState.canScrollForward) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(18.dp)
-                            .align(Alignment.BottomCenter)
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0f),
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    )
-                                )
-                            )
-                    )
+                    if (media.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        QuestionMediaContent(media = media)
+                    }
                 }
             }
         }
@@ -610,7 +626,8 @@ fun SmartAnswerLayout(
     correctIndex: Int,
     onSelectAnswer: (Int) -> Unit,
     explanation: String? = null,
-    showExplanation: Boolean = true
+    showExplanation: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(vertical = 4.dp)
 ) {
     val count = options.size
     when {
@@ -621,7 +638,8 @@ fun SmartAnswerLayout(
             correctIndex = correctIndex,
             onSelectAnswer = onSelectAnswer,
             explanation = explanation,
-            showExplanation = showExplanation
+            showExplanation = showExplanation,
+            contentPadding = contentPadding
         )
         count in 3..5 -> LargeCardLayout(
             options = options,
@@ -630,7 +648,8 @@ fun SmartAnswerLayout(
             correctIndex = correctIndex,
             onSelectAnswer = onSelectAnswer,
             explanation = explanation,
-            showExplanation = showExplanation
+            showExplanation = showExplanation,
+            contentPadding = contentPadding
         )
         else -> CompactListLayout(
             options = options,
@@ -639,7 +658,8 @@ fun SmartAnswerLayout(
             correctIndex = correctIndex,
             onSelectAnswer = onSelectAnswer,
             explanation = explanation,
-            showExplanation = showExplanation
+            showExplanation = showExplanation,
+            contentPadding = contentPadding
         )
     }
 }
@@ -652,7 +672,8 @@ fun GiantButtonLayout(
     correctIndex: Int,
     onSelectAnswer: (Int) -> Unit,
     explanation: String? = null,
-    showExplanation: Boolean = true
+    showExplanation: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(vertical = 4.dp)
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -660,7 +681,7 @@ fun GiantButtonLayout(
             space = 12.dp,
             alignment = Alignment.CenterVertically
         ),
-        contentPadding = PaddingValues(vertical = 4.dp)
+        contentPadding = contentPadding
     ) {
         items(options.size) { index ->
             AnswerCard(
@@ -686,14 +707,15 @@ fun LargeCardLayout(
     correctIndex: Int,
     onSelectAnswer: (Int) -> Unit,
     explanation: String? = null,
-    showExplanation: Boolean = true
+    showExplanation: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(vertical = 4.dp)
 ) {
     val count = options.size
     val size = if (count <= 3) CardSize.LARGE else CardSize.NORMAL
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(vertical = 4.dp)
+        contentPadding = contentPadding
     ) {
         items(options.size) { index ->
             AnswerCard(
@@ -719,12 +741,13 @@ fun CompactListLayout(
     correctIndex: Int,
     onSelectAnswer: (Int) -> Unit,
     explanation: String? = null,
-    showExplanation: Boolean = true
+    showExplanation: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(vertical = 4.dp)
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
-        contentPadding = PaddingValues(vertical = 4.dp)
+        contentPadding = contentPadding
     ) {
         items(options.size) { index ->
             AnswerCard(
@@ -982,16 +1005,37 @@ fun BottomActionStack(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .wrapContentHeight()
-            .padding(horizontal = 16.dp)
-            .padding(top = 8.dp, bottom = 16.dp),
+            .wrapContentHeight(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (canPrevious) {
-            androidx.compose.material3.OutlinedButton(onClick = onPrevious,
-                modifier = Modifier.weight(1f).heightIn(min = 56.dp), shape = RoundedCornerShape(20.dp)) {
-                Text(stringResource(R.string.quiz_previous_review))
+            OutlinedButton(
+                onClick = onPrevious,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(42.dp),
+                shape = RoundedCornerShape(21.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp, pressedElevation = 1.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.quiz_previous_review),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
             }
         }
         Button(
@@ -999,23 +1043,27 @@ fun BottomActionStack(
             enabled = canNext,
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 56.dp),
+                .height(42.dp),
+            shape = RoundedCornerShape(21.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ),
-            shape = RoundedCornerShape(20.dp)
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 1.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
         ) {
             Text(
                 text = if (isLastQuestion) stringResource(R.string.quiz_see_results)
                 else stringResource(R.string.quiz_next_question),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Icon(
                 imageVector = if (isLastQuestion) Icons.Default.EmojiEvents else Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(16.dp)
             )
         }
     }

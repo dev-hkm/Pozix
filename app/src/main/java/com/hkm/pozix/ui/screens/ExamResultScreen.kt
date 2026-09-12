@@ -277,6 +277,14 @@ fun ExamResultScreen(
             enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 3 }
         ) {
             Column {
+                OutlinedButton(onClick = {
+                    HapticUtil.lightTap(context)
+                    com.hkm.pozix.util.QuizAiFollowUp.queue(context, com.hkm.pozix.util.QuizAiFollowUp.report(
+                        state.quizTitle, state.questions, state.answers, state.correctCount, state.timeUsedMillis))
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.ai_review_results))
+                }
+                Spacer(Modifier.height(12.dp))
                 Button(
             onClick = {
                 HapticUtil.lightTap(context)

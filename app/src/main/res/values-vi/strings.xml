@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="ai_review_results">Phân tích kết quả với AI</string>
+    <string name="ai_review_card_title">Yêu cầu phân tích quiz</string>
+    <string name="ai_review_card_sent">Đã gửi AI</string>
+    <string name="ai_review_card_score">Điểm %1$d/%2$d</string>
+    <string name="ai_review_card_correct">%1$d câu đúng</string>
+    <string name="ai_review_card_questions">%1$d câu hỏi</string>
+    <string name="ai_review_card_unanswered">%1$d câu chưa trả lời</string>
+    <string name="ai_phase_quiz_receiving">Đang nhận dữ liệu quiz từ AI…</string>
+    <string name="ai_phase_quiz_validating">Đang kiểm tra cấu trúc quiz…</string>
+    <string name="ai_phase_quiz_repairing">Đang yêu cầu AI hoàn thiện phản hồi…</string>
+    <string name="ai_phase_quiz_saving">Đang chuẩn bị card quiz…</string>
+    <string name="ai_document_unreadable">Chưa trích được văn bản: file có thể là bản scan, mã hóa, nhị phân hoặc quá lớn. Hãy xuất PDF có chữ, DOCX, XLSX, PPTX hoặc file văn bản. Chưa gửi dữ liệu lên AI.</string>
     <string name="app_name">Pozix</string>
     
     <!-- Bottom Navigation -->
@@ -103,6 +115,15 @@
     <string name="import_file_too_large">Tệp quá lớn (tối đa 5MB)</string>
     <string name="import_or">hoặc</string>
     <string name="import_source">Nguồn nhập</string>
+    <string name="import_smart_paste">Dán &amp; Kiểm tra ngay</string>
+    <string name="import_format_json">Định dạng</string>
+    <string name="import_copy_json">Sao chép</string>
+    <string name="import_copied_toast">Đã sao chép JSON vào bộ nhớ tạm</string>
+    <string name="import_format_success">Đã định dạng JSON chuẩn</string>
+    <string name="import_format_failed">Không thể định dạng: JSON có lỗi cú pháp</string>
+    <string name="import_play_now">Luyện tập ngay</string>
+    <string name="import_save_library">Lưu vào máy</string>
+    <string name="import_editor_stats">%1$d dòng · %2$d ký tự</string>
         <string name="settings_appearance_section">Giao diện &amp; Ngôn ngữ</string>
     <string name="settings_theme">Chế độ giao diện</string>
     <string name="settings_theme_system">Hệ thống</string>
@@ -404,6 +425,8 @@
     <string name="ai_reasoning_custom_desc">Nhập ngân sách token hoặc mức suy luận tùy biến</string>
     <string name="ai_reasoning_custom_hint">Ví dụ: 4096 hoặc x-high</string>
     <string name="ai_reasoning_pill_format">Think: %1$s</string>
+    <string name="ai_provider_search_models">Tìm kiếm mô hình…</string>
+    <string name="ai_provider_no_models_found">Không tìm thấy mô hình phù hợp</string>
     <string name="ai_chat_suggestions_header">Gợi ý câu hỏi</string>
     
     <!-- Common -->
@@ -486,7 +509,17 @@
     <string name="ai_phase_validating">Đang kiểm tra dữ liệu quiz…</string>
     <string name="ai_phase_repairing">Đang yêu cầu bổ sung dữ liệu quiz…</string>
     <string name="ai_phase_saving">Đang lưu cuộc trò chuyện…</string>
+    <string name="ai_phase_youtube_fetching">Đang lấy caption gốc từ YouTube…</string>
+    <string name="ai_phase_youtube_preparing">Đang chuẩn bị dữ liệu quiz kèm timestamp…</string>
     <string name="ai_history_save_failed">Không lưu được cuộc trò chuyện: </string>
+    <string name="youtube_default_prompt">Hãy tạo quiz 10 câu từ transcript YouTube được cung cấp. Chỉ dùng thông tin có trong transcript và giải thích ngắn gọn.</string>
+    <string name="youtube_invalid_link">Liên kết YouTube này không phải link của một video được hỗ trợ.</string>
+    <string name="youtube_no_transcript">Video này không có caption đọc được. Hãy dán transcript hoặc thử video khác.</string>
+    <string name="youtube_rate_limited">Dịch vụ transcript đang bị giới hạn tạm thời. Hãy thử lại sau.</string>
+    <string name="youtube_provider_unavailable">Dịch vụ transcript YouTube chưa được cấu hình hoặc đang tạm thời không khả dụng.</string>
+    <string name="youtube_transcript_too_large">Transcript quá dài cho một request quiz ổn định. Hãy thử video ngắn hơn.</string>
+    <string name="youtube_storage_error">Pozix không thể lưu transcript an toàn trên thiết bị này.</string>
+    <string name="youtube_fetch_failed">Pozix không thể lấy transcript đáng tin cậy từ video này.</string>
     <string name="quiz_previous_review">Câu trước</string>
     <string name="quiz_review_read_only">Đã trả lời · Chỉ xem</string>
     <string name="quiz_grid_view">Dạng lưới</string>

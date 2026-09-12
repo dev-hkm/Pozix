@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
@@ -91,13 +92,14 @@ fun CodeBlockView(
         language.trim().ifBlank { "CODE" }.uppercase()
     }
 
-    // Code editor palette
-    val editorBg = Color(0xFF1E1E2E) // Modern Catppuccin Mocha-inspired dark slate
-    val headerBg = Color(0xFF181825)
-    val lineNumberColor = Color(0xFF6C7086)
-    val codeTextColor = Color(0xFFCDD6F4)
-    val badgeBg = Color(0xFF313244)
-    val badgeText = Color(0xFF89B4FA)
+    // Code editor palette follows the app theme: bright paper-like light mode, rich contrast dark mode.
+    val isDark = isSystemInDarkTheme()
+    val editorBg = if (isDark) Color(0xFF1E1E2E) else MaterialTheme.colorScheme.surfaceContainerHighest
+    val headerBg = if (isDark) Color(0xFF181825) else MaterialTheme.colorScheme.surfaceContainer
+    val lineNumberColor = if (isDark) Color(0xFF6C7086) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+    val codeTextColor = if (isDark) Color(0xFFCDD6F4) else MaterialTheme.colorScheme.onSurface
+    val badgeBg = if (isDark) Color(0xFF313244) else MaterialTheme.colorScheme.primaryContainer
+    val badgeText = if (isDark) Color(0xFF89B4FA) else MaterialTheme.colorScheme.onPrimaryContainer
 
     Surface(
         modifier = modifier
@@ -180,7 +182,7 @@ fun CodeBlockView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)
             ) {
                 // Line numbers gutter
                 Column(horizontalAlignment = Alignment.End) {
@@ -202,7 +204,7 @@ fun CodeBlockView(
                 Column {
                     lines.forEach { line ->
                         Text(
-                            text = highlightCodeLine(line, displayLanguage, highlightEnabled),
+                            text = highlightCodeLine(line, displayLanguage, highlightEnabled, isDark),
                             fontFamily = FontFamily.Monospace,
                             fontSize = 12.sp,
                             lineHeight = 18.sp,
@@ -223,16 +225,25 @@ fun CodeBlockView(
 private fun highlightCodeLine(
     line: String,
     language: String,
-    enabled: Boolean
+    enabled: Boolean,
+    darkMode: Boolean
 ): AnnotatedString {
     if (!enabled) return AnnotatedString(line)
+
+    val commentColor = if (darkMode) Color(0xFF6C7086) else Color(0xFF64748B)
+    val stringColor = if (darkMode) Color(0xFFA6E3A1) else Color(0xFF047857)
+    val tagColor = if (darkMode) Color(0xFF89DCEB) else Color(0xFF0369A1)
+    val attributeColor = if (darkMode) Color(0xFFF9E2AF) else Color(0xFF9A3412)
+    val keywordColor = if (darkMode) Color(0xFFCBA6F7) else Color(0xFF7C3AED)
+    val typeColor = if (darkMode) Color(0xFF89B4FA) else Color(0xFF1D4ED8)
+    val constantColor = if (darkMode) Color(0xFFFAB387) else Color(0xFFC2410C)
 
     val trimmed = line.trimStart()
 
     // 1. Full-line Comments
     if (trimmed.startsWith("//") || trimmed.startsWith("#") || trimmed.startsWith("--") || trimmed.startsWith("<!--")) {
         return buildAnnotatedString {
-            withStyle(SpanStyle(color = Color(0xFF6C7086), fontStyle = FontStyle.Italic)) {
+            withStyle(SpanStyle(color = commentColor, fontStyle = FontStyle.Italic)) {
                 append(line)
             }
         }
@@ -249,7 +260,7 @@ private fun highlightCodeLine(
             if (isHtml && line.startsWith("<!--", i)) {
                 val endIdx = line.indexOf("-->", i + 4)
                 val commentEnd = if (endIdx != -1) endIdx + 3 else len
-                withStyle(SpanStyle(color = Color(0xFF6C7086), fontStyle = FontStyle.Italic)) {
+                withStyle(SpanStyle(color = commentColor, fontStyle = FontStyle.Italic)) {
                     append(line.substring(i, commentEnd))
                 }
                 i = commentEnd
@@ -261,7 +272,7 @@ private fun highlightCodeLine(
                 val quote = line[i]
                 val endIdx = line.indexOf(quote, i + 1)
                 if (endIdx != -1) {
-                    withStyle(SpanStyle(color = Color(0xFFA6E3A1))) { // Soft green
+                    withStyle(SpanStyle(color = stringColor)) {
                         append(line.substring(i, endIdx + 1))
                     }
                     i = endIdx + 1
@@ -271,7 +282,7 @@ private fun highlightCodeLine(
 
             // HTML Tags: <tag_name, </tag_name, >, />
             if (isHtml && line[i] == '<' && i + 1 < len && (line[i + 1].isLetter() || line[i + 1] == '/' || line[i + 1] == '!')) {
-                withStyle(SpanStyle(color = Color(0xFF89DCEB), fontWeight = FontWeight.Bold)) { // Sky blue / cyan
+                withStyle(SpanStyle(color = tagColor, fontWeight = FontWeight.Bold)) {
                     val start = i
                     i++
                     if (i < len && line[i] == '/') i++
@@ -282,7 +293,7 @@ private fun highlightCodeLine(
             }
 
             if (isHtml && line[i] == '>') {
-                withStyle(SpanStyle(color = Color(0xFF89DCEB), fontWeight = FontWeight.Bold)) {
+                withStyle(SpanStyle(color = tagColor, fontWeight = FontWeight.Bold)) {
                     append('>')
                 }
                 i++
@@ -301,22 +312,22 @@ private fun highlightCodeLine(
 
                 when {
                     isAttr -> {
-                        withStyle(SpanStyle(color = Color(0xFFF9E2AF), fontWeight = FontWeight.SemiBold)) { // Yellow/peach attribute
+                        withStyle(SpanStyle(color = attributeColor, fontWeight = FontWeight.SemiBold)) {
                             append(word)
                         }
                     }
                     word in KEYWORDS -> {
-                        withStyle(SpanStyle(color = Color(0xFFCBA6F7), fontWeight = FontWeight.Bold)) { // Mauve/Purple
+                        withStyle(SpanStyle(color = keywordColor, fontWeight = FontWeight.Bold)) {
                             append(word)
                         }
                     }
                     word in TYPES -> {
-                        withStyle(SpanStyle(color = Color(0xFF89B4FA), fontWeight = FontWeight.SemiBold)) { // Blue
+                        withStyle(SpanStyle(color = typeColor, fontWeight = FontWeight.SemiBold)) {
                             append(word)
                         }
                     }
                     word in CONSTANTS -> {
-                        withStyle(SpanStyle(color = Color(0xFFFAB387), fontWeight = FontWeight.Bold)) { // Peach
+                        withStyle(SpanStyle(color = constantColor, fontWeight = FontWeight.Bold)) {
                             append(word)
                         }
                     }
@@ -333,7 +344,7 @@ private fun highlightCodeLine(
                 while (i < len && (line[i].isDigit() || line[i] == '.' || line[i] == 'f' || line[i] == 'L' || line[i] == 'x')) {
                     i++
                 }
-                withStyle(SpanStyle(color = Color(0xFFFAB387))) { // Peach
+                withStyle(SpanStyle(color = constantColor)) {
                     append(line.substring(start, i))
                 }
                 continue

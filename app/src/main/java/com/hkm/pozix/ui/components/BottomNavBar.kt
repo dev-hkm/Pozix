@@ -2,6 +2,7 @@ package com.hkm.pozix.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -118,7 +119,7 @@ fun FloatingPillBottomNav(
 
                 // Icon micro-bounce when selected
                 val iconBounce by animateFloatAsState(
-                    targetValue = if (isSelected) 1.10f else 1.0f,
+                    targetValue = if (isSelected) 1.12f else 1.0f,
                     animationSpec = spring(
                         dampingRatio = 0.45f,
                         stiffness = Spring.StiffnessMediumLow
@@ -128,15 +129,19 @@ fun FloatingPillBottomNav(
 
                 val itemBgColor by animateColorAsState(
                     targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
+                    animationSpec = if (isSelected) {
+                        spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    } else {
+                        tween(durationMillis = 60)
+                    },
                     label = "item_bg_color"
                 )
                 val contentColor by animateColorAsState(
                     targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    animationSpec = tween(180),
+                    animationSpec = tween(150),
                     label = "item_content_color"
                 )
 
@@ -163,7 +168,7 @@ fun FloatingPillBottomNav(
                             this.contentDescription = item.label
                         }
                         .padding(
-                            horizontal = if (isSelected) 11.dp else 9.dp,
+                            horizontal = 10.dp,
                             vertical = 6.dp
                         ),
                     contentAlignment = Alignment.Center
@@ -186,17 +191,17 @@ fun FloatingPillBottomNav(
 
                         AnimatedVisibility(
                             visible = isSelected,
-                            enter = fadeIn(tween(160)) + expandHorizontally(
+                            enter = fadeIn(tween(140)) + expandHorizontally(
                                 animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = 400f
+                                    dampingRatio = 0.65f,
+                                    stiffness = 380f
                                 ),
                                 expandFrom = Alignment.Start
                             ),
-                            exit = fadeOut(tween(90)) + shrinkHorizontally(
+                            exit = fadeOut(tween(80)) + shrinkHorizontally(
                                 animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = 500f
+                                    dampingRatio = 0.82f,
+                                    stiffness = 460f
                                 ),
                                 shrinkTowards = Alignment.Start
                             )

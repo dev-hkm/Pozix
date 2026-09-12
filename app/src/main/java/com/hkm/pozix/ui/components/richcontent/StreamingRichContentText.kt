@@ -1,24 +1,24 @@
 package com.hkm.pozix.ui.components.richcontent
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import com.hkm.pozix.util.StreamingMarkdown
 
-/** Only complete paragraphs may instantiate syntax highlighting or a math WebView. */
+/**
+ * Lightweight presentation path for an active stream.
+ *
+ * The network already delivers realtime deltas. Re-parsing the complete growing
+ * document and creating KaTeX WebViews on every delta makes long answers visibly
+ * jank. Keep the stream as native text until EOF; the settled message then takes
+ * the full Markdown/KaTeX path exactly once.
+ */
 @Composable
 fun StreamingRichContentText(text: String, streaming: Boolean, textColor: Color, style: TextStyle, modifier: Modifier) {
-    if (!streaming) {
+    if (streaming) {
+        Text(text = text, modifier = modifier, color = textColor, style = style)
+    } else {
         RichContentText(text, modifier, textColor = textColor, style = style)
-        return
-    }
-    val split = remember(text) { StreamingMarkdown.split(text) }
-    Column(modifier) {
-        if (split.first.isNotBlank()) RichContentText(split.first, textColor = textColor, style = style)
-        if (split.second.isNotEmpty()) Text(split.second, color = textColor, style = style)
     }
 }

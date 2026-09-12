@@ -74,7 +74,8 @@ object QuizJsonParser {
                                 question = rawQuestion.question,
                                 options = options,
                                 correctIndex = correctIndex,
-                                explanation = rawQuestion.explanation
+                                explanation = rawQuestion.explanation,
+                                media = QuestionMediaSanitizer.sanitize(rawQuestion.media.orEmpty())
                             )
                         )
                         singleChoiceCount++
@@ -91,7 +92,8 @@ object QuizJsonParser {
                             Question.TrueFalse(
                                 question = rawQuestion.question,
                                 correctAnswer = correctAnswer,
-                                explanation = rawQuestion.explanation
+                                explanation = rawQuestion.explanation,
+                                media = QuestionMediaSanitizer.sanitize(rawQuestion.media.orEmpty())
                             )
                         )
                         trueFalseCount++

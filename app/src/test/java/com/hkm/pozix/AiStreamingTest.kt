@@ -19,6 +19,44 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 class AiStreamingTest {
+    @Test fun documentContentsRemainInFollowUpRequest() = runBlocking {
+        var requestBody = ""
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            val buffer = okio.Buffer()
+            chain.request().body!!.writeTo(buffer)
+            requestBody = buffer.readUtf8()
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .body("data: {\"choices\":[{\"delta\":{\"content\":\"OK\"},\"finish_reason\":\"stop\"}]}\n\n".toResponseBody("text/event-stream".toMediaType())).build()
+        }.build()
+        val attachment = com.hkm.pozix.data.model.ChatAttachment(name = "lesson.docx",
+            type = com.hkm.pozix.data.model.AttachmentType.DOCUMENT, localPath = "unused", textContent = "UN was founded in 1945")
+        OpenAiCompatClient.chatCompletionStream("https://test.example/v1", "", "test", listOf(
+            com.hkm.pozix.data.model.ChatMessage(role = "user", text = "Read this", attachments = listOf(attachment)),
+            com.hkm.pozix.data.model.ChatMessage(role = "model", text = "Read"),
+            com.hkm.pozix.data.model.ChatMessage(role = "user", text = "Explain more")), httpClient = client).toList()
+        assertTrue(requestBody.contains("UN was founded in 1945"))
+        assertTrue(requestBody.contains("Explain more"))
+    }
+
+    @Test fun finalEventWithoutBlankLineIsNotLost() = runBlocking {
+        val events = "data: {\"choices\":[{\"delta\":{\"content\":\"Last answer\"},\"finish_reason\":\"stop\"}]}"
+        val chunks = OpenAiCompatClient.chatCompletionStream("https://test.example/v1", "", "test",
+            emptyList(), httpClient = clientFor(events)).toList()
+        assertEquals("Last answer", chunks.joinToString("") { it.content })
+    }
+
+    @Test fun outputLimitPreservesTerminalDelta() = runBlocking {
+        val received = StringBuilder()
+        try {
+            OpenAiCompatClient.chatCompletionStream("https://test.example/v1", "", "test", emptyList(),
+                httpClient = clientFor("data: {\"choices\":[{\"delta\":{\"content\":\"Keep me\"},\"finish_reason\":\"length\"}]}\n\n"))
+                .collect { received.append(it.content) }
+            fail("Expected output limit")
+        } catch (_: java.io.IOException) {
+            assertEquals("Keep me", received.toString())
+        }
+    }
+
     private fun clientFor(events: String) = OkHttpClient.Builder().addInterceptor { chain ->
         Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
             .body(events.toResponseBody("text/event-stream".toMediaType())).build()

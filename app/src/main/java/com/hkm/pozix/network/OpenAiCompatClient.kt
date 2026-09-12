@@ -10,6 +10,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import com.hkm.pozix.util.ChatImageStorage
+import com.hkm.pozix.util.YoutubeTranscriptStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -48,6 +49,14 @@ import java.util.concurrent.TimeUnit
  */
 object OpenAiCompatClient {
 
+    // Providers are stateless, but resending every old rendered answer makes
+    // latency and prompt size grow without bound. Keep recent context bounded;
+    // the current turn is always retained in full.
+    private const val MAX_CONTEXT_MESSAGES = 18
+    private const val MAX_CONTEXT_CHARS = 72_000
+    private const val MAX_OLDER_MESSAGE_CHARS = 16_000
+    private const val MAX_ATTACHMENT_CHARS = 32_000
+
     private val json = Json {
         ignoreUnknownKeys = true
         coerceInputValues = true
@@ -70,14 +79,29 @@ object OpenAiCompatClient {
         if (!systemInstructionText.isNullOrBlank()) {
             add(ChatMsgRequest(role = "system", content = JsonPrimitive(systemInstructionText)))
         }
-        history.forEach { msg ->
+        val boundedHistory = boundHistory(history)
+        boundedHistory.forEachIndexed { index, msg ->
             val role = if (msg.role == "user") "user" else "assistant"
-            val messageText = msg.text + (msg.quizJson?.let { "\n```json\n$it\n```" } ?: "")
+            val documentContext = msg.attachments.filter { it.type == com.hkm.pozix.data.model.AttachmentType.DOCUMENT }.joinToString("\n") { doc ->
+                val contents = doc.textContent ?: runCatching {
+                    com.hkm.pozix.util.DocumentTextReader.read(java.io.File(doc.localPath), doc.name)
+                }.getOrNull()
+                "\n[Attached source: ${doc.name}]\n" +
+                    (contents?.takeIf { it.isNotBlank() }?.take(MAX_ATTACHMENT_CHARS)
+                        ?: "[CONTENT UNAVAILABLE. Do not guess from filename; ask for readable TXT, DOCX, or pasted text.]") +
+                    "\n[End attached source]\n"
+            }
+            val reviewContext = msg.quizReviewJson?.let {
+                "\n\n[POZIX_COMPLETED_QUIZ_REVIEW_JSON]\n$it\n[/POZIX_COMPLETED_QUIZ_REVIEW_JSON]"
+            }.orEmpty()
+            val youtubeContext = msg.youtubeSource?.let(YoutubeTranscriptStore::promptBlock).orEmpty()
+            val messageText = contextText(msg.text, index == boundedHistory.lastIndex) + documentContext + youtubeContext +
+                (msg.quizJson?.let { "\n```json\n$it\n```" } ?: "") + reviewContext
             if (msg.imagePaths.isEmpty()) {
                 add(ChatMsgRequest(role = role, content = JsonPrimitive(messageText)))
             } else {
                 val parts = buildJsonArray {
-                    if (msg.text.isNotBlank()) {
+                    if (messageText.isNotBlank()) {
                         add(buildJsonObject {
                             put("type", "text")
                             put("text", messageText)
@@ -98,6 +122,31 @@ object OpenAiCompatClient {
                 add(ChatMsgRequest(role = role, content = parts))
             }
         }
+    }
+
+    private fun boundHistory(history: List<ChatMessage>): List<ChatMessage> {
+        if (history.size <= MAX_CONTEXT_MESSAGES && history.sumOf { it.text.length } <= MAX_CONTEXT_CHARS) {
+            return history
+        }
+        val selected = ArrayDeque<ChatMessage>()
+        var chars = 0
+        history.asReversed().forEachIndexed { reverseIndex, message ->
+            if (selected.size >= MAX_CONTEXT_MESSAGES) return@forEachIndexed
+            val isCurrent = reverseIndex == 0
+            val mustKeepSource = message.attachments.isNotEmpty() || message.youtubeSource != null ||
+                message.quizReviewJson != null
+            val estimated = message.text.length.coerceAtMost(MAX_OLDER_MESSAGE_CHARS)
+            if (isCurrent || mustKeepSource || selected.isEmpty() || chars + estimated <= MAX_CONTEXT_CHARS) {
+                selected.addFirst(message)
+                chars += estimated
+            }
+        }
+        return selected.toList()
+    }
+
+    private fun contextText(text: String, currentTurn: Boolean): String {
+        if (currentTurn || text.length <= MAX_OLDER_MESSAGE_CHARS) return text
+        return text.take(MAX_OLDER_MESSAGE_CHARS) + "\n[Earlier response truncated for context window]"
     }
 
     /**
@@ -166,9 +215,12 @@ object OpenAiCompatClient {
             var received = false
             var completed = false
             val event = StringBuilder()
-            while (!source.exhausted()) {
+            while (true) {
                 currentCoroutineContext().ensureActive()
-                val line = source.readUtf8Line() ?: break
+                // Dispatch the final event even if the server omits its trailing blank line.
+                val nextLine = source.readUtf8Line()
+                if (nextLine == null && event.isEmpty()) break
+                val line = nextLine.orEmpty()
                 if (line.isEmpty() && event.isNotEmpty()) {
                     val data = event.toString().trim()
                     event.setLength(0)
@@ -179,8 +231,6 @@ object OpenAiCompatClient {
                     val chunk = json.decodeFromString<ChatStreamResponse>(data)
                     chunk.error?.let { throw IOException(it.message ?: "Stream error") }
                     val choice = chunk.choices?.firstOrNull()
-                    if (choice?.finishReason == "length") throw IOException("Response reached the provider output limit")
-                    if (choice?.finishReason == "content_filter") throw IOException("Response was filtered by the provider")
                     if (choice?.finishReason != null) completed = true
                     val text = choice?.delta?.extractText().orEmpty()
                     val reasoning = choice?.delta?.extractReasoning().orEmpty()
@@ -188,6 +238,9 @@ object OpenAiCompatClient {
                         received = true
                         emit(StreamChunk(content = text, reasoning = reasoning))
                     }
+                    // A terminal event can also carry the last answer delta. Preserve it first.
+                    if (choice?.finishReason == "length") throw IOException("Response reached the provider output limit; received text has been preserved. Request fewer questions per batch.")
+                    if (choice?.finishReason == "content_filter") throw IOException("Response was filtered by the provider")
                 } else if (line.startsWith("data:")) {
                     if (event.isNotEmpty()) event.append('\n')
                     event.append(line.removePrefix("data:").removePrefix(" "))

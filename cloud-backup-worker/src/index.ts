@@ -3,13 +3,19 @@ import {
   isValidBackupToken,
   validateSharePayload
 } from "./contracts";
+import {
+  fetchNativeYoutubeTranscript,
+  validateYoutubeRequest,
+  YoutubeTranscriptError
+} from "./youtube";
 
 export interface Env {
   POZIX_BACKUPS: D1Database;
+  SUPADATA_API_KEY?: string;
 }
 
 type BackupBody = { verifier: string; salt: string; ciphertext: string };
-const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { "Cache-Control": "no-store" } });
+const json = (value: unknown, status = 200, cacheControl = "no-store") => Response.json(value, { status, headers: { "Cache-Control": cacheControl } });
 const body = async <T>(request: Request): Promise<T | null> => { try { return await request.json() as T; } catch { return null; } };
 const equal = (a: string, b: string) => { if (a.length !== b.length) return false; let r=0; for(let i=0;i<a.length;i++) r |= a.charCodeAt(i)^b.charCodeAt(i); return r===0; };
 const shareId = () => crypto.randomUUID().replaceAll("-", "");
@@ -26,7 +32,7 @@ const rateLimited = async (request: Request, env: Env) => {
 };
 
 const worker: ExportedHandler<Env> = {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
       try {
@@ -37,6 +43,34 @@ const worker: ExportedHandler<Env> = {
       }
     }
     if (["POST","PUT"].includes(request.method) && await rateLimited(request, env)) return json({error:"Too many requests"},429);
+    if (request.method === "POST" && url.pathname === "/v1/youtube/transcript") {
+      let input: unknown;
+      try { input = await request.json(); } catch { return json({ code: "INVALID_JSON", error: "Request body must be JSON" }, 400); }
+      try {
+        const parsed = validateYoutubeRequest(input);
+        const cacheLanguage = parsed.languages?.[0] || "en";
+        const cacheKey = new Request(
+          `${url.origin}/__youtube_transcript_cache/${parsed.videoId}/${encodeURIComponent(cacheLanguage)}`,
+          { method: "GET" }
+        );
+        const cache = typeof caches !== "undefined" ? caches.default : null;
+        const cached = cache ? await cache.match(cacheKey) : undefined;
+        if (cached) return cached;
+
+        const transcript = await fetchNativeYoutubeTranscript(parsed, env.SUPADATA_API_KEY || "");
+        const response = json(transcript, 200, "public, max-age=86400");
+        if (cache) {
+          const put = cache.put(cacheKey, response.clone());
+          if (ctx?.waitUntil) ctx.waitUntil(put);
+        }
+        return response;
+      } catch (error) {
+        if (error instanceof YoutubeTranscriptError) {
+          return json({ code: error.code, error: error.message }, error.status);
+        }
+        return json({ code: "PROVIDER_ERROR", error: "Transcript provider failed" }, 502);
+      }
+    }
     if (request.method === "POST" && url.pathname === "/v1/shares") {
       const input = await body<{quizJson:string}>(request);
       const validation = validateSharePayload(input);

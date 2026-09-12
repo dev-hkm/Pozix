@@ -29,6 +29,11 @@ import com.hkm.pozix.data.repository.SettingsRepository
 import com.hkm.pozix.ui.components.richcontent.LocalCodeHighlight
 import com.hkm.pozix.ui.theme.PozixTheme
 import com.hkm.pozix.util.LocaleHelper
+import com.hkm.pozix.util.SharedImportManager
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -40,6 +45,7 @@ class MainActivity : ComponentActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIncomingIntent(intent)
         
         // Configure transparent edge-to-edge system bars matching light/dark mode
         enableEdgeToEdge(
@@ -128,6 +134,59 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
+        if (intent == null) return
+        val action = intent.action
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                if (action == Intent.ACTION_SEND) {
+                    if (intent.hasExtra(Intent.EXTRA_TEXT)) {
+                        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                        if (!text.isNullOrBlank()) {
+                            SharedImportManager.pendingJson.value = text
+                            return@launch
+                        }
+                    }
+                    val streamUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    }
+                    if (streamUri != null) {
+                        readJsonFromUri(streamUri)
+                    }
+                } else if (action == Intent.ACTION_VIEW) {
+                    val uri = intent.data
+                    if (uri != null) {
+                        readJsonFromUri(uri)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun readJsonFromUri(uri: Uri) {
+        try {
+            contentResolver.openInputStream(uri)?.use { stream ->
+                val maxBytes = 5 * 1024 * 1024 // 5MB limit
+                val bytes = stream.readBytes()
+                if (bytes.size <= maxBytes) {
+                    val text = bytes.toString(Charsets.UTF_8)
+                    if (text.isNotBlank()) {
+                        SharedImportManager.pendingJson.value = text
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     private fun applyLocale(languageCode: String) {
         val context = LocaleHelper.setLocale(this, languageCode)
         @Suppress("DEPRECATION")

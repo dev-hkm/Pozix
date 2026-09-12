@@ -51,7 +51,7 @@ object ChatAttachmentHelper {
                 val tempRaw = File(cacheDir, "raw_${UUID.randomUUID()}")
                 contentResolver.openInputStream(uri)?.use { input ->
                     FileOutputStream(tempRaw).use { output ->
-                        input.copyTo(output)
+                        copyBounded(input, output)
                     }
                 } ?: return@withContext null
 
@@ -115,28 +115,22 @@ object ChatAttachmentHelper {
                 }
             } else {
                 // 2. Process as Document / Text / JSON File
-                val targetFile = File(cacheDir, "doc_${UUID.randomUUID()}_$fileName")
+                val targetFile = File(cacheDir, "doc_${UUID.randomUUID()}")
                 contentResolver.openInputStream(uri)?.use { input ->
                     FileOutputStream(targetFile).use { output ->
-                        input.copyTo(output)
+                        copyBounded(input, output)
                     }
                 } ?: return@withContext null
 
                 val size = targetFile.length()
-                var textContent: String? = null
+                com.tom_roush.pdfbox.android.PDFBoxResourceLoader.init(context.applicationContext)
+                val textContent = runCatching { DocumentTextReader.read(targetFile, fileName, mimeType) }.getOrNull()
 
                 // If file is text-based (JSON, TXT, CSV, MD, XML, etc.) and under 2MB, extract text content
                 val isTextBased = extension in listOf("json", "txt", "md", "csv", "xml", "html", "kt", "java", "py", "cpp", "c") ||
                         mimeType.startsWith("text/") ||
                         mimeType.contains("json")
 
-                if (isTextBased && size <= MAX_TEXT_FILE_BYTES) {
-                    try {
-                        textContent = targetFile.readText(Charsets.UTF_8)
-                    } catch (_: Exception) {
-                        // Ignore charset errors
-                    }
-                }
 
                 ChatAttachment(
                     name = fileName,
@@ -165,6 +159,18 @@ object ChatAttachmentHelper {
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        }
+    }
+
+    private fun copyBounded(input: java.io.InputStream, output: java.io.OutputStream) {
+        val buffer = ByteArray(8192)
+        var total = 0L
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            total += count
+            require(total <= 25L * 1024 * 1024) { "Attachment exceeds 25 MB" }
+            output.write(buffer, 0, count)
         }
     }
 

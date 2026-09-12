@@ -40,7 +40,9 @@ sealed class QuizState {
         val quizTitle: String,
         val score: Int,
         val totalQuestions: Int,
-        val elapsedTimeMillis: Long
+        val elapsedTimeMillis: Long,
+        val questions: List<Question> = emptyList(),
+        val selectedAnswers: Map<Int, Int> = emptyMap()
     ) : QuizState()
 }
 
@@ -246,7 +248,9 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                 quizTitle = currentState.quizTitle,
                 score = currentState.score,
                 totalQuestions = currentState.questions.size,
-                elapsedTimeMillis = currentState.elapsedTimeMillis
+                elapsedTimeMillis = currentState.elapsedTimeMillis,
+                questions = currentState.questions,
+                selectedAnswers = currentState.selectedAnswers
             )
         } else {
             _quizState.value = QuizReviewNavigation.show(currentState, nextIndex, showExplanationSetting)

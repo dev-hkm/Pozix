@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,9 +31,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -51,6 +54,7 @@ import androidx.compose.material.icons.filled.FontDownload
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -107,6 +111,8 @@ import com.hkm.pozix.data.model.AiProvider
 import com.hkm.pozix.ui.theme.getAvailableFonts
 import com.hkm.pozix.ui.theme.getFontDisplayName
 import com.hkm.pozix.ui.theme.getFontFamily
+import com.hkm.pozix.ui.components.BouncyContainer
+import com.hkm.pozix.ui.components.PozixModalBottomSheet
 import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.viewmodel.CloudNoticeType
 import com.hkm.pozix.viewmodel.SettingsViewModel
@@ -805,7 +811,7 @@ fun SettingsScreen(
     }
 
     if (showLanguageSheet) {
-        ModalBottomSheet(
+        PozixModalBottomSheet(
             onDismissRequest = { showLanguageSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
@@ -823,52 +829,60 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val languages = listOf(
-                    "en" to stringResource(R.string.settings_language_en),
-                    "vi" to stringResource(R.string.settings_language_vi)
-                )
+                BouncyContainer(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val languages = listOf(
+                            "en" to stringResource(R.string.settings_language_en),
+                            "vi" to stringResource(R.string.settings_language_vi)
+                        )
 
-                languages.forEach { (code, name) ->
-                    val selected = uiState.language == code
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .clickable {
-                                if (!selected) {
-                                    HapticUtil.selectionTick(context)
-                                    viewModel.setLanguage(code) {
-                                        onLanguageChanged()
+                        languages.forEach { (code, name) ->
+                            val selected = uiState.language == code
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .clickable {
+                                        if (!selected) {
+                                            HapticUtil.selectionTick(context)
+                                            viewModel.setLanguage(code) {
+                                                onLanguageChanged()
+                                            }
+                                        }
+                                        showLanguageSheet = false
+                                    },
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = name,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (selected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
                                     }
                                 }
-                                showLanguageSheet = false
-                            },
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (selected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -876,7 +890,7 @@ fun SettingsScreen(
     }
 
     if (showFontSheet) {
-        ModalBottomSheet(
+        PozixModalBottomSheet(
             onDismissRequest = { showFontSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
@@ -894,55 +908,65 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                getAvailableFonts().forEach { fontName ->
-                    val isSelected = uiState.font == fontName
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .clickable {
-                                if (!isSelected) {
-                                    HapticUtil.selectionTick(context)
-                                    viewModel.setFont(fontName)
-                                }
-                                showFontSheet = false
-                            },
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                BouncyContainer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 520.dp)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = getFontDisplayName(fontName),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontFamily = getFontFamily(fontName),
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Sphinx of black quartz, judge my vow",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontFamily = getFontFamily(fontName),
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                        items(getAvailableFonts()) { fontName ->
+                            val isSelected = uiState.font == fontName
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .clickable {
+                                        if (!isSelected) {
+                                            HapticUtil.selectionTick(context)
+                                            viewModel.setFont(fontName)
+                                        }
+                                        showFontSheet = false
+                                    },
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = getFontDisplayName(fontName),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontFamily = getFontFamily(fontName),
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Sphinx of black quartz, judge my vow",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontFamily = getFontFamily(fontName),
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -950,7 +974,7 @@ fun SettingsScreen(
     }
 
     if (showProviderList) {
-        ModalBottomSheet(
+        PozixModalBottomSheet(
             onDismissRequest = { showProviderList = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
@@ -974,84 +998,96 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                uiState.aiProviders.forEach { provider ->
-                    val isActive = provider.id == uiState.activeProviderId
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .clickable {
-                                HapticUtil.selectionTick(context)
-                                viewModel.setActiveAiProvider(provider.id)
-                            },
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (isActive) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = if (isActive) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                        else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                BouncyContainer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 440.dp)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = provider.name.ifBlank { provider.baseUrl },
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
-                                    color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
-                                    else MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = provider.modelId.ifBlank { provider.normalizedBaseUrl() },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
-                                )
-                                if (!provider.reasoningEffort.isNullOrBlank() && provider.reasoningEffort != "default") {
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = stringResource(R.string.ai_provider_reasoning_label, provider.reasoningEffort.replaceFirstChar { it.uppercase() }),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                        items(uiState.aiProviders) { provider ->
+                            val isActive = provider.id == uiState.activeProviderId
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .clickable {
+                                        HapticUtil.selectionTick(context)
+                                        viewModel.setActiveAiProvider(provider.id)
+                                    },
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isActive) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = if (isActive) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                                else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = provider.name.ifBlank { provider.baseUrl },
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                            else MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = provider.modelId.ifBlank { provider.normalizedBaseUrl() },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1
+                                        )
+                                        if (!provider.reasoningEffort.isNullOrBlank() && provider.reasoningEffort != "default") {
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = stringResource(R.string.ai_provider_reasoning_label, provider.reasoningEffort.replaceFirstChar { it.uppercase() }),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                    if (isActive) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = stringResource(R.string.ai_provider_active),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        HapticUtil.selectionTick(context)
+                                        editingProvider = provider
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = stringResource(R.string.ai_provider_edit)
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        HapticUtil.warning(context)
+                                        deleteProviderTarget = provider
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = stringResource(R.string.ai_provider_delete),
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
-                            }
-                            if (isActive) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = stringResource(R.string.ai_provider_active),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            IconButton(onClick = {
-                                HapticUtil.selectionTick(context)
-                                editingProvider = provider
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = stringResource(R.string.ai_provider_edit)
-                                )
-                            }
-                            IconButton(onClick = {
-                                HapticUtil.warning(context)
-                                deleteProviderTarget = provider
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.DeleteOutline,
-                                    contentDescription = stringResource(R.string.ai_provider_delete),
-                                    tint = MaterialTheme.colorScheme.error
-                                )
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Button(
                     onClick = {
@@ -1125,16 +1161,21 @@ fun SettingsScreen(
         var tokenInput by remember(cloudAction) { mutableStateOf("") }
         var passwordVisible by remember(cloudAction) { mutableStateOf(false) }
 
-        ModalBottomSheet(
+        PozixModalBottomSheet(
             onDismissRequest = { cloudAction = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
-            Column(
+            BouncyContainer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
                     .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = if (isBackup) Icons.Default.CloudUpload else Icons.Default.CloudDownload,
@@ -1247,6 +1288,7 @@ fun SettingsScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+                }
             }
         }
     }
@@ -1337,17 +1379,26 @@ fun AiProviderEditorSheet(
     var models by remember { mutableStateOf<List<String>>(emptyList()) }
     var showModelPicker by remember { mutableStateOf(false) }
     var reasoningEffort by remember { mutableStateOf(initial.reasoningEffort ?: "default") }
+    val standardReasoning = listOf("default", "low", "medium", "high")
+    var isCustomEffort by remember { mutableStateOf(reasoningEffort.lowercase() !in standardReasoning) }
+    var customEffortText by remember { mutableStateOf(if (reasoningEffort.lowercase() !in standardReasoning) reasoningEffort else "") }
+    var modelSearchQuery by remember { mutableStateOf("") }
 
-    ModalBottomSheet(
+    PozixModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
-        Column(
+        BouncyContainer(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
                 .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
@@ -1450,6 +1501,7 @@ fun AiProviderEditorSheet(
                                 if (modelId.isBlank() && list.isNotEmpty()) {
                                     modelId = list.first()
                                 }
+                                modelSearchQuery = ""
                                 showModelPicker = true
                                 HapticUtil.selectionTick(context)
                             },
@@ -1490,24 +1542,51 @@ fun AiProviderEditorSheet(
             Spacer(modifier = Modifier.height(6.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 val reasoningOptions = listOf(
                     "default" to stringResource(R.string.ai_reasoning_default),
                     "low" to stringResource(R.string.ai_reasoning_low),
                     "medium" to stringResource(R.string.ai_reasoning_medium),
-                    "high" to stringResource(R.string.ai_reasoning_high)
+                    "high" to stringResource(R.string.ai_reasoning_high),
+                    "custom" to stringResource(R.string.ai_reasoning_custom)
                 )
                 for ((key, label) in reasoningOptions) {
-                    val selected = reasoningEffort == key
+                    val selected = if (key == "custom") isCustomEffort else (!isCustomEffort && reasoningEffort == key)
                     FilterChip(
                         selected = selected,
                         onClick = {
-                            reasoningEffort = key
+                            if (key == "custom") {
+                                isCustomEffort = true
+                                if (customEffortText.isNotBlank()) {
+                                    reasoningEffort = customEffortText.trim()
+                                }
+                            } else {
+                                isCustomEffort = false
+                                reasoningEffort = key
+                            }
                             HapticUtil.selectionTick(context)
                         },
-                        label = { Text(label, fontSize = 11.sp, maxLines = 1) },
+                        label = { Text(label, fontSize = 10.sp, maxLines = 1) },
                         modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            AnimatedVisibility(visible = isCustomEffort) {
+                Column(modifier = Modifier.padding(top = 8.dp)) {
+                    OutlinedTextField(
+                        value = customEffortText,
+                        onValueChange = {
+                            customEffortText = it
+                            reasoningEffort = it.trim()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.ai_reasoning_custom)) },
+                        placeholder = { Text(stringResource(R.string.ai_reasoning_custom_hint)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             }
@@ -1544,13 +1623,18 @@ fun AiProviderEditorSheet(
                             HapticUtil.error(context)
                             return@Button
                         }
+                        val finalReasoningEffort = if (isCustomEffort) {
+                            customEffortText.trim().takeIf { it.isNotBlank() }
+                        } else {
+                            reasoningEffort.takeIf { it != "default" }
+                        }
                         onSave(
                             initial.copy(
                                 name = name.trim(),
                                 baseUrl = normalized,
                                 apiKey = apiKey.trim(),
                                 modelId = modelId.trim(),
-                                reasoningEffort = reasoningEffort.takeIf { it != "default" }
+                                reasoningEffort = finalReasoningEffort
                             )
                         )
                     },
@@ -1560,18 +1644,19 @@ fun AiProviderEditorSheet(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 
     if (showModelPicker && models.isNotEmpty()) {
-        ModalBottomSheet(
+        PozixModalBottomSheet(
             onDismissRequest = { showModelPicker = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
                     .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
                 Text(
@@ -1579,47 +1664,101 @@ fun AiProviderEditorSheet(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 320.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(models) { model ->
-                        val selected = model == modelId
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    modelId = model
-                                    showModelPicker = false
-                                    HapticUtil.selectionTick(context)
-                                },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (selected) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surface
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = model,
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
-                                    else MaterialTheme.colorScheme.onSurface
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = modelSearchQuery,
+                    onValueChange = { modelSearchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.ai_provider_search_models)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = {
+                        if (modelSearchQuery.isNotBlank()) {
+                            IconButton(onClick = { modelSearchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                if (selected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                val filteredModels = remember(models, modelSearchQuery) {
+                    if (modelSearchQuery.isBlank()) models
+                    else models.filter { it.contains(modelSearchQuery.trim(), ignoreCase = true) }
+                }
+
+                if (filteredModels.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ai_provider_no_models_found),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    BouncyContainer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 340.dp)
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            items(filteredModels) { model ->
+                                val selected = model == modelId
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            modelId = model
+                                            showModelPicker = false
+                                            HapticUtil.selectionTick(context)
+                                        },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (selected) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surface
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = model,
+                                            modifier = Modifier.weight(1f),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                            else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (selected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

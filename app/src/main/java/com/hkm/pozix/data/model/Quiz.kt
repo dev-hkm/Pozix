@@ -17,5 +17,6 @@ data class QuestionRaw(
     val options: List<String>? = null,
     val correctIndex: Int? = null,
     val correctAnswer: Boolean? = null,
-    val explanation: String? = null
+    val explanation: String? = null,
+    val media: List<QuestionMedia>? = null
 )

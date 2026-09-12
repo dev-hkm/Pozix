@@ -43,10 +43,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -78,6 +80,8 @@ import com.hkm.pozix.data.model.ChatAttachment
 import com.hkm.pozix.data.model.ChatMessage
 import com.hkm.pozix.data.model.ChatSession
 import com.hkm.pozix.data.model.QuizValidationResult
+import com.hkm.pozix.ui.components.BouncyContainer
+import com.hkm.pozix.ui.components.PozixModalBottomSheet
 import com.hkm.pozix.ui.components.richcontent.RichContentText
 import androidx.compose.foundation.text.selection.SelectionContainer
 import com.hkm.pozix.util.HapticUtil
@@ -91,6 +95,8 @@ import com.hkm.pozix.ui.components.richcontent.StreamingRichContentText
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -239,7 +245,7 @@ fun AIChatScreen(
                     (last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset).coerceAtLeast(0)
                 else 0
             }
-        }.collect { overflow ->
+        }.distinctUntilChanged().debounce(48L).collect { overflow ->
             if (overflow > 0 && followTail && !listState.isScrollInProgress) {
                 listState.scroll { scrollBy(overflow.toFloat()) }
             }
@@ -290,29 +296,34 @@ fun AIChatScreen(
                 }
             } else {
                 AnimatedContent(
-                    targetState = uiState.messages.isEmpty(),
+                    targetState = Pair(uiState.currentSessionId, uiState.messages.isEmpty()),
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(250))
+                        (fadeIn(animationSpec = tween(320)) + scaleIn(initialScale = 0.97f, animationSpec = tween(320)))
+                            .togetherWith(fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 0.98f, animationSpec = tween(180)))
                     },
                     label = "chatContentTransition",
                     modifier = Modifier.fillMaxSize()
-                ) { isEmpty ->
+                ) { (_, isEmpty) ->
                     if (isEmpty) {
-                        Box(
+                        LazyColumn(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(
-                                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 60.dp,
-                                    bottom = 140.dp
-                                )
+                                .padding(horizontal = 16.dp),
+                            contentPadding = PaddingValues(
+                                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 62.dp,
+                                bottom = 140.dp
+                            ),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            ChatWelcomeSection(
-                                onSuggestionClick = { suggestion ->
-                                    HapticUtil.lightTap(context)
-                                    viewModel.sendMessage(suggestion)
-                                },
-                                onAttachClick = { showAttachmentTray = true }
-                            )
+                            item {
+                                ChatWelcomeSection(
+                                    onSuggestionClick = { suggestion ->
+                                        HapticUtil.lightTap(context)
+                                        viewModel.sendMessage(suggestion)
+                                    },
+                                    onAttachClick = { showAttachmentTray = true }
+                                )
+                            }
                         }
                     } else {
                         LazyColumn(
@@ -494,12 +505,26 @@ fun AIChatScreen(
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            var newChatAnimTrigger by remember { mutableStateOf(false) }
+                            val newChatScale by animateFloatAsState(
+                                targetValue = if (newChatAnimTrigger) 0.82f else 1f,
+                                animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium),
+                                finishedListener = { newChatAnimTrigger = false },
+                                label = "newChatScale"
+                            )
+
                             IconButton(
                                 onClick = {
                                     HapticUtil.lightTap(context)
+                                    newChatAnimTrigger = true
                                     viewModel.startNewChat()
                                 },
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .graphicsLayer {
+                                        scaleX = newChatScale
+                                        scaleY = newChatScale
+                                    }
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
@@ -1227,55 +1252,58 @@ fun AttachmentPickerBottomSheet(
     onPickDocument: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    ModalBottomSheet(
+    PozixModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 36.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+        BouncyContainer(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = stringResource(R.string.ai_chat_attach_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 6.dp)
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 36.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.ai_chat_attach_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
 
-            // Option 1: Gallery
-            AttachmentOptionItem(
-                icon = Icons.Default.PhotoLibrary,
-                title = stringResource(R.string.ai_chat_photo_gallery),
-                subtitle = stringResource(R.string.ai_chat_photo_gallery_desc),
-                iconBg = MaterialTheme.colorScheme.primaryContainer,
-                iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                onClick = onPickGallery
-            )
+                // Option 1: Gallery
+                AttachmentOptionItem(
+                    icon = Icons.Default.PhotoLibrary,
+                    title = stringResource(R.string.ai_chat_photo_gallery),
+                    subtitle = stringResource(R.string.ai_chat_photo_gallery_desc),
+                    iconBg = MaterialTheme.colorScheme.primaryContainer,
+                    iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    onClick = onPickGallery
+                )
 
-            // Option 2: Camera
-            AttachmentOptionItem(
-                icon = Icons.Default.CameraAlt,
-                title = stringResource(R.string.ai_chat_take_photo),
-                subtitle = stringResource(R.string.ai_chat_take_photo_desc),
-                iconBg = MaterialTheme.colorScheme.secondaryContainer,
-                iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
-                onClick = onTakePhoto
-            )
+                // Option 2: Camera
+                AttachmentOptionItem(
+                    icon = Icons.Default.CameraAlt,
+                    title = stringResource(R.string.ai_chat_take_photo),
+                    subtitle = stringResource(R.string.ai_chat_take_photo_desc),
+                    iconBg = MaterialTheme.colorScheme.secondaryContainer,
+                    iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    onClick = onTakePhoto
+                )
 
-            // Option 3: Document / File
-            AttachmentOptionItem(
-                icon = Icons.Default.FolderOpen,
-                title = stringResource(R.string.ai_chat_docs),
-                subtitle = stringResource(R.string.ai_chat_docs_desc),
-                iconBg = MaterialTheme.colorScheme.tertiaryContainer,
-                iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
-                onClick = onPickDocument
-            )
+                // Option 3: Document / File
+                AttachmentOptionItem(
+                    icon = Icons.Default.FolderOpen,
+                    title = stringResource(R.string.ai_chat_docs),
+                    subtitle = stringResource(R.string.ai_chat_docs_desc),
+                    iconBg = MaterialTheme.colorScheme.tertiaryContainer,
+                    iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    onClick = onPickDocument
+                )
+            }
         }
     }
 }
@@ -1339,10 +1367,13 @@ fun ChatBubbleItem(
     val isUser = message.role == "user"
     val isDark = isSystemInDarkTheme()
     val context = LocalContext.current
-    val artifact by produceState<AiQuizOutput.Artifact?>(null, message.text, message.quizJson, isStreaming) {
+    val artifact by produceState<AiQuizOutput.Artifact?>(null, message.quizGeneration, message.quizJson, message.text, isStreaming) {
         if (!isStreaming && !isUser) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            if (message.quizJson != null) AiQuizOutput.Artifact(message.quizJson, message.text)
-            else AiQuizOutput.extract(message.text)
+            when {
+                message.quizJson != null -> AiQuizOutput.Artifact(message.quizJson, message.text)
+                message.quizGeneration -> AiQuizOutput.extract(message.text)
+                else -> null
+            }
         }
     }
 
@@ -1476,11 +1507,11 @@ fun ChatBubbleItem(
                 )
             }
 
-            // Liquid text pouring engine in true realtime
-            val flowingText = rememberLiquidStreamText(
-                targetText = fullTargetText,
-                isStreaming = isStreaming
-            )
+            // The SSE publisher is already throttled to a frame-friendly cadence.
+            // Do not replay the whole answer through a second character animation:
+            // that doubled recompositions and forced Markdown/KaTeX work on every
+            // frame of a long response.
+            val flowingText = fullTargetText
 
             if (flowingText.isNotBlank()) {
                 StreamingRichContentText(
@@ -1490,6 +1521,34 @@ fun ChatBubbleItem(
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 23.sp),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                 )
+            }
+
+            message.errorNotice?.takeIf { it.isNotBlank() }?.let { notice ->
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.32f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = notice.trim(),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
             }
 
             // Zix Bot Liquid Streaming Indicator
@@ -1838,7 +1897,7 @@ fun ReasoningAccordionCard(
                     Spacer(modifier = Modifier.width(10.dp))
                     SelectionContainer(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = rememberLiquidStreamText(reasoning, isStreaming),
+                            text = reasoning,
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontSize = 12.5.sp,
                                 lineHeight = 18.5.sp,
@@ -2232,7 +2291,7 @@ fun ChatWelcomeSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 32.dp, horizontal = 12.dp),
+            .padding(top = 12.dp, bottom = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
@@ -2391,8 +2450,7 @@ fun ChatHistoryBottomSheet(
     onDeleteSession: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    ModalBottomSheet(
+    PozixModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -2442,12 +2500,15 @@ fun ChatHistoryBottomSheet(
                     )
                 }
             } else {
-                LazyColumn(
+                BouncyContainer(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 440.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .heightIn(max = 440.dp)
                 ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                     items(sessions, key = { it.id }) { session ->
                         val isCurrent = session.id == currentSessionId
                         Surface(
@@ -2503,6 +2564,7 @@ fun ChatHistoryBottomSheet(
                             }
                         }
                     }
+                }
                 }
             }
         }
@@ -2674,18 +2736,23 @@ fun ReasoningEffortBottomSheet(
     }
     val context = LocalContext.current
 
-    ModalBottomSheet(
+    PozixModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
-        Column(
+        BouncyContainer(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 28.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -2877,4 +2944,5 @@ fun ReasoningEffortBottomSheet(
             }
         }
     }
+}
 }

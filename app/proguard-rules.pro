@@ -82,3 +82,7 @@
 # ==============================================================
 -keep class androidx.navigation.** { *; }
 -dontwarn androidx.navigation.**
+
+# PDFBox's optional JPEG2000 image decoder is not needed for text extraction.
+# PDFBox handles its absence; do not suppress any other missing classes.
+-dontwarn com.gemalto.jp2.JP2Decoder

@@ -16,6 +16,15 @@ val BalooBhai2FontFamily = FontFamily(Font(R.font.baloo_bhai2_regular))
 val KufamFontFamily = FontFamily(Font(R.font.kufam_regular))
 val NunitoFontFamily = FontFamily(Font(R.font.nunito_regular))
 val QuicksandFontFamily = FontFamily(Font(R.font.quicksand_regular))
+val EBGaramondFontFamily = FontFamily(Font(R.font.eb_garamond_regular))
+val SpaceMonoFontFamily = FontFamily(Font(R.font.space_mono_regular))
+val ComicReliefFontFamily = FontFamily(Font(R.font.comic_relief_regular))
+val UbuntuFontFamily = FontFamily(Font(R.font.ubuntu_regular))
+val LibertinusSerifFontFamily = FontFamily(Font(R.font.libertinus_serif_regular))
+val AlataFontFamily = FontFamily(Font(R.font.alata_regular))
+val AleoFontFamily = FontFamily(Font(R.font.aleo_regular))
+val ChangaFontFamily = FontFamily(Font(R.font.changa_regular))
+val TenorSansFontFamily = FontFamily(Font(R.font.tenor_sans_regular))
 
 /**
  * Get FontFamily by name
@@ -28,6 +37,15 @@ fun getFontFamily(fontName: String): FontFamily {
         "kufam" -> KufamFontFamily
         "nunito" -> NunitoFontFamily
         "quicksand" -> QuicksandFontFamily
+        "eb_garamond" -> EBGaramondFontFamily
+        "space_mono" -> SpaceMonoFontFamily
+        "comic_relief" -> ComicReliefFontFamily
+        "ubuntu" -> UbuntuFontFamily
+        "libertinus_serif" -> LibertinusSerifFontFamily
+        "alata" -> AlataFontFamily
+        "aleo" -> AleoFontFamily
+        "changa" -> ChangaFontFamily
+        "tenor_sans" -> TenorSansFontFamily
         else -> DefaultFontFamily
     }
 }
@@ -42,6 +60,15 @@ fun getFontDisplayName(fontName: String): String {
         "kufam" -> "Kufam"
         "nunito" -> "Nunito"
         "quicksand" -> "Quicksand"
+        "eb_garamond" -> "EB Garamond"
+        "space_mono" -> "Space Mono"
+        "comic_relief" -> "Comic Relief"
+        "ubuntu" -> "Ubuntu"
+        "libertinus_serif" -> "Libertinus Serif"
+        "alata" -> "Alata"
+        "aleo" -> "Aleo"
+        "changa" -> "Changa"
+        "tenor_sans" -> "Tenor Sans"
         else -> "System Default"
     }
 }
@@ -50,7 +77,22 @@ fun getFontDisplayName(fontName: String): String {
  * Get all available fonts
  */
 fun getAvailableFonts(): List<String> {
-    return listOf("default", "baloo_bhai2", "kufam", "nunito", "quicksand")
+    return listOf(
+        "default",
+        "baloo_bhai2",
+        "kufam",
+        "nunito",
+        "quicksand",
+        "eb_garamond",
+        "space_mono",
+        "comic_relief",
+        "ubuntu",
+        "libertinus_serif",
+        "alata",
+        "aleo",
+        "changa",
+        "tenor_sans"
+    )
 }
 
 /**

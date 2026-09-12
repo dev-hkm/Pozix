@@ -1,54 +1,32 @@
-<!--
-  ~ Copyright (C) 2026 The Android Open Source Project
-  ~
-  ~ Licensed under the Apache License, Version 2.0 (the "License");
-  ~ you may not use this file except in compliance with the License.
-  ~ You may obtain a copy of the License at
-  ~
-  ~      http://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software
-  ~ distributed under the License is distributed on an "AS IS" BASIS,
-  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  ~ See the License for the specific language governing permissions and
-  ~ limitations under the License.
-  -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="48"
-    android:viewportHeight="48">
-  <group android:scaleX="0.54"
-      android:scaleY="0.54"
-      android:translateX="11.04"
-      android:translateY="11.04">
-    <path
-        android:pathData="M28,17C27.448,17 27,16.552 27,16V8H14C12.895,8 12,8.895 12,10V38C12,39.105 12.895,40 14,40H34C35.105,40 36,39.105 36,38V17H28ZM38,16V38C38,40.209 36.209,42 34,42H14C11.791,42 10,40.209 10,38V10C10,7.791 11.791,6 14,6H28L38,16ZM29,9.828L34.172,15H29V9.828Z"
-        android:fillColor="#ffffff"
-        android:fillType="evenOdd"/>
-    <path
-        android:pathData="M14,33C14,32.448 14.448,32 15,32L33,32C33.552,32 34,32.448 34,33C34,33.552 33.552,34 33,34L15,34C14.448,34 14,33.552 14,33Z"
-        android:fillColor="#ffffff"
-        android:fillType="evenOdd"/>
-    <path
-        android:pathData="M14,37C14,36.448 14.448,36 15,36H27C27.552,36 28,36.448 28,37C28,37.552 27.552,38 27,38H15C14.448,38 14,37.552 14,37Z"
-        android:fillColor="#ffffff"
-        android:fillType="evenOdd"/>
-    <path
-        android:pathData="M20,16C20.404,16 20.768,16.243 20.923,16.615L25.923,28.615C26.135,29.125 25.894,29.711 25.385,29.923C24.875,30.135 24.289,29.894 24.077,29.385L20,19.6L15.923,29.385C15.711,29.894 15.125,30.135 14.615,29.923C14.106,29.711 13.865,29.125 14.077,28.615L19.077,16.615C19.232,16.243 19.596,16 20,16Z"
-        android:fillColor="#ffffff"
-        android:fillType="evenOdd"/>
-    <path
-        android:pathData="M16,25H24V27H16V25Z"
-        android:fillColor="#ffffff"
-        android:fillType="evenOdd"/>
-    <path
-        android:pathData="M30,22C30.552,22 31,22.448 31,23L31,29C31,29.552 30.552,30 30,30C29.448,30 29,29.552 29,29L29,23C29,22.448 29.448,22 30,22Z"
-        android:fillColor="#ffffff"
-        android:fillType="evenOdd"/>
-    <path
-        android:pathData="M26,26C26,25.448 26.448,25 27,25L33,25C33.552,25 34,25.448 34,26C34,26.552 33.552,27 33,27L27,27C26.448,27 26,26.552 26,26Z"
-        android:fillColor="#ffffff"
-        android:fillType="evenOdd"/>
-  </group>
+    android:viewportWidth="1536"
+    android:viewportHeight="1536">
+    <group
+        android:translateX="768"
+        android:translateY="768"
+        android:scaleX="0.72"
+        android:scaleY="0.72">
+        <group
+            android:translateX="-787.5"
+            android:translateY="-793.5">
+            <!-- Main P body -->
+            <path
+                android:fillColor="#333333"
+                android:pathData="M 945 356 L 925 351 L 904 349 L 903 348 L 892 348 L 891 347       L 577 347 L 576 348 L 561 349 L 548 353 L 544 353 L 526 359       L 503 370 L 484 382 L 469 394 L 453 410 L 442 424 L 432 440       L 425 454 L 419 470 L 414 490 L 413 507 L 412 508 L 412 1161       L 413 1162 L 413 1170 L 415 1180 L 426 1203 L 438 1217       L 453 1228 L 472 1236 L 482 1238 L 491 1238 L 492 1239       L 565 1238 L 581 1234 L 594 1228 L 603 1222 L 613 1213       L 625 1197 L 630 1186 L 634 1171 L 634 1165 L 635 1164       L 635 1082 L 640 1062 L 646 1049 L 658 1033 L 668 1024       L 680 1016 L 699 1009 L 709 1008 L 710 1007 L 890 1007       L 891 1006 L 903 1006 L 904 1005 L 919 1004 L 940 1000       L 971 991 L 1000 979 L 1021 968 L 1040 956 L 1061 940       L 1096 905 L 1110 887 L 1130 855 L 1146 819 L 1157 781       L 1160 758 L 1161 757 L 1161 749 L 1162 748 L 1163 706       L 1162 705 L 1162 691 L 1161 690 L 1161 683 L 1160 682       L 1160 675 L 1159 674 L 1157 658 L 1145 618 L 1132 588       L 1127 583 L 1120 583 L 1115 585 L 1104 593 L 1089 608       L 1066 638 L 1053 649 L 1043 654 L 1031 657 L 1020 656       L 1013 653 L 1010 653 L 1010 726 L 1009 727 L 1009 738       L 1008 739 L 1007 750 L 1002 765 L 1002 768 L 991 791       L 976 812 L 959 829 L 941 842 L 916 854 L 910 855       L 903 858 L 893 860 L 885 860 L 884 861 L 708 861       L 707 862 L 692 863 L 662 872 L 643 882 L 615 903       L 583 935 L 578 938 L 571 940 L 564 939 L 560 937       L 554 931 L 552 927 L 552 574 L 554 564 L 558 553       L 567 538 L 580 525 L 592 517 L 602 513 L 617 510       L 860 510 L 861 511 L 873 511 L 877 492 L 886 477       L 900 463 L 912 456 L 927 445 L 939 433 L 945 425       L 953 410 L 956 400 L 957 388 L 958 387 L 957 376       L 951 361 Z" />
+            <!-- Top line -->
+            <path
+                android:fillColor="#333333"
+                android:pathData="M 621 639 L 621 650 L 623 657 L 629 665 L 634 669       L 643 673 L 915 673 L 927 667 L 934 659 L 937 651       L 936 635 L 930 625 L 924 620 L 918 617 L 909 615       L 650 615 L 640 617 L 631 622 L 625 629 Z" />
+            <!-- Bottom line -->
+            <path
+                android:fillColor="#333333"
+                android:pathData="M 621 744 L 621 755 L 625 765 L 634 774 L 643 778       L 814 778 L 822 775 L 832 766 L 836 758 L 837 753       L 836 742 L 831 732 L 823 725 L 813 721 L 645 721       L 633 726 L 626 733 Z" />
+            <!-- Spark accent -->
+            <path
+                android:fillColor="#7A8FC8"
+                android:pathData="M 1038 380 L 1031 381 L 1024 387 L 1023 392 L 1013 415       L 1001 435 L 992 446 L 978 460 L 957 475 L 925 490       L 921 494 L 919 500 L 920 507 L 924 512 L 951 525       L 965 534 L 975 542 L 988 555 L 996 565 L 1008 584       L 1019 611 L 1027 617 L 1035 617 L 1042 613 L 1051 592       L 1060 576 L 1078 553 L 1099 535 L 1117 524 L 1119 524       L 1121 522 L 1134 516 L 1141 514 L 1146 510 L 1148 506       L 1148 497 L 1144 491 L 1126 483 L 1103 469 L 1095 463       L 1077 445 L 1063 425 L 1052 402 L 1047 386 L 1043 382 Z" />
+        </group>
+    </group>
 </vector>

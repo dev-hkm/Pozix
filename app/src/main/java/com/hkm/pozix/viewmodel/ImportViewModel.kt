@@ -59,6 +59,35 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
+    fun smartPasteAndValidate(text: String) {
+        if (text.isBlank()) return
+        _uiState.value = _uiState.value.copy(
+            jsonText = text,
+            validationState = ValidationState.Idle,
+            fileError = null,
+            importedFileName = null
+        )
+        validateJson()
+    }
+
+    fun formatJsonText(): Boolean {
+        val raw = _uiState.value.jsonText.trim()
+        if (raw.isBlank()) return false
+        return try {
+            val formatted = if (raw.startsWith("{")) {
+                org.json.JSONObject(raw).toString(2)
+            } else if (raw.startsWith("[")) {
+                org.json.JSONArray(raw).toString(2)
+            } else {
+                raw
+            }
+            _uiState.value = _uiState.value.copy(jsonText = formatted)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun clearFileError() {
         _uiState.value = _uiState.value.copy(fileError = null)
     }

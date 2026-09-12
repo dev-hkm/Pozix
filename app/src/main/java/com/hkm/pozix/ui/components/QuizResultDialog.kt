@@ -38,7 +38,8 @@ fun QuizResultDialog(
     score: Int,
     totalQuestions: Int,
     onReplay: () -> Unit,
-    onHome: () -> Unit
+    onHome: () -> Unit,
+    onReviewWithAi: (() -> Unit)? = null
 ) {
     var visible by remember { mutableStateOf(false) }
     
@@ -115,6 +116,12 @@ fun QuizResultDialog(
                 Spacer(modifier = Modifier.height(32.dp))
                 
                 // Vertical button layout for better readability
+                if (onReviewWithAi != null) {
+                    OutlinedButton(onClick = onReviewWithAi, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.ai_review_results))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
