@@ -56,7 +56,7 @@ fun KaTeXMathView(latex: String, modifier: Modifier = Modifier,
             }
         }
         view.onError = { failed = true }
-        view.render(latex, color, fontSize, displayMode, renderKey)
+        if (width > 0) view.render(latex, color, fontSize, displayMode, renderKey)
     }, onReset = { it.resetForReuse() }, onRelease = { it.dispose() },
         modifier = modifier.fillMaxWidth().onSizeChanged { width = it.width }.height(ceil(height).toInt().dp))
 }

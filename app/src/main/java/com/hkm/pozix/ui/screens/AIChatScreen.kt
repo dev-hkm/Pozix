@@ -120,6 +120,7 @@ fun AIChatScreen(
     onOpenTemplates: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val renderEntries = com.hkm.pozix.ui.components.richcontent.rememberChatEntries(uiState.messages, uiState.isLoading)
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
@@ -138,6 +139,9 @@ fun AIChatScreen(
     var previewImageFilePath by remember { mutableStateOf<String?>(null) }
     var textInput by remember { mutableStateOf("") }
     val pendingReviewText by com.hkm.pozix.util.QuizAiFollowUp.pending.collectAsState()
+    LaunchedEffect(pendingReviewText) {
+        pendingReviewText?.let { viewModel.prepareQuizReview(it) }
+    }
     LaunchedEffect(initialPrompt) {
         if (!initialPrompt.isNullOrBlank()) {
             textInput = initialPrompt
@@ -259,6 +263,13 @@ fun AIChatScreen(
         }
     }
 
+    LaunchedEffect(renderEntries.size, renderEntries.lastOrNull()?.message?.text?.length) {
+        withFrameNanos { }
+        if (followTail && !listState.isScrollInProgress && renderEntries.isNotEmpty()) {
+            listState.scrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+        }
+    }
+
     // A quiz card is inserted asynchronously after validation, and may grow after streaming stops.
     // Re-check actual layout every frame briefly, including the clearance beneath the floating composer.
     LaunchedEffect(uiState.messages.lastOrNull()?.quizJson) {
@@ -374,38 +385,28 @@ fun AIChatScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                             contentPadding = PaddingValues(
                                 top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 62.dp,
                                 bottom = 150.dp
                             )
                         ) {
-                            itemsIndexed(
-                                items = uiState.messages,
-                                key = { index, message -> "${message.timestamp}_${message.role}_$index" }
-                            ) { index, message ->
-                                val isLast = index == uiState.messages.lastIndex
-                                val isStreaming = uiState.isLoading && isLast && message.role == "model"
-                                Box(
-                                    modifier = if (isStreaming) Modifier else Modifier.animateItem(
-                                        fadeInSpec = tween(300),
-                                        fadeOutSpec = tween(250),
-                                        placementSpec = null
+                            items(renderEntries, key = { it.key },
+                                contentType = { it.block?.javaClass?.simpleName ?: it.section }) { entry ->
+                                if (entry.block != null) {
+                                    RichContentText(
+                                        text = "block",
+                                        blocksOverride = remember(entry.block) { listOf(entry.block) },
+                                        fontSize = 15.sp, lineHeight = 23.sp,
+                                        modifier = Modifier.fillMaxWidth()
                                     )
-                                ) {
+                                } else {
                                     ChatBubbleItem(
-                                        message = message,
-                                        isStreaming = isStreaming,
-                                        phase = uiState.phase,
+                                        message = entry.message, isStreaming = entry.streaming,
+                                        section = entry.section, phase = uiState.phase,
                                         onImageClick = { previewImageFilePath = it },
-                                        onImportPlay = { json ->
-                                            HapticUtil.lightTap(context)
-                                            viewModel.importQuizSet(json, onPlayQuiz)
-                                        },
-                                        onSaveLibrary = { json ->
-                                            HapticUtil.lightTap(context)
-                                            viewModel.saveQuizSetOnly(json)
-                                        }
+                                        onImportPlay = { viewModel.importQuizSet(it, onPlayQuiz) },
+                                        onSaveLibrary = { viewModel.saveQuizSetOnly(it) }
                                     )
                                 }
                             }
@@ -516,7 +517,7 @@ fun AIChatScreen(
                         userScrolledUp = false
                         scope.launch {
                             if (uiState.messages.isNotEmpty()) {
-                                listState.animateScrollToItem(uiState.messages.size - 1, scrollOffset = 100000)
+                                listState.animateScrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0), scrollOffset = 100000)
                             }
                         }
                     },
@@ -549,7 +550,6 @@ fun AIChatScreen(
                 onSendReview = {
                     pendingReviewText?.let { review ->
                         viewModel.sendQuizReview(review, reasoningEffort)
-                        com.hkm.pozix.util.QuizAiFollowUp.clear(context)
                     }
                 },
                 onDismissReview = { com.hkm.pozix.util.QuizAiFollowUp.clear(context) },
@@ -1342,13 +1342,14 @@ fun ChatBubbleItem(
     phase: AiPhase = AiPhase.IDLE,
     onImageClick: (String) -> Unit,
     onImportPlay: (String) -> Unit,
-    onSaveLibrary: (String) -> Unit
+    onSaveLibrary: (String) -> Unit,
+    section: String = "all"
 ) {
     val isUser = message.role == "user"
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val context = LocalContext.current
     val artifact by produceState<AiQuizOutput.Artifact?>(null, message.quizGeneration, message.quizJson, message.text, isStreaming) {
-        if (!isStreaming && !isUser) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+        if (!isStreaming && !isUser && section != "header") value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             when {
                 message.quizJson != null -> AiQuizOutput.Artifact(message.quizJson, message.text)
                 message.quizGeneration -> AiQuizOutput.extract(message.text)
@@ -1463,6 +1464,8 @@ fun ChatBubbleItem(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.Start
         ) {
+            val fullTargetText = artifact?.displayText ?: message.text
+            if (section != "footer") {
             // Assistant Brand Header (Avatar + Zix Bot Name)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1477,8 +1480,6 @@ fun ChatBubbleItem(
                 )
             }
 
-            val fullTargetText = artifact?.displayText ?: message.text
-
             // Reasoning / Thinking Accordion Card (if model outputs thought process)
             if (!message.reasoning.isNullOrBlank()) {
                 ReasoningAccordionCard(
@@ -1489,13 +1490,14 @@ fun ChatBubbleItem(
                 )
             }
 
+            }
             // The SSE publisher is already throttled to a frame-friendly cadence.
             // Do not replay the whole answer through a second character animation:
             // that doubled recompositions and forced Markdown/KaTeX work on every
             // frame of a long response.
             val flowingText = fullTargetText
 
-            if (flowingText.isNotBlank()) {
+            if (section == "all" && flowingText.isNotBlank()) {
                 StreamingRichContentText(
                     text = flowingText,
                     streaming = isStreaming || flowingText != fullTargetText,
@@ -1505,6 +1507,7 @@ fun ChatBubbleItem(
                 )
             }
 
+            if (section != "header") {
             message.errorNotice?.takeIf { it.isNotBlank() }?.let { notice ->
                 Surface(
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
@@ -1606,6 +1609,7 @@ fun ChatBubbleItem(
                         )
                     }
                 }
+            }
             }
         }
     }

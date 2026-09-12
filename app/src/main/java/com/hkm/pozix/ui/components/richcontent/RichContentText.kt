@@ -80,7 +80,8 @@ fun RichContentText(
     lineHeight: TextUnit = 24.sp,
     style: TextStyle = MaterialTheme.typography.bodyLarge,
     inlineOnly: Boolean = false,
-    quoteDepth: Int = 0
+    quoteDepth: Int = 0,
+    blocksOverride: List<ContentBlock>? = null
 ) {
     if (text.isBlank()) return
 
@@ -99,7 +100,7 @@ fun RichContentText(
         return
     }
 
-    val blocks = remember(text) { parseContentBlocks(text) }
+    val blocks = blocksOverride ?: remember(text) { parseContentBlocks(text) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         blocks.forEachIndexed { index, block ->

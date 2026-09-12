@@ -9,7 +9,8 @@ data class QuizReviewPayload(
     val score: Int,
     val totalQuestions: Int,
     val elapsedTimeMillis: Long,
-    val items: List<QuizReviewItem>
+    val items: List<QuizReviewItem>,
+    val reviewId: String = ""
 )
 
 @Serializable

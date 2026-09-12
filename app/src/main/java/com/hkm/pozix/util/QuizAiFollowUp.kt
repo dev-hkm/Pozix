@@ -33,6 +33,7 @@ object QuizAiFollowUp {
             score = score,
             totalQuestions = questions.size,
             elapsedTimeMillis = elapsed,
+            reviewId = java.util.UUID.randomUUID().toString(),
             items = questions.mapIndexed { index, question ->
                 val options = when (question) {
                     is Question.SingleChoice -> question.options

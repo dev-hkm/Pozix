@@ -218,9 +218,8 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun startNewChat() {
+    fun startNewChat(newId: String = UUID.randomUUID().toString()) {
         cancelGeneration()
-        val newId = UUID.randomUUID().toString()
         chatSelection.edit().putString("session_id", newId).apply()
         _uiState.value = _uiState.value.copy(
             currentSessionId = newId,
@@ -350,8 +349,23 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         pendingSnapshot = null
     }
 
+    fun prepareQuizReview(reviewJson: String): Boolean {
+        val payload = com.hkm.pozix.util.QuizAiFollowUp.decode(reviewJson) ?: return false
+        if (payload.items.isEmpty()) return false
+        // A durable result-specific thread: never mix an external attempt into
+        // whichever unrelated conversation happened to be selected.
+        val identity = payload.reviewId.ifBlank { reviewJson }
+        val target = UUID.nameUUIDFromBytes(("quiz-review:" + identity).toByteArray(Charsets.UTF_8)).toString()
+        if (_uiState.value.currentSessionId != target) {
+            if (_uiState.value.sessions.any { it.id == target }) loadSession(target)
+            else startNewChat(target)
+        }
+        return true
+    }
+
     fun sendQuizReview(reviewJson: String, reasoningEffort: String? = null) {
-        if (reviewJson.isBlank() || _uiState.value.isLoading) return
+        if (_uiState.value.isLoading || _uiState.value.isAttaching || _uiState.value.activeProvider == null) return
+        if (!prepareQuizReview(reviewJson)) return
         sendMessageInternal(
             text = "Review the completed quiz result attached to this message. Analyze it and do not create a new quiz.",
             reasoningEffort = reasoningEffort,
@@ -406,7 +420,6 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
 
         val sessionId = _uiState.value.currentSessionId ?: UUID.randomUUID().toString()
         chatSelection.edit().putString("session_id", sessionId).apply()
-        com.hkm.pozix.util.QuizAiFollowUp.clear(getApplication())
         val userMessage = ChatMessage(
             role = "user",
             text = if (!reviewJson.isNullOrBlank()) trimmedText else userBubbleText,
@@ -419,7 +432,10 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         val isFirstMessage = _uiState.value.messages.isEmpty()
         val derivedTitle = if (isFirstMessage) {
             val preview = userBubbleText.lines().firstOrNull { it.isNotBlank() }?.trim()
-                ?: if (!reviewJson.isNullOrBlank()) getApplication<Application>().getString(R.string.ai_review_results) else userBubbleText
+                ?: if (!reviewJson.isNullOrBlank()) {
+                    val quizTitle = com.hkm.pozix.util.QuizAiFollowUp.decode(reviewJson)?.title.orEmpty()
+                    getApplication<Application>().getString(R.string.ai_review_results) + " · " + quizTitle
+                } else userBubbleText
             if (preview.length > 32) preview.take(30) + "..." else preview
         } else {
             _uiState.value.currentSessionTitle
@@ -470,6 +486,9 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
             }
             try {
                 historyRepository.updateSessionMessages(sessionId, conversationMessages, derivedTitle)
+                if (reviewJson != null && com.hkm.pozix.util.QuizAiFollowUp.pending.value == reviewJson) {
+                    com.hkm.pozix.util.QuizAiFollowUp.clear(getApplication())
+                }
                 val provider = providerRepository.getActiveProvider()
                     ?: error(getApplication<Application>().getString(R.string.ai_chat_no_provider_error))
                 if (!isCurrent()) return@launch
@@ -544,6 +563,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                     if (!reviewJson.isNullOrBlank()) {
                         _uiState.value = _uiState.value.copy(phase = AiPhase.REPAIRING)
                         val feedback = StringBuilder()
+                        var lastFeedbackPublish = 0L
                         OpenAiCompatClient.chatCompletionStream(
                             baseUrl = provider.normalizedBaseUrl(), apiKey = provider.apiKey,
                             model = provider.modelId,
@@ -554,6 +574,16 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         ).collect { chunk ->
                             if (!isCurrent()) throw CancellationException()
                             feedback.append(chunk.content)
+                            val now = android.os.SystemClock.elapsedRealtime()
+                            if (now - lastFeedbackPublish >= 50L) {
+                                lastFeedbackPublish = now
+                                val current = com.hkm.pozix.util.StreamPresentation.splitThinking(feedback.toString(), false).first
+                                val visible = AiQuizOutput.visibleWhileStreaming(current, AiQuizOutput.looksLikeQuizArtifact(current))
+                                _uiState.value = _uiState.value.copy(
+                                    phase = AiPhase.RESPONDING,
+                                    messages = conversationMessages + result.copy(text = visible, quizGeneration = false)
+                                )
+                            }
                         }
                         val feedbackText = com.hkm.pozix.util.StreamPresentation.splitThinking(feedback.toString(), true).first
                         if (!AiQuizOutput.looksLikeQuizArtifact(feedbackText)) result = result.copy(text = feedbackText)
