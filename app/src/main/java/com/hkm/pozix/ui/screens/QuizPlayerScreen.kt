@@ -297,17 +297,25 @@ fun PlayingContent(
                             .weight(1f)
                             .clipToBounds()
                     ) {
-                        // Answers stream (scrolls under the floating question card)
+                        val cutoffTopDp = if (questionCardHeightDp > 0.dp) questionCardHeightDp * 0.45f else 50.dp
+                        val topPadding = if (questionCardHeightDp > 0.dp) {
+                            (questionCardHeightDp - cutoffTopDp) + 10.dp
+                        } else {
+                            120.dp
+                        }
+                        val effectiveContentPadding = PaddingValues(
+                            top = topPadding,
+                            bottom = answerContentPadding.calculateBottomPadding()
+                        )
+
+                        // Answers stream (clipped at cutoffTopDp behind the question card, so scrolling answers vanish safely in the middle)
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .padding(top = cutoffTopDp)
                                 .padding(horizontal = 16.dp)
+                                .clipToBounds()
                         ) {
-                            val topPadding = if (questionCardHeightDp > 0.dp) questionCardHeightDp + 10.dp else 120.dp
-                            val effectiveContentPadding = PaddingValues(
-                                top = topPadding,
-                                bottom = answerContentPadding.calculateBottomPadding()
-                            )
                             key(state.currentQuestionIndex) {
                                 when (currentQuestion) {
                                     is Question.SingleChoice -> {
@@ -562,7 +570,7 @@ fun AdaptiveQuestionCard(
             .fillMaxWidth()
             .wrapContentHeight()
             .animateContentSize(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow))
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 14.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -571,7 +579,7 @@ fun AdaptiveQuestionCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
             1.dp,
             MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)
