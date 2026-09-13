@@ -571,6 +571,7 @@ fun AdaptiveQuestionCard(
             .wrapContentHeight()
             .animateContentSize(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow))
             .padding(horizontal = 14.dp)
+            .clip(RoundedCornerShape(20.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -579,12 +580,12 @@ fun AdaptiveQuestionCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(20.dp),
         border = BorderStroke(
             1.dp,
             MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
