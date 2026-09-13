@@ -84,6 +84,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -91,13 +92,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -250,6 +254,8 @@ fun PlayingContent(
     val actionAlpha by androidx.compose.animation.core.animateFloatAsState(
         if (showBottomActions) 1f else 0f,
         tween(if (showBottomActions) 200 else 140, easing = FastOutSlowInEasing), label = "actionFade")
+    val density = LocalDensity.current
+    var questionCardHeightDp by remember { mutableStateOf(0.dp) }
     val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val answerContentPadding = PaddingValues(
         top = 4.dp,
@@ -284,52 +290,72 @@ fun PlayingContent(
                     
                     Spacer(modifier = Modifier.height(10.dp))
                     
-                    // ZONE B: QUESTION CARD (Adaptive height, crisp & flat)
-                    AdaptiveQuestionCard(
-                        questionNumber = state.currentQuestionIndex + 1,
-                        questionText = currentQuestion.question,
-                        media = currentQuestion.media,
-                        readOnly = state.isAnswered
-                    )
-                    
-                    Spacer(modifier = Modifier.height(10.dp))
-                    
-                    // ZONE C: ANSWER AREA (Adaptive layout - options scroll seamlessly down to bottom)
+                    // ZONE B & C: FLOATING QUESTION CARD OVER SCROLLING ANSWERS STREAM
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .padding(horizontal = 16.dp)
+                            .clipToBounds()
                     ) {
-                        when (currentQuestion) {
-                            is Question.SingleChoice -> {
-                                SmartAnswerLayout(
-                                    options = currentQuestion.options,
-                                    selectedIndex = state.selectedAnswerIndex,
-                                    isAnswered = state.isAnswered,
-                                    correctIndex = currentQuestion.correctIndex,
-                                    onSelectAnswer = onSelectAnswer,
-                                    explanation = currentQuestion.explanation,
-                                    showExplanation = state.showExplanation,
-                                    contentPadding = answerContentPadding
-                                )
-                            }
-                            is Question.TrueFalse -> {
-                                SmartAnswerLayout(
-                                    options = listOf(
-                                        stringResource(R.string.quiz_true),
-                                        stringResource(R.string.quiz_false)
-                                    ),
-                                    selectedIndex = state.selectedAnswerIndex,
-                                    isAnswered = state.isAnswered,
-                                    correctIndex = if (currentQuestion.correctAnswer) 0 else 1,
-                                    onSelectAnswer = onSelectAnswer,
-                                    explanation = currentQuestion.explanation,
-                                    showExplanation = state.showExplanation,
-                                    contentPadding = answerContentPadding
-                                )
+                        // Answers stream (scrolls under the floating question card)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            val topPadding = if (questionCardHeightDp > 0.dp) questionCardHeightDp + 10.dp else 120.dp
+                            val effectiveContentPadding = PaddingValues(
+                                top = topPadding,
+                                bottom = answerContentPadding.calculateBottomPadding()
+                            )
+                            key(state.currentQuestionIndex) {
+                                when (currentQuestion) {
+                                    is Question.SingleChoice -> {
+                                        SmartAnswerLayout(
+                                            options = currentQuestion.options,
+                                            selectedIndex = state.selectedAnswerIndex,
+                                            isAnswered = state.isAnswered,
+                                            correctIndex = currentQuestion.correctIndex,
+                                            onSelectAnswer = onSelectAnswer,
+                                            explanation = currentQuestion.explanation,
+                                            showExplanation = state.showExplanation,
+                                            contentPadding = effectiveContentPadding
+                                        )
+                                    }
+                                    is Question.TrueFalse -> {
+                                        SmartAnswerLayout(
+                                            options = listOf(
+                                                stringResource(R.string.quiz_true),
+                                                stringResource(R.string.quiz_false)
+                                            ),
+                                            selectedIndex = state.selectedAnswerIndex,
+                                            isAnswered = state.isAnswered,
+                                            correctIndex = if (currentQuestion.correctAnswer) 0 else 1,
+                                            onSelectAnswer = onSelectAnswer,
+                                            explanation = currentQuestion.explanation,
+                                            showExplanation = state.showExplanation,
+                                            contentPadding = effectiveContentPadding
+                                        )
+                                    }
+                                }
                             }
                         }
+
+                        // Floating question card pinned at TopCenter
+                        AdaptiveQuestionCard(
+                            questionNumber = state.currentQuestionIndex + 1,
+                            questionText = currentQuestion.question,
+                            media = currentQuestion.media,
+                            readOnly = state.isAnswered,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .onGloballyPositioned { coordinates ->
+                                    val heightDp = with(density) { coordinates.size.height.toDp() }
+                                    if (questionCardHeightDp != heightDp) {
+                                        questionCardHeightDp = heightDp
+                                    }
+                                }
+                        )
                     }
                 }
 
@@ -381,62 +407,47 @@ fun TopHeaderBar(
     elapsedTimeMillis: Long,
     onClose: () -> Unit
 ) {
-    Card(
+    Row(
         modifier = Modifier
-            .fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
+        StatChip(
+            label = stringResource(R.string.quiz_stat_question),
+            value = "${currentQuestionIndex + 1} / $totalQuestions",
+            iconVector = Icons.Default.FormatListNumbered,
+            modifier = Modifier.weight(1f)
+        )
+
+        StatChip(
+            label = stringResource(R.string.quiz_stat_score),
+            value = "$score",
+            iconVector = Icons.Default.Star,
+            modifier = Modifier.weight(1f),
+            valueColor = MaterialTheme.colorScheme.primary
+        )
+        
+        StatChip(
+            label = stringResource(R.string.quiz_stat_time),
+            value = formatTime(elapsedTimeMillis),
+            iconVector = Icons.Default.Timer,
+            modifier = Modifier.weight(1f)
+        )
+
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.size(40.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-            StatChip(
-                label = stringResource(R.string.quiz_stat_question),
-                value = "${currentQuestionIndex + 1} / $totalQuestions",
-                iconVector = Icons.Default.FormatListNumbered,
-                modifier = Modifier.weight(1f)
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = stringResource(R.string.quiz_back),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            StatChip(
-                label = stringResource(R.string.quiz_stat_score),
-                value = "$score",
-                iconVector = Icons.Default.Star,
-                modifier = Modifier.weight(1f),
-                valueColor = MaterialTheme.colorScheme.primary
-            )
-            
-            StatChip(
-                label = stringResource(R.string.quiz_stat_time),
-                value = formatTime(elapsedTimeMillis),
-                iconVector = Icons.Default.Timer,
-                modifier = Modifier.weight(1f)
-            )
-
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.quiz_back),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
     }
-}
 }
 
 @Composable
@@ -538,7 +549,8 @@ fun AdaptiveQuestionCard(
     questionNumber: Int,
     questionText: String,
     media: List<com.hkm.pozix.data.model.QuestionMedia> = emptyList(),
-    readOnly: Boolean = false
+    readOnly: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
     LaunchedEffect(questionNumber, questionText) {
@@ -546,20 +558,25 @@ fun AdaptiveQuestionCard(
     }
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight()
             .animateContentSize(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow))
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}
+            ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(
             modifier = Modifier

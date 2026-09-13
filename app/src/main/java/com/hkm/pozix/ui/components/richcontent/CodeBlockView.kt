@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -177,39 +179,49 @@ fun CodeBlockView(
                 }
             }
 
-            // Code content with line numbers and horizontal scroll
-            Row(
+            // Code content with line numbers, vertical limit (~9 lines), and 2D scrolling
+            val vScrollState = rememberScrollState()
+            val hScrollState = rememberScrollState()
+
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)
+                    .heightIn(max = 182.dp)
+                    .verticalScroll(vScrollState)
             ) {
-                // Line numbers gutter
-                Column(horizontalAlignment = Alignment.End) {
-                    lines.forEachIndexed { index, _ ->
-                        Text(
-                            text = "${index + 1}",
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 12.sp,
-                            lineHeight = 18.sp,
-                            color = lineNumberColor,
-                            fontWeight = FontWeight.Normal
-                        )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(hScrollState)
+                        .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)
+                ) {
+                    // Line numbers gutter
+                    Column(horizontalAlignment = Alignment.End) {
+                        lines.forEachIndexed { index, _ ->
+                            Text(
+                                text = "${index + 1}",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp,
+                                color = lineNumberColor,
+                                fontWeight = FontWeight.Normal
+                            )
+                        }
                     }
-                }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                // Code lines
-                Column {
-                    lines.forEach { line ->
-                        Text(
-                            text = highlightCodeLine(line, displayLanguage, highlightEnabled, isDark),
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 12.sp,
-                            lineHeight = 18.sp,
-                            color = codeTextColor
-                        )
+                    // Code lines
+                    Column {
+                        lines.forEach { line ->
+                            Text(
+                                text = highlightCodeLine(line, displayLanguage, highlightEnabled, isDark),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp,
+                                color = codeTextColor
+                            )
+                        }
                     }
                 }
             }
