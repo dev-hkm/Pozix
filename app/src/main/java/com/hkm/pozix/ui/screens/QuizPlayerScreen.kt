@@ -21,6 +21,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -896,13 +897,20 @@ fun AnswerCard(
     val shouldShowExplanation = showResult && showExplanation && explanation?.isNotBlank() == true &&
             isCorrect == true
 
+    val interactionSource = remember { MutableInteractionSource() }
+
     Surface(
-        onClick = onClick,
-        enabled = !showResult,
         modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .scale(scale.value),
+            .scale(scale.value)
+            .clip(RoundedCornerShape(cornerRadius))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = !showResult,
+                onClick = onClick
+            ),
         color = bgColor.copy(alpha = alpha),
         shape = RoundedCornerShape(cornerRadius),
         border = androidx.compose.foundation.BorderStroke(1.5.dp, borderColor.copy(alpha = alpha))
