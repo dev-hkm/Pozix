@@ -83,7 +83,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun PozixTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     fontFamily: String = "default",
     content: @Composable () -> Unit
 ) {

@@ -108,11 +108,12 @@ fun RichContentText(
 
     Column(modifier = modifier.fillMaxWidth()) {
         blocks.forEachIndexed { index, block ->
+            val accentColor = if (textColor != MaterialTheme.colorScheme.onSurface) textColor else MaterialTheme.colorScheme.primary
             when (block) {
                 is ContentBlock.Quote -> {
                     Row(Modifier.fillMaxWidth().background(textColor.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
                         .padding(10.dp), verticalAlignment = Alignment.Top) {
-                        Text("▎", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Text("▎", color = accentColor, fontWeight = FontWeight.Bold)
                         if (quoteDepth < 8) RichContentText(block.text, Modifier.weight(1f), textColor = textColor,
                             fontSize = fontSize, fontWeight = fontWeight, lineHeight = lineHeight, style = style, quoteDepth = quoteDepth + 1)
                         else Text(block.text, Modifier.weight(1f), color = textColor, style = style)
@@ -130,7 +131,7 @@ fun RichContentText(
                     val annotated = rememberStyledInline(block.text)
                     Text(
                         text = annotated,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = accentColor,
                         style = headingStyle,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -147,7 +148,7 @@ fun RichContentText(
                     ) {
                         Text(
                             text = block.bullet,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = accentColor,
                             style = style.copy(fontWeight = FontWeight.Bold, fontSize = fontSize),
                             modifier = Modifier.padding(end = 8.dp)
                         )
@@ -557,6 +558,15 @@ fun MarkdownTableView(
                 }
             }
 
+            val headerTextColor = readableContentColorFor(
+                background = MaterialTheme.colorScheme.surfaceContainerHigh,
+                preferred = textColor
+            )
+            val rowTextColor = readableContentColorFor(
+                background = MaterialTheme.colorScheme.surfaceContainerLow,
+                preferred = textColor
+            )
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -581,7 +591,7 @@ fun MarkdownTableView(
                             ) {
                                 Text(
                                     text = annotated,
-                                    color = textColor,
+                                    color = headerTextColor,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = fontSize,
                                     textAlign = align,
@@ -622,7 +632,7 @@ fun MarkdownTableView(
                                 ) {
                                     Text(
                                         text = annotated,
-                                        color = textColor,
+                                        color = rowTextColor,
                                         fontSize = fontSize,
                                         textAlign = align,
                                         modifier = Modifier.fillMaxWidth()

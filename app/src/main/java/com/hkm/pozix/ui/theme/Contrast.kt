@@ -20,10 +20,22 @@ internal fun readableContentColor(
     fallbackA: Color,
     fallbackB: Color
 ): Color {
-    return listOf(preferred, fallbackA, fallbackB)
-        .distinct()
-        .maxByOrNull { contrastRatio(background, it) }
-        ?: preferred
+    if (contrastRatio(background, preferred) >= 4.5f) {
+        return preferred
+    }
+    val bestFallback = if (contrastRatio(background, fallbackA) >= contrastRatio(background, fallbackB)) {
+        fallbackA
+    } else {
+        fallbackB
+    }
+    if (contrastRatio(background, bestFallback) >= 4.5f) {
+        return bestFallback
+    }
+    return if (contrastRatio(background, Color.White) >= contrastRatio(background, Color(0xFF1B1B1F))) {
+        Color.White
+    } else {
+        Color(0xFF1B1B1F)
+    }
 }
 
 @Composable
