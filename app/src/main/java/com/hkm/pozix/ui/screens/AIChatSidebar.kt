@@ -119,12 +119,12 @@ internal fun ChatSidebar(
         NavigationDrawerItem(
             label = { Text(stringResource(R.string.ai_chat_templates)) },
             selected = false, onClick = onTemplates,
-            icon = { Icon(TemplateIcon, null) }
+            icon = { Icon(TemplateIcon, null, tint = MaterialTheme.colorScheme.onSurface) }
         )
         NavigationDrawerItem(
             label = { Text(stringResource(R.string.ai_chat_manage_providers)) },
             selected = false, onClick = onProviders,
-            icon = { Icon(ProviderIcon, null) }
+            icon = { Icon(ProviderIcon, null, tint = MaterialTheme.colorScheme.onSurface) }
         )
         OutlinedTextField(
             value = query, onValueChange = { query = it }, singleLine = true,
@@ -160,7 +160,9 @@ internal fun ChatSidebar(
                         ) {
                             Row(Modifier.padding(start = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(if (pinned) PinIcon else HistoryIcon,
-                                    null, modifier = Modifier.size(18.dp))
+                                    null,
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp))
                                 Text(session.title, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.weight(1f).padding(horizontal = 10.dp))
@@ -181,11 +183,11 @@ internal fun ChatSidebar(
             text = {
                 Column {
                     TextButton(onClick = { onPin(session.id); optionsId = null }) {
-                        Icon(PinIcon, null); Spacer(Modifier.width(12.dp))
+                        Icon(PinIcon, null, tint = MaterialTheme.colorScheme.onSurface); Spacer(Modifier.width(12.dp))
                         Text(stringResource(if (session.isPinned) R.string.ai_sidebar_unpin else R.string.ai_sidebar_pin))
                     }
                     TextButton(onClick = { title = session.title; renameId = session.id; optionsId = null }) {
-                        Icon(NewChatIcon, null); Spacer(Modifier.width(12.dp))
+                        Icon(NewChatIcon, null, tint = MaterialTheme.colorScheme.onSurface); Spacer(Modifier.width(12.dp))
                         Text(stringResource(R.string.saved_quiz_sets_rename))
                     }
                     TextButton(onClick = { deleteId = session.id; optionsId = null }) {

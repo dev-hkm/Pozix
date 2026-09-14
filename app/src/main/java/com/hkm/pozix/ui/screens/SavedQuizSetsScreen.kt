@@ -99,6 +99,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.compositeOver
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -763,7 +765,10 @@ fun PremiumQuizCard(
                                 shape = RoundedCornerShape(18.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                    contentColor = readableContentColorFor(
+                                        MaterialTheme.colorScheme.tertiaryContainer,
+                                        MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
                                 )
                             ) {
                                 Icon(
@@ -984,7 +989,10 @@ fun QuizPreviewContent(
                                     text = stringResource(R.string.home_quiz_questions, questions.size),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    color = readableContentColorFor(
+                                        MaterialTheme.colorScheme.secondaryContainer,
+                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                    ),
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                                 )
                             }
@@ -996,7 +1004,11 @@ fun QuizPreviewContent(
                                     text = stringResource(R.string.preview_button),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    color = readableContentColorFor(
+                                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+                                            .compositeOver(MaterialTheme.colorScheme.background),
+                                        MaterialTheme.colorScheme.onTertiaryContainer
+                                    ),
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                                 )
                             }
@@ -1148,7 +1160,10 @@ fun PreviewOptionItem(letter: String, text: String, isCorrect: Boolean) {
         MaterialTheme.colorScheme.surfaceContainer
     }
     val textColor = if (isCorrect) {
-        MaterialTheme.colorScheme.onPrimaryContainer
+        readableContentColorFor(
+            backgroundColor,
+            MaterialTheme.colorScheme.onPrimaryContainer
+        )
     } else {
         MaterialTheme.colorScheme.onSurface
     }
@@ -1158,7 +1173,10 @@ fun PreviewOptionItem(letter: String, text: String, isCorrect: Boolean) {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val badgeTextColor = if (isCorrect) {
-        MaterialTheme.colorScheme.onPrimary
+        readableContentColorFor(
+            badgeColor,
+            MaterialTheme.colorScheme.onPrimary
+        )
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }

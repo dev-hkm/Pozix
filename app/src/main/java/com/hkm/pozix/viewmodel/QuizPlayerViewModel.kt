@@ -271,6 +271,19 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun exitQuiz(saveProgress: Boolean, onComplete: () -> Unit = {}) {
+        val currentState = _quizState.value as? QuizState.Playing ?: return
+        if (shouldResetQuizOnExit(saveProgress)) {
+            viewModelScope.launch {
+                progressRepository.clearProgressForQuiz(currentState.quizSetId)
+                onComplete()
+            }
+        } else {
+            saveProgress()
+            onComplete()
+        }
+    }
+
     fun previousQuestion() {
         val state = _quizState.value as? QuizState.Playing ?: return
         val previous = state.currentQuestionIndex - 1
@@ -285,3 +298,5 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
         timerJob?.cancel()
     }
 }
+
+internal fun shouldResetQuizOnExit(saveProgress: Boolean): Boolean = !saveProgress

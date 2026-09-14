@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.SavedQuizSet
 
@@ -132,7 +133,10 @@ internal fun CompactQuizTile(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            color = readableContentColorFor(
+                                MaterialTheme.colorScheme.secondaryContainer,
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
                             fontSize = 11.sp
                         )
                     }

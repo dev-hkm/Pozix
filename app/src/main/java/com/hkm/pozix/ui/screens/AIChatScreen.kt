@@ -63,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -96,6 +97,7 @@ import com.hkm.pozix.viewmodel.ImportStatus
 import com.hkm.pozix.viewmodel.AiPhase
 import com.hkm.pozix.util.AiQuizOutput
 import com.hkm.pozix.ui.components.richcontent.StreamingRichContentText
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -983,7 +985,10 @@ fun DeepSeekStyleFloatingInputCard(
                                         Icon(
                                             imageVector = Icons.Default.Stop,
                                             contentDescription = stringResource(R.string.ai_chat_stop),
-                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                            tint = readableContentColorFor(
+                                                MaterialTheme.colorScheme.errorContainer,
+                                                MaterialTheme.colorScheme.onErrorContainer
+                                            ),
                                             modifier = Modifier.size(17.dp)
                                         )
                                     }
@@ -1072,7 +1077,10 @@ fun DeepSeekStyleFloatingInputCard(
                                         fontSize = 12.sp,
                                         fontWeight = if (isReasoningActive) FontWeight.Bold else FontWeight.Medium
                                     ),
-                                    color = if (isReasoningActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = if (isReasoningActive) readableContentColorFor(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
                                            else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -1089,7 +1097,10 @@ fun DeepSeekStyleFloatingInputCard(
                             label = "quizToolContainer"
                         )
                         val quizContent = if (quizToolEnabled) {
-                            MaterialTheme.colorScheme.primary
+                            readableContentColorFor(
+                                quizContainer,
+                                MaterialTheme.colorScheme.primary
+                            )
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         }
@@ -1296,6 +1307,7 @@ private fun AttachmentOptionItem(
     onClick: () -> Unit
 ) {
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val safeIconTint = readableContentColorFor(iconBg, iconTint)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1315,7 +1327,7 @@ private fun AttachmentOptionItem(
                     .background(iconBg),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
+                Icon(imageVector = icon, contentDescription = null, tint = safeIconTint, modifier = Modifier.size(22.dp))
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -1440,7 +1452,10 @@ fun ChatBubbleItem(
 
                 // User Message Pill
                 val userBubbleColor = MaterialTheme.colorScheme.primaryContainer
-                val userTextColor = MaterialTheme.colorScheme.onPrimaryContainer
+                val userTextColor = readableContentColorFor(
+                    userBubbleColor,
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                )
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = userBubbleColor
@@ -1513,6 +1528,11 @@ fun ChatBubbleItem(
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.32f))
                 ) {
+                    val errorTextColor = readableContentColorFor(
+                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
+                            .compositeOver(MaterialTheme.colorScheme.background),
+                        MaterialTheme.colorScheme.onErrorContainer
+                    )
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.Top,
@@ -1521,12 +1541,12 @@ fun ChatBubbleItem(
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            tint = errorTextColor,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
                             text = notice.trim(),
-                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            color = errorTextColor,
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.weight(1f)
                         )
@@ -1652,7 +1672,10 @@ fun GeneratedQuizCard(
                         Icon(
                             imageVector = Icons.Default.Quiz,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            tint = readableContentColorFor(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -1927,7 +1950,10 @@ fun ZixBotAvatar(
         Box(modifier.size(size), contentAlignment = Alignment.Center) {
             Box(Modifier.size(size * 0.94f).clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                Icon(Icons.Default.AutoAwesome, null, tint = readableContentColorFor(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                ),
                     modifier = Modifier.size(size * 0.5f))
             }
         }
@@ -2011,7 +2037,10 @@ fun ZixBotAvatar(
             Icon(
                 imageVector = Icons.Default.AutoAwesome,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = readableContentColorFor(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                ),
                 modifier = Modifier.size(if (isStreaming) size * 0.45f else size * 0.5f)
             )
         }
@@ -2659,13 +2688,19 @@ fun ProviderPickerDialog(
                                 Text(
                                     text = provider.name.ifBlank { provider.baseUrl },
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-                                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                    color = if (selected) readableContentColorFor(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    ) else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1
                                 )
                                 Text(
                                     text = provider.modelId.ifBlank { provider.normalizedBaseUrl() },
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    color = if (selected) readableContentColorFor(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    ).copy(alpha = 0.8f)
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1
                                 )
@@ -2828,14 +2863,22 @@ fun ReasoningEffortBottomSheet(
                                 text = label,
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                color = if (isSelected) readableContentColorFor(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+                                        .compositeOver(MaterialTheme.colorScheme.background),
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                                        else MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = desc,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                color = if (isSelected) readableContentColorFor(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+                                        .compositeOver(MaterialTheme.colorScheme.background),
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                ).copy(alpha = 0.8f)
                                        else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }

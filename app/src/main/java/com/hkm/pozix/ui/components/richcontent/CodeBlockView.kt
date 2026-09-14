@@ -54,6 +54,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hkm.pozix.R
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import com.hkm.pozix.util.HapticUtil
 import kotlinx.coroutines.delay
 
@@ -101,7 +102,10 @@ fun CodeBlockView(
     val lineNumberColor = if (isDark) Color(0xFF6C7086) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
     val codeTextColor = MaterialTheme.colorScheme.onSurface
     val badgeBg = MaterialTheme.colorScheme.secondaryContainer
-    val badgeText = MaterialTheme.colorScheme.onSecondaryContainer
+    val badgeText = readableContentColorFor(
+        background = badgeBg,
+        preferred = MaterialTheme.colorScheme.onSecondaryContainer
+    )
 
     Surface(
         modifier = modifier

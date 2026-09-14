@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hkm.pozix.R
 import com.hkm.pozix.util.HapticUtil
+import com.hkm.pozix.ui.theme.readableContentColorFor
 
 data class NavItem(
     val selectedIcon: ImageVector,
@@ -140,7 +141,12 @@ fun FloatingPillBottomNav(
                     label = "item_bg_color"
                 )
                 val contentColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    targetValue = if (isSelected) {
+                        readableContentColorFor(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    } else MaterialTheme.colorScheme.onSurfaceVariant,
                     animationSpec = tween(150),
                     label = "item_content_color"
                 )

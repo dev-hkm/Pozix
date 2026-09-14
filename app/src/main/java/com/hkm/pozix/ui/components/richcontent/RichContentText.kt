@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -38,7 +39,10 @@ import androidx.compose.ui.text.style.TextAlign
 @Composable
 private fun rememberStyledInline(text: String): androidx.compose.ui.text.AnnotatedString {
     val background = MaterialTheme.colorScheme.tertiaryContainer
-    val foreground = MaterialTheme.colorScheme.onTertiaryContainer
+    val foreground = readableContentColorFor(
+        background = background,
+        preferred = MaterialTheme.colorScheme.onTertiaryContainer
+    )
     return remember(text, background, foreground) { LatexMathParser.parseToAnnotatedString(text, background, foreground) }
 }
 

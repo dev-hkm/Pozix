@@ -101,6 +101,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -115,6 +116,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.Question
 import com.hkm.pozix.ui.components.media.QuestionMediaContent
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.viewmodel.ExamConfig
 import com.hkm.pozix.viewmodel.ExamState
@@ -637,13 +639,19 @@ fun ExamPlayingContent(
                                             Icon(
                                                 imageVector = Icons.Default.Flag,
                                                 contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                tint = readableContentColorFor(
+                                                    MaterialTheme.colorScheme.tertiaryContainer,
+                                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                                ),
                                                 modifier = Modifier.size(12.dp)
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
                                                 text = stringResource(R.string.exam_flag_review),
-                                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                color = readableContentColorFor(
+                                                    MaterialTheme.colorScheme.tertiaryContainer,
+                                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                                ),
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -779,12 +787,18 @@ fun ExamPlayingContent(
                                         text = "$answered/$total",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        color = readableContentColorFor(
+                                            MaterialTheme.colorScheme.primaryContainer,
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
                                     )
                                     Text(
                                         text = stringResource(R.string.exam_palette_answered),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                        color = readableContentColorFor(
+                                            MaterialTheme.colorScheme.primaryContainer,
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        ).copy(alpha = 0.8f),
                                         maxLines = 1
                                     )
                                 }
@@ -803,12 +817,18 @@ fun ExamPlayingContent(
                                         text = "$unanswered",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (unanswered > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (unanswered > 0) readableContentColorFor(
+                                            MaterialTheme.colorScheme.errorContainer,
+                                            MaterialTheme.colorScheme.onErrorContainer
+                                        ) else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
                                         text = stringResource(R.string.exam_palette_unanswered),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (unanswered > 0) MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                        color = if (unanswered > 0) readableContentColorFor(
+                                            MaterialTheme.colorScheme.errorContainer,
+                                            MaterialTheme.colorScheme.onErrorContainer
+                                        ).copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                         maxLines = 1
                                     )
                                 }
@@ -827,12 +847,18 @@ fun ExamPlayingContent(
                                         text = "$flagged",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        color = readableContentColorFor(
+                                            MaterialTheme.colorScheme.tertiaryContainer,
+                                            MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
                                     )
                                     Text(
                                         text = stringResource(R.string.exam_palette_flagged),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f),
+                                        color = readableContentColorFor(
+                                            MaterialTheme.colorScheme.tertiaryContainer,
+                                            MaterialTheme.colorScheme.onTertiaryContainer
+                                        ).copy(alpha = 0.8f),
                                         maxLines = 1
                                     )
                                 }
@@ -1068,10 +1094,16 @@ fun ExamAnswerCard(
     )
 
     val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    val textColor = readableContentColorFor(
+        bgColor,
+        if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    )
     val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
     val badgeBg = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
-    val badgeTxt = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
+    val badgeTxt = readableContentColorFor(
+        badgeBg,
+        if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
+    )
 
     val vertPad = when (cardSize) {
         CardSize.COMPACT -> 10.dp
@@ -1395,6 +1427,7 @@ fun ExamQuestionPalette(
                                 isAnswered -> MaterialTheme.colorScheme.onPrimaryContainer
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant
                             }
+                            val readableTxtColor = readableContentColorFor(bgColor, txtColor)
 
                             Surface(
                                 modifier = Modifier
@@ -1415,7 +1448,7 @@ fun ExamQuestionPalette(
                                         text = "${index + 1}",
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = txtColor
+                                        color = readableTxtColor
                                     )
                                     if (isFlagged) {
                                         Icon(

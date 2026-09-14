@@ -59,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.Question
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.viewmodel.ExamState
 
@@ -473,6 +475,10 @@ fun ReviewQuestionCard(
                     isThisSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
                     else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 }
+                val readableTxtColor = readableContentColorFor(
+                    bgColor.compositeOver(MaterialTheme.colorScheme.background),
+                    txtColor
+                )
 
                 Row(
                     modifier = Modifier
@@ -487,13 +493,13 @@ fun ReviewQuestionCard(
                         text = "${('A' + optIndex)}.",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = txtColor
+                        color = readableTxtColor
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = option,
                         fontSize = 13.sp,
-                        color = txtColor,
+                        color = readableTxtColor,
                         modifier = Modifier.weight(1f)
                     )
                     if (isThisCorrect) {
@@ -514,6 +520,11 @@ fun ReviewQuestionCard(
                     color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
                     shape = RoundedCornerShape(10.dp)
                 ) {
+                    val explanationColor = readableContentColorFor(
+                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+                            .compositeOver(MaterialTheme.colorScheme.background),
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    )
                     Row(
                         modifier = Modifier.padding(10.dp),
                         verticalAlignment = Alignment.Top
@@ -522,13 +533,13 @@ fun ReviewQuestionCard(
                             imageVector = Icons.Default.Lightbulb,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            tint = explanationColor
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = explanation,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            color = explanationColor,
                             lineHeight = 18.sp
                         )
                     }

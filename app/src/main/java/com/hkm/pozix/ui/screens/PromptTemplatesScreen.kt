@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hkm.pozix.R
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.viewmodel.PromptItem
 import com.hkm.pozix.viewmodel.PromptTemplatesViewModel
@@ -490,7 +491,10 @@ Please ask me what topic, target difficulty, and question count I would like, or
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        tint = readableContentColorFor(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
                         modifier = Modifier.size(20.dp)
                     )
                 }

@@ -78,6 +78,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -92,6 +93,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -116,6 +118,7 @@ import com.hkm.pozix.data.model.Question
 import com.hkm.pozix.ui.components.media.QuestionMediaContent
 import com.hkm.pozix.ui.components.QuizResultDialog
 import com.hkm.pozix.ui.components.richcontent.RichContentText
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.viewmodel.QuizPlayerViewModel
 import com.hkm.pozix.viewmodel.QuizState
@@ -128,10 +131,16 @@ fun QuizPlayerScreen(
     val quizState by viewModel.quizState.collectAsState()
     val context = LocalContext.current
     var showExitDialog by remember { mutableStateOf(false) }
+    var saveProgressOnExit by remember { mutableStateOf(true) }
+
+    fun requestExit() {
+        saveProgressOnExit = true
+        showExitDialog = true
+    }
     
     BackHandler {
         if (quizState is QuizState.Playing) {
-            showExitDialog = true
+            requestExit()
         } else {
             onNavigateBack()
         }
@@ -176,7 +185,7 @@ fun QuizPlayerScreen(
                 PlayingContent(
                     state = state,
                     onNavigateBack = {
-                        showExitDialog = true
+                        requestExit()
                     },
                     onSelectAnswer = { index ->
                         viewModel.selectAnswer(index)
@@ -220,12 +229,43 @@ fun QuizPlayerScreen(
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
             title = { Text(stringResource(R.string.quiz_quit_title)) },
-            text = { Text(stringResource(R.string.quiz_quit_message)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.quiz_quit_message))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.quiz_quit_save_progress),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = stringResource(
+                                    if (saveProgressOnExit) R.string.quiz_quit_save_progress_on
+                                    else R.string.quiz_quit_save_progress_off
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = saveProgressOnExit,
+                            onCheckedChange = { saveProgressOnExit = it }
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showExitDialog = false
-                        onNavigateBack()
+                        viewModel.exitQuiz(saveProgressOnExit) {
+                            showExitDialog = false
+                            onNavigateBack()
+                        }
                     }
                 ) {
                     Text(stringResource(R.string.quiz_quit))
@@ -923,6 +963,10 @@ fun AnswerCard(
     val shouldShowExplanation = showResult && showExplanation && explanation?.isNotBlank() == true &&
             isCorrect == true
 
+    val renderedBackground = bgColor.copy(alpha = alpha).compositeOver(MaterialTheme.colorScheme.background)
+    val readableTextColor = readableContentColorFor(renderedBackground, txtColor)
+    val readableBadgeTextColor = readableContentColorFor(badgeBg, badgeTxt)
+
     val interactionSource = remember { MutableInteractionSource() }
 
     Surface(
@@ -956,7 +1000,7 @@ fun AnswerCard(
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = letter,
-                            color = badgeTxt,
+                            color = readableBadgeTextColor,
                             fontSize = badgeFontSize,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
@@ -969,7 +1013,7 @@ fun AnswerCard(
                 RichContentText(
                     text = text,
                     modifier = Modifier.weight(1f),
-                    textColor = txtColor,
+                    textColor = readableTextColor,
                     fontSize = fontSize,
                     fontWeight = FontWeight.Medium,
                     lineHeight = lineHeight,
@@ -1019,14 +1063,14 @@ fun AnswerCard(
                             imageVector = Icons.Default.Lightbulb,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = txtColor.copy(alpha = 0.7f)
+                            tint = readableTextColor.copy(alpha = 0.7f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         RichContentText(
                             text = explanation ?: "",
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
-                            textColor = txtColor.copy(alpha = 0.9f),
+                            textColor = readableTextColor.copy(alpha = 0.9f),
                             lineHeight = 18.sp
                         )
                     }

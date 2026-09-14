@@ -96,6 +96,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -121,6 +122,7 @@ import com.hkm.pozix.util.HapticUtil
 import com.hkm.pozix.util.SharedImportManager
 import com.hkm.pozix.viewmodel.ImportViewModel
 import com.hkm.pozix.viewmodel.ValidationState
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import kotlinx.coroutines.launch
 
 private const val SAMPLE_STEM_JSON = """{
@@ -338,7 +340,10 @@ fun ImportScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.elevatedFilterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedLabelColor = readableContentColorFor(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
                         selectedLeadingIconColor = MaterialTheme.colorScheme.primary
                     )
                 )
@@ -374,7 +379,11 @@ fun ImportScreen(
                                 text = stringResource(R.string.import_file_loaded, uiState.importedFileName.orEmpty()),
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = readableContentColorFor(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+                                        .compositeOver(MaterialTheme.colorScheme.background),
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             )
                         }
                         IconButton(
@@ -387,7 +396,11 @@ fun ImportScreen(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Clear",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                tint = readableContentColorFor(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+                                        .compositeOver(MaterialTheme.colorScheme.background),
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -424,7 +437,10 @@ fun ImportScreen(
                             Text(
                                 text = uiState.fileError.orEmpty(),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer
+                                color = readableContentColorFor(
+                                    MaterialTheme.colorScheme.errorContainer,
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                )
                             )
                         }
                         IconButton(
@@ -434,7 +450,10 @@ fun ImportScreen(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Dismiss",
-                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                tint = readableContentColorFor(
+                                    MaterialTheme.colorScheme.errorContainer,
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                ),
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -735,6 +754,11 @@ fun ImportScreen(
                             shape = RoundedCornerShape(22.dp),
                             border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                         ) {
+                            val successTextColor = readableContentColorFor(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)
+                                    .compositeOver(MaterialTheme.colorScheme.background),
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                             Column(
                                 modifier = Modifier.padding(18.dp),
                                 verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -762,13 +786,13 @@ fun ImportScreen(
                                             text = stringResource(R.string.import_success),
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            color = successTextColor
                                         )
                                         Text(
                                             text = state.result.quiz.title,
                                             style = MaterialTheme.typography.bodyLarge,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            color = successTextColor
                                         )
                                     }
                                 }
@@ -777,7 +801,7 @@ fun ImportScreen(
                                     Text(
                                         text = state.result.quiz.description,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                        color = successTextColor.copy(alpha = 0.85f)
                                     )
                                 }
 
@@ -932,6 +956,10 @@ fun ImportScreen(
                             shape = RoundedCornerShape(20.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
                         ) {
+                            val errorTextColor = readableContentColorFor(
+                                MaterialTheme.colorScheme.errorContainer,
+                                MaterialTheme.colorScheme.onErrorContainer
+                            )
                             Column(
                                 modifier = Modifier.padding(16.dp)
                             ) {
@@ -949,7 +977,7 @@ fun ImportScreen(
                                         text = stringResource(R.string.import_error),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                        color = errorTextColor
                                     )
                                 }
 
@@ -958,7 +986,7 @@ fun ImportScreen(
                                 Text(
                                     text = state.message,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    color = errorTextColor,
                                     fontFamily = FontFamily.Monospace
                                 )
                             }

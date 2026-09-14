@@ -107,6 +107,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hkm.pozix.R
+import com.hkm.pozix.ui.theme.readableContentColorFor
 import com.hkm.pozix.data.model.AiProvider
 import com.hkm.pozix.ui.theme.getAvailableFonts
 import com.hkm.pozix.ui.theme.getFontDisplayName
@@ -870,7 +871,10 @@ fun SettingsScreen(
                                         text = name,
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                        color = if (selected) readableContentColorFor(
+                                            MaterialTheme.colorScheme.primaryContainer,
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        ) else MaterialTheme.colorScheme.onSurface
                                     )
                                     if (selected) {
                                         Icon(
@@ -946,14 +950,20 @@ fun SettingsScreen(
                                             style = MaterialTheme.typography.bodyLarge,
                                             fontFamily = getFontFamily(fontName),
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                            color = if (isSelected) readableContentColorFor(
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            ) else MaterialTheme.colorScheme.onSurface
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
                                             text = "Sphinx of black quartz, judge my vow",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontFamily = getFontFamily(fontName),
-                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = if (isSelected) readableContentColorFor(
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            ).copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     if (isSelected) {
@@ -1034,14 +1044,20 @@ fun SettingsScreen(
                                             text = provider.name.ifBlank { provider.baseUrl },
                                             style = MaterialTheme.typography.bodyLarge,
                                             fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
-                                            color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                            color = if (isActive) readableContentColorFor(
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
                                             else MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1
                                         )
                                         Text(
                                             text = provider.modelId.ifBlank { provider.normalizedBaseUrl() },
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                            color = if (isActive) readableContentColorFor(
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            ).copy(alpha = 0.8f)
                                             else MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1
                                         )
@@ -1747,7 +1763,10 @@ fun AiProviderEditorSheet(
                                             modifier = Modifier.weight(1f),
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                            color = if (selected) readableContentColorFor(
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
                                             else MaterialTheme.colorScheme.onSurface
                                         )
                                         if (selected) {

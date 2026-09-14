@@ -18,12 +18,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.QuizReviewPayload
+import com.hkm.pozix.ui.theme.readableContentColorFor
 
 @Composable
 fun QuizReviewDraftCard(
@@ -32,10 +34,15 @@ fun QuizReviewDraftCard(
     onSend: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val cardColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.58f)
+    val cardTextColor = readableContentColorFor(
+        cardColor.compositeOver(MaterialTheme.colorScheme.background),
+        MaterialTheme.colorScheme.onPrimaryContainer
+    )
     Surface(
         modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.58f),
+        color = cardColor,
         tonalElevation = 1.dp
     ) {
         Column(modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 10.dp, bottom = 10.dp)) {
@@ -50,13 +57,13 @@ fun QuizReviewDraftCard(
                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = cardTextColor
                 )
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.ai_review_card_dismiss),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        tint = cardTextColor
                     )
                 }
             }
@@ -66,7 +73,7 @@ fun QuizReviewDraftCard(
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = cardTextColor
             )
             Text(
                 text = listOf(
@@ -75,7 +82,7 @@ fun QuizReviewDraftCard(
                     stringResource(R.string.ai_review_card_unanswered, payload.items.count { it.selectedIndex == null })
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                color = cardTextColor.copy(alpha = 0.8f),
                 modifier = Modifier.padding(top = 3.dp)
             )
             Button(

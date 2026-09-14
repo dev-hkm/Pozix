@@ -1,11 +1,42 @@
 package com.hkm.pozix
 
 import com.hkm.pozix.ui.components.richcontent.LatexMathParser
+import com.hkm.pozix.ui.theme.readableContentColor
+import com.hkm.pozix.viewmodel.shouldResetQuizOnExit
+import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LatexMathParserTest {
+    @Test
+    fun readableContentColorRejectsLowContrastPreferredColor() {
+        assertEquals(
+            Color.Black,
+            readableContentColor(
+                background = Color.White,
+                preferred = Color.White,
+                fallbackA = Color.White,
+                fallbackB = Color.Black
+            )
+        )
+        assertEquals(
+            Color.White,
+            readableContentColor(
+                background = Color.Black,
+                preferred = Color.Black,
+                fallbackA = Color.White,
+                fallbackB = Color.Black
+            )
+        )
+    }
+
+    @Test
+    fun disablingSaveOnExitRequestsQuizReset() {
+        assertTrue(shouldResetQuizOnExit(saveProgress = false))
+        assertTrue(!shouldResetQuizOnExit(saveProgress = true))
+    }
+
     @Test
     fun htmlBreakTagsRemainVisibleInEducationalText() {
         listOf("<br>", "<br/>", "<br />").forEach { tag ->

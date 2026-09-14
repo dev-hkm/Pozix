@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.hkm.pozix.ui.theme.readableContentColorFor
 
 @Composable
 fun AnswerButton(
@@ -46,13 +47,14 @@ fun AnswerButton(
         label = "backgroundColor"
     )
     
-    val contentColor by animateColorAsState(
-        targetValue = when {
+    val preferredContentColor = when {
             isAnswered && isSelected && isCorrect == true -> MaterialTheme.colorScheme.onPrimaryContainer
             isAnswered && isSelected && isCorrect == false -> MaterialTheme.colorScheme.onErrorContainer
             isSelected -> MaterialTheme.colorScheme.onSecondaryContainer
             else -> MaterialTheme.colorScheme.onSurface
-        },
+    }
+    val contentColor by animateColorAsState(
+        targetValue = readableContentColorFor(backgroundColor, preferredContentColor),
         animationSpec = tween(durationMillis = 300),
         label = "contentColor"
     )

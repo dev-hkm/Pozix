@@ -345,6 +345,9 @@
     <!-- Quiz player (previously hardcoded) -->
     <string name="quiz_quit_title">Thoát Quiz?</string>
     <string name="quiz_quit_message">Bạn có chắc muốn thoát? Tiến trình sẽ được lưu.</string>
+    <string name="quiz_quit_save_progress">Lưu tiến trình</string>
+    <string name="quiz_quit_save_progress_on">Lần sau sẽ tiếp tục từ vị trí hiện tại.</string>
+    <string name="quiz_quit_save_progress_off">Lần sau sẽ bắt đầu lại từ câu 1.</string>
     <string name="quiz_quit">Thoát</string>
     <string name="quiz_next_question">CÂU TIẾP THEO</string>
     <string name="quiz_see_results">XEM KẾT QUẢ</string>
