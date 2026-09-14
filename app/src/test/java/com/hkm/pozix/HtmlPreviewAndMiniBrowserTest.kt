@@ -26,7 +26,7 @@ class HtmlPreviewAndMiniBrowserTest {
         assertTrue(hasHtml)
 
         val viewportMeta = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-        val canvasTouchCss = "<style id=\"pozix-touch-fix\">canvas{touch-action:none !important;}</style>"
+        val canvasTouchCss = "<style id=\"pozix-canvas-fix\">canvas{touch-action:none;user-select:none;}</style>"
 
         var modified = rawHtml
         if (!modified.contains("<meta name=\"viewport\"", ignoreCase = true)) {
@@ -37,7 +37,7 @@ class HtmlPreviewAndMiniBrowserTest {
         }
 
         assertTrue(modified.contains("<meta name=\"viewport\""))
-        assertTrue(modified.contains("pozix-touch-fix"))
+        assertTrue(modified.contains("pozix-canvas-fix"))
         assertTrue(modified.contains("touch-action:none"))
         assertTrue(modified.contains("<canvas id='c'></canvas>"))
     }
@@ -63,7 +63,6 @@ class HtmlPreviewAndMiniBrowserTest {
 
     @Test
     fun testReloadGuardKeyStability() {
-        // Simulating the Compose recomposition cache tag key
         var refreshTrigger = 0
         var canvasDark = true
         var isDesktopView = false
@@ -73,25 +72,39 @@ class HtmlPreviewAndMiniBrowserTest {
 
         val initialKey = computeKey()
 
-        // Simulating 50 frames or 50 console logs arriving without user reloading or toggling settings
         for (i in 1..50) {
             val keyDuringGameUpdates = computeKey()
             assertEquals("Key must remain identical during game loop to prevent reload", initialKey, keyDuringGameUpdates)
         }
 
-        // When user explicitly taps Reload, key changes
         refreshTrigger++
         val reloadKey = computeKey()
         assertNotEquals(initialKey, reloadKey)
 
-        // When user toggles Desktop mode, key changes
         isDesktopView = true
         val desktopKey = computeKey()
         assertNotEquals(reloadKey, desktopKey)
 
-        // When user toggles Canvas Dark mode, key changes
         canvasDark = false
         val lightKey = computeKey()
         assertNotEquals(desktopKey, lightKey)
+    }
+
+    @Test
+    fun testDynamicTitleExtractionFromCodeOrFileName() {
+        val codeWithTitle = "<html><head><title>Flappy Bird Pro</title></head><body></body></html>"
+        val titleMatch = Regex("<title>([^<]+)</title>", RegexOption.IGNORE_CASE).find(codeWithTitle)
+        val extracted = titleMatch?.groupValues?.get(1)?.trim() ?: "HTML Document"
+        assertEquals("Flappy Bird Pro", extracted)
+
+        val codeWithoutTitle = "<div>Hello World</div>"
+        val noTitleMatch = Regex("<title>([^<]+)</title>", RegexOption.IGNORE_CASE).find(codeWithoutTitle)
+        val fallback = noTitleMatch?.groupValues?.get(1)?.trim() ?: "HTML Document"
+        assertEquals("HTML Document", fallback)
+
+        // If local file was loaded, local file name takes precedence
+        val localFileName = "custom_game.html"
+        val activeTitle = if (!localFileName.isNullOrBlank()) localFileName else extracted
+        assertEquals("custom_game.html", activeTitle)
     }
 }

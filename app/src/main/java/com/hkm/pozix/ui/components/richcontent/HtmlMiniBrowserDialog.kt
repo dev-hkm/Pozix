@@ -2,16 +2,25 @@ package com.hkm.pozix.ui.components.richcontent
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
+import android.os.Build
+import android.provider.OpenableColumns
 import android.webkit.ConsoleMessage
 import android.webkit.JsPromptResult
 import android.webkit.JsResult
+import android.webkit.PermissionRequest
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -53,14 +62,19 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DesktopWindows
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -115,19 +129,29 @@ data class ConsoleLogItem(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+private data class JsPromptData(
+    val message: String,
+    val defaultValue: String,
+    val result: JsPromptResult
+)
+
 private val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
 /**
- * Fullscreen Interactive Mini Browser Dialog for Pozix (v1.8.1 Production Polish).
+ * Fullscreen Interactive Mini Browser Pro for Pozix (v1.8.2).
  * Features:
- * - Isolated secure sandbox (https://sandbox.local/) with local storage & database support
- * - Recomposition reload guard prevents canvas / game frame resets during state changes
- * - Fluid touch & gesture responsiveness with CSS touch-action and hardware acceleration
- * - Horizontal scrolling for 1024px desktop view simulation on mobile displays
- * - Full lifecycle cleanup on dismiss prevents WebView memory leaks and background battery drain
- * - Real-time JavaScript console logs with error level filter and copy support
- * - Native JavaScript alert & confirm modal dialogs
- * - Dynamic color and dark/light canvas toggle
+ * - Edge-to-edge transparent navigation bar & status bar (zero white gap)
+ * - Powerful Dark / Light mode toggle that works across ALL HTML documents
+ * - Open HTML/SVG files from local device storage (SAF GetContent)
+ * - WebView file input support (<input type="file"> via WebChromeClient.onShowFileChooser)
+ * - Export current HTML code to device storage or Share via system share sheet
+ * - Web Audio API & HTML5 Audio with automatic permission grant
+ * - Native JavaScript alert(), confirm(), and prompt() dialog support
+ * - Recomposition reload guard prevents canvas / game frame resets
+ * - Desktop 1024px simulation with smooth horizontal pan
+ * - Zoom in / Zoom out / Zoom reset controls
+ * - Real-time JavaScript console inspector with log filters & error badges
+ * - Full memory leak prevention with explicit WebView cleanup on dismiss
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -140,9 +164,13 @@ fun HtmlMiniBrowserDialog(
     val clipboardManager = LocalClipboardManager.current
     val isSystemDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
+    // Dynamic document state (can be changed by opening a local file)
+    var currentCode by remember(code) { mutableStateOf(code) }
+    var currentFileName by remember { mutableStateOf<String?>(null) }
+
     var isDesktopView by remember { mutableStateOf(false) }
     var canvasDark by remember { mutableStateOf(isSystemDark) }
-    var activeTab by remember { mutableStateOf(0) } // 0 = Browser Live, 1 = Source Code
+    var activeTab by remember { mutableStateOf(0) } // 0 = Live Browser, 1 = Source Code
     var showConsole by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableIntStateOf(0) }
     var isReloading by remember { mutableStateOf(false) }
@@ -155,12 +183,77 @@ fun HtmlMiniBrowserDialog(
     var jsAlertMessage by remember { mutableStateOf<String?>(null) }
     var jsConfirmMessage by remember { mutableStateOf<String?>(null) }
     var jsConfirmResult by remember { mutableStateOf<JsResult?>(null) }
+    var jsPromptData by remember { mutableStateOf<JsPromptData?>(null) }
+    var promptInputText by remember { mutableStateOf("") }
 
-    // WebView reference for explicit lifecycle cleanup
+    // Export Dialog State
+    var showExportDialog by remember { mutableStateOf(false) }
+
+    // WebView reference for explicit lifecycle cleanup and zoom controls
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+
+    // File Chooser Callback for <input type="file"> in web content
+    var fileChooserCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
+
+    // Launcher for WebView's <input type="file">
+    val webViewFileChooserLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uri = result.data?.data
+        val clipData = result.data?.clipData
+        val uris = when {
+            clipData != null -> Array(clipData.itemCount) { clipData.getItemAt(it).uri }
+            uri != null -> arrayOf(uri)
+            else -> null
+        }
+        fileChooserCallback?.onReceiveValue(uris)
+        fileChooserCallback = null
+    }
+
+    // Launcher for Opening HTML/SVG files from device storage
+    val openFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val content = context.contentResolver.openInputStream(it)?.use { stream ->
+                    stream.bufferedReader(Charsets.UTF_8).readText()
+                }
+                if (!content.isNullOrBlank()) {
+                    val name = getFileNameFromUri(context, it) ?: "Tập tin HTML"
+                    currentCode = content
+                    currentFileName = name
+                    refreshTrigger++
+                    HapticUtil.actionConfirm(context)
+                    Toast.makeText(context, "Đã mở: $name", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Không thể đọc file: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Launcher for Saving / Exporting HTML file to device storage
+    val saveFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/html")
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.openOutputStream(it)?.use { stream ->
+                    stream.write(currentCode.toByteArray(Charsets.UTF_8))
+                }
+                HapticUtil.actionConfirm(context)
+                Toast.makeText(context, "Đã lưu file HTML thành công!", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Lỗi khi lưu file: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     DisposableEffect(Unit) {
         onDispose {
+            fileChooserCallback?.onReceiveValue(null)
+            fileChooserCallback = null
             webViewRef?.apply {
                 stopLoading()
                 loadUrl("about:blank")
@@ -179,16 +272,20 @@ fun HtmlMiniBrowserDialog(
         finishedListener = { isReloading = false }
     )
 
-    val isSvg = remember(language, code) {
-        language.equals("SVG", ignoreCase = true) || code.trimStart().startsWith("<svg", ignoreCase = true)
+    val isSvg = remember(language, currentCode) {
+        language.equals("SVG", ignoreCase = true) || currentCode.trimStart().startsWith("<svg", ignoreCase = true)
     }
 
-    val extractedTitle = remember(code) {
-        val titleMatch = Regex("<title>([^<]+)</title>", RegexOption.IGNORE_CASE).find(code)
-        titleMatch?.groupValues?.get(1)?.trim() ?: if (isSvg) "Vector Graphics (SVG)" else "HTML Document"
+    val extractedTitle = remember(currentCode, currentFileName) {
+        if (!currentFileName.isNullOrBlank()) {
+            currentFileName!!
+        } else {
+            val titleMatch = Regex("<title>([^<]+)</title>", RegexOption.IGNORE_CASE).find(currentCode)
+            titleMatch?.groupValues?.get(1)?.trim() ?: if (isSvg) "Vector Graphics (SVG)" else "HTML Document"
+        }
     }
 
-    val finalHtml = remember(code, canvasDark, isSvg, isDesktopView) {
+    val finalHtml = remember(currentCode, canvasDark, isSvg, isDesktopView) {
         val bgHex = if (canvasDark) "#181825" else "#FFFFFF"
         val textHex = if (canvasDark) "#CDD6F4" else "#1E293B"
         val viewportMeta = if (isDesktopView) {
@@ -197,16 +294,42 @@ fun HtmlMiniBrowserDialog(
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=3.0, user-scalable=yes\">"
         }
 
+        // Dedicated theme override style block ensuring Dark / Light mode works on ALL HTML documents
+        val themeOverride = if (canvasDark) {
+            """
+            <meta name="color-scheme" content="dark">
+            <style id="pozix-theme-override">
+                :root {
+                    color-scheme: dark !important;
+                }
+                html, body {
+                    background-color: #181825 !important;
+                    color: #CDD6F4 !important;
+                }
+            </style>
+            """.trimIndent()
+        } else {
+            """
+            <meta name="color-scheme" content="light">
+            <style id="pozix-theme-override">
+                :root {
+                    color-scheme: light !important;
+                }
+                html, body {
+                    background-color: #FFFFFF !important;
+                    color: #1E293B !important;
+                }
+            </style>
+            """.trimIndent()
+        }
+
+        // Clean canvas touch fix without intrusive forced layout overrides
         val canvasTouchCss = """
-            <style id="pozix-touch-fix">
+            <style id="pozix-canvas-fix">
                 canvas {
-                    touch-action: none !important;
-                    -webkit-touch-callout: none !important;
-                    -webkit-user-select: none !important;
-                    user-select: none !important;
-                    display: block;
-                    margin: 0 auto;
-                    max-width: 100%;
+                    touch-action: none;
+                    -webkit-touch-callout: none;
+                    user-select: none;
                 }
                 * {
                     -webkit-tap-highlight-color: transparent;
@@ -220,11 +343,12 @@ fun HtmlMiniBrowserDialog(
             <html>
             <head>
                 $viewportMeta
+                $themeOverride
                 <style>
                     html, body {
                         margin: 0;
                         padding: 16px;
-                        background: $bgHex;
+                        background: $bgHex !important;
                         display: flex;
                         justify-content: center;
                         align-items: center;
@@ -240,14 +364,14 @@ fun HtmlMiniBrowserDialog(
                 </style>
             </head>
             <body>
-                $code
+                $currentCode
             </body>
             </html>
             """.trimIndent()
         } else {
-            val hasHtml = code.contains("<html", ignoreCase = true) && code.contains("</html>", ignoreCase = true)
+            val hasHtml = currentCode.contains("<html", ignoreCase = true) && currentCode.contains("</html>", ignoreCase = true)
             if (hasHtml) {
-                var modified = code
+                var modified = currentCode
                 if (!modified.contains("<meta name=\"viewport\"", ignoreCase = true)) {
                     if (modified.contains("<head>", ignoreCase = true)) {
                         modified = modified.replaceFirst("<head>", "<head>$viewportMeta", ignoreCase = true)
@@ -256,9 +380,9 @@ fun HtmlMiniBrowserDialog(
                     }
                 }
                 if (modified.contains("</head>", ignoreCase = true)) {
-                    modified = modified.replaceFirst("</head>", "$canvasTouchCss</head>", ignoreCase = true)
+                    modified = modified.replaceFirst("</head>", "$themeOverride\n$canvasTouchCss</head>", ignoreCase = true)
                 } else if (modified.contains("<body>", ignoreCase = true)) {
-                    modified = modified.replaceFirst("<body>", "<head>$canvasTouchCss</head><body>", ignoreCase = true)
+                    modified = modified.replaceFirst("<body>", "<head>$themeOverride\n$canvasTouchCss</head><body>", ignoreCase = true)
                 }
                 modified
             } else {
@@ -267,20 +391,20 @@ fun HtmlMiniBrowserDialog(
                 <html>
                 <head>
                     $viewportMeta
+                    $themeOverride
                     $canvasTouchCss
                     <style>
                         html, body {
                             margin: 0;
-                            padding: 16px;
+                            padding: 12px;
                             background-color: $bgHex;
                             color: $textHex;
-                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                             font-size: 15px;
-                            line-height: 1.6;
-                            word-break: break-word;
+                            line-height: 1.5;
                             box-sizing: border-box;
                         }
-                        * {
+                        *, *:before, *:after {
                             box-sizing: border-box;
                         }
                         img, svg, video, iframe {
@@ -316,7 +440,7 @@ fun HtmlMiniBrowserDialog(
                     </style>
                 </head>
                 <body>
-                    $code
+                    $currentCode
                 </body>
                 </html>
                 """.trimIndent()
@@ -356,10 +480,12 @@ fun HtmlMiniBrowserDialog(
                 dialogWindow.statusBarColor = android.graphics.Color.TRANSPARENT
                 @Suppress("DEPRECATION")
                 dialogWindow.navigationBarColor = android.graphics.Color.TRANSPARENT
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     dialogWindow.isStatusBarContrastEnforced = false
                     dialogWindow.isNavigationBarContrastEnforced = false
                 }
+                // Seamless transparent window background removes any white gap behind navigation bar
+                dialogWindow.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
             }
 
             dialogView.context.findActivity()?.window?.let { actWindow ->
@@ -382,10 +508,7 @@ fun HtmlMiniBrowserDialog(
         }
 
         Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .navigationBarsPadding(),
+            modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -404,26 +527,50 @@ fun HtmlMiniBrowserDialog(
                     onReload = {
                         isReloading = true
                         refreshTrigger++
+                        webViewRef?.reload()
+                        HapticUtil.lightTap(context)
+                    },
+                    onOpenFile = {
+                        openFileLauncher.launch("*/*")
+                        HapticUtil.lightTap(context)
+                    },
+                    onExportFile = {
+                        showExportDialog = true
                         HapticUtil.lightTap(context)
                     },
                     onToggleDesktop = {
                         isDesktopView = !isDesktopView
                         HapticUtil.selectionTick(context)
+                        Toast.makeText(
+                            context,
+                            if (isDesktopView) "Chế độ máy tính (1024px)" else "Chế độ di động (Responsive)",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     },
                     onToggleCanvasDark = {
                         canvasDark = !canvasDark
                         HapticUtil.selectionTick(context)
+                        Toast.makeText(
+                            context,
+                            if (canvasDark) "Đã bật nền Tối (Dark Mode)" else "Đã bật nền Sáng (Light Mode)",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     },
                     onToggleTab = {
                         activeTab = if (activeTab == 0) 1 else 0
                         HapticUtil.selectionTick(context)
+                        Toast.makeText(
+                            context,
+                            if (activeTab == 1) "Đang xem mã nguồn" else "Đang xem giao diện",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     },
                     onToggleConsole = {
                         showConsole = !showConsole
                         HapticUtil.selectionTick(context)
                     },
                     onCopy = {
-                        clipboardManager.setText(AnnotatedString(code))
+                        clipboardManager.setText(AnnotatedString(currentCode))
                         HapticUtil.actionConfirm(context)
                         Toast.makeText(context, context.getString(R.string.code_copied), Toast.LENGTH_SHORT).show()
                     }
@@ -469,13 +616,20 @@ fun HtmlMiniBrowserDialog(
                                             domStorageEnabled = true
                                             databaseEnabled = true
                                             mediaPlaybackRequiresUserGesture = false
+                                            allowFileAccess = true
+                                            allowContentAccess = true
                                             setSupportZoom(true)
                                             builtInZoomControls = true
                                             displayZoomControls = false
                                             useWideViewPort = true
                                             loadWithOverviewMode = true
-                                            allowFileAccess = false
-                                            allowContentAccess = false
+
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                                isAlgorithmicDarkeningAllowed = canvasDark
+                                            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                                @Suppress("DEPRECATION")
+                                                forceDark = if (canvasDark) WebSettings.FORCE_DARK_ON else WebSettings.FORCE_DARK_OFF
+                                            }
                                         }
                                         webChromeClient = object : WebChromeClient() {
                                             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -504,6 +658,36 @@ fun HtmlMiniBrowserDialog(
                                                 jsConfirmResult = result
                                                 return true
                                             }
+                                            override fun onJsPrompt(view: WebView?, url: String?, message: String?, defaultValue: String?, result: JsPromptResult?): Boolean {
+                                                if (result != null) {
+                                                    promptInputText = defaultValue.orEmpty()
+                                                    jsPromptData = JsPromptData(message.orEmpty(), defaultValue.orEmpty(), result)
+                                                    return true
+                                                }
+                                                return false
+                                            }
+                                            override fun onPermissionRequest(request: PermissionRequest?) {
+                                                // Automatically grant audio/media capture permissions requested by HTML5 games
+                                                request?.grant(request.resources)
+                                            }
+                                            override fun onShowFileChooser(
+                                                webView: WebView?,
+                                                filePathCallback: ValueCallback<Array<Uri>>?,
+                                                fileChooserParams: FileChooserParams?
+                                            ): Boolean {
+                                                fileChooserCallback?.onReceiveValue(null)
+                                                fileChooserCallback = filePathCallback
+                                                return try {
+                                                    val intent = fileChooserParams?.createIntent() ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                                                        type = "*/*"
+                                                    }
+                                                    webViewFileChooserLauncher.launch(intent)
+                                                    true
+                                                } catch (e: Exception) {
+                                                    fileChooserCallback = null
+                                                    false
+                                                }
+                                            }
                                         }
                                         webViewClient = object : WebViewClient() {
                                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -525,9 +709,15 @@ fun HtmlMiniBrowserDialog(
                                     }
                                 },
                                 update = { webView ->
-                                    val loadKey = "$refreshTrigger:$canvasDark:$isDesktopView:${code.hashCode()}"
+                                    val loadKey = "$refreshTrigger:$canvasDark:$isDesktopView:${currentCode.hashCode()}"
                                     if (webView.tag != loadKey) {
                                         webView.tag = loadKey
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            webView.settings.isAlgorithmicDarkeningAllowed = canvasDark
+                                        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                            @Suppress("DEPRECATION")
+                                            webView.settings.forceDark = if (canvasDark) WebSettings.FORCE_DARK_ON else WebSettings.FORCE_DARK_OFF
+                                        }
                                         webView.loadDataWithBaseURL("https://sandbox.local/", finalHtml, "text/html", "UTF-8", null)
                                     }
                                 },
@@ -545,7 +735,7 @@ fun HtmlMiniBrowserDialog(
                             val vScroll = rememberScrollState()
                             val hScroll = rememberScrollState()
                             Text(
-                                text = code,
+                                text = currentCode,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 13.sp,
                                 lineHeight = 19.sp,
@@ -595,14 +785,22 @@ fun HtmlMiniBrowserDialog(
                     )
                 }
 
-                // 5. Bottom Browser Status Bar with Error Badge
+                // 5. Bottom Browser Status Bar (Seamless Edge-to-Edge Navigation Bar)
                 BrowserStatusBar(
                     isDesktopView = isDesktopView,
                     canvasDark = canvasDark,
                     consoleCount = consoleLogs.size,
                     hasError = errorCount > 0,
                     showConsole = showConsole,
-                    onToggleConsole = { showConsole = !showConsole }
+                    onToggleConsole = { showConsole = !showConsole },
+                    onZoomIn = {
+                        webViewRef?.zoomIn()
+                        HapticUtil.lightTap(context)
+                    },
+                    onZoomOut = {
+                        webViewRef?.zoomOut()
+                        HapticUtil.lightTap(context)
+                    }
                 )
             }
         }
@@ -648,6 +846,86 @@ fun HtmlMiniBrowserDialog(
                 }
             )
         }
+
+        // Native JS Prompt Dialog
+        if (jsPromptData != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    jsPromptData?.result?.cancel()
+                    jsPromptData = null
+                },
+                title = { Text("JavaScript Prompt", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column {
+                        Text(jsPromptData!!.message)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = promptInputText,
+                            onValueChange = { promptInputText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        jsPromptData?.result?.confirm(promptInputText)
+                        jsPromptData = null
+                    }) {
+                        Text("Xác nhận")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        jsPromptData?.result?.cancel()
+                        jsPromptData = null
+                    }) {
+                        Text("Hủy")
+                    }
+                }
+            )
+        }
+
+        // Export / Save Dialog Modal
+        if (showExportDialog) {
+            AlertDialog(
+                onDismissRequest = { showExportDialog = false },
+                title = { Text("Xuất & Lưu Mã HTML", fontWeight = FontWeight.Bold) },
+                text = {
+                    Text("Bạn muốn lưu file HTML vào bộ nhớ thiết bị hay chia sẻ trực tiếp qua ứng dụng khác?")
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showExportDialog = false
+                        saveFileLauncher.launch(currentFileName ?: "pozix_document.html")
+                    }) {
+                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Lưu file .html")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showExportDialog = false
+                        try {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/html"
+                                putExtra(Intent.EXTRA_SUBJECT, currentFileName ?: "pozix_document.html")
+                                putExtra(Intent.EXTRA_TEXT, currentCode)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Chia sẻ mã HTML"))
+                            HapticUtil.lightTap(context)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Không thể chia sẻ: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Chia sẻ")
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -664,6 +942,8 @@ private fun BrowserHeader(
     showConsole: Boolean,
     onClose: () -> Unit,
     onReload: () -> Unit,
+    onOpenFile: () -> Unit,
+    onExportFile: () -> Unit,
     onToggleDesktop: () -> Unit,
     onToggleCanvasDark: () -> Unit,
     onToggleTab: () -> Unit,
@@ -678,14 +958,14 @@ private fun BrowserHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .padding(horizontal = 6.dp, vertical = 6.dp)
         ) {
             // Row 1: Back + Smart Omnibox + Actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onClose, modifier = Modifier.size(38.dp)) {
+                IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.close),
@@ -734,45 +1014,65 @@ private fun BrowserHeader(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(2.dp))
+
+                // Open File from device
+                IconButton(onClick = onOpenFile, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.FileOpen,
+                        contentDescription = "Mở file từ thiết bị",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Export / Save file
+                IconButton(onClick = onExportFile, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = "Lưu / Xuất file",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
                 // Desktop / Mobile Viewport
-                IconButton(onClick = onToggleDesktop, modifier = Modifier.size(38.dp)) {
+                IconButton(onClick = onToggleDesktop, modifier = Modifier.size(34.dp)) {
                     Icon(
                         imageVector = if (isDesktopView) Icons.Default.DesktopWindows else Icons.Default.PhoneAndroid,
                         contentDescription = if (isDesktopView) "Chế độ máy tính" else "Chế độ di động",
                         tint = if (isDesktopView) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
                 // Light / Dark Canvas Toggle
-                IconButton(onClick = onToggleCanvasDark, modifier = Modifier.size(38.dp)) {
+                IconButton(onClick = onToggleCanvasDark, modifier = Modifier.size(34.dp)) {
                     Icon(
                         imageVector = if (canvasDark) Icons.Default.LightMode else Icons.Default.DarkMode,
                         contentDescription = "Đổi nền Canvas",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(19.dp)
+                        tint = if (canvasDark) Color(0xFFF9E2AF) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
                 // Code vs Preview toggle
-                IconButton(onClick = onToggleTab, modifier = Modifier.size(38.dp)) {
+                IconButton(onClick = onToggleTab, modifier = Modifier.size(34.dp)) {
                     Icon(
                         imageVector = if (activeTab == 0) Icons.Default.Code else Icons.Default.Visibility,
                         contentDescription = if (activeTab == 0) "Xem mã nguồn" else "Xem giao diện",
                         tint = if (activeTab == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
                 // Copy source
-                IconButton(onClick = onCopy, modifier = Modifier.size(38.dp)) {
+                IconButton(onClick = onCopy, modifier = Modifier.size(34.dp)) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = stringResource(R.string.code_copy_content_desc),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
             }
@@ -962,6 +1262,12 @@ private fun ConsoleFilterChip(
     }
 }
 
+/**
+ * Bottom Browser Status Bar.
+ * IMPORTANT: navigationBarsPadding() is applied INSIDE the Surface column,
+ * allowing the surfaceContainer background to bleed completely down behind
+ * the Android system navigation bar gesture pill with zero white gap!
+ */
 @Composable
 private fun BrowserStatusBar(
     isDesktopView: Boolean,
@@ -969,85 +1275,125 @@ private fun BrowserStatusBar(
     consoleCount: Int,
     hasError: Boolean,
     showConsole: Boolean,
-    onToggleConsole: () -> Unit
+    onToggleConsole: () -> Unit,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .navigationBarsPadding()
         ) {
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest
-                ) {
-                    Text(
-                        text = if (isDesktopView) "1024px Desktop" else "Responsive Mobile",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest
-                ) {
-                    Text(
-                        text = if (canvasDark) "Dark Canvas" else "Light Canvas",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-            }
-
-            Surface(
-                onClick = onToggleConsole,
-                shape = RoundedCornerShape(6.dp),
-                color = when {
-                    showConsole -> MaterialTheme.colorScheme.primaryContainer
-                    hasError -> MaterialTheme.colorScheme.errorContainer
-                    else -> MaterialTheme.colorScheme.surfaceContainerHighest
-                }
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = if (hasError) Icons.Default.ErrorOutline else Icons.Default.BugReport,
-                        contentDescription = null,
-                        tint = when {
-                            showConsole -> MaterialTheme.colorScheme.onPrimaryContainer
-                            hasError -> MaterialTheme.colorScheme.onErrorContainer
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Console ($consoleCount)",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when {
-                            showConsole -> MaterialTheme.colorScheme.onPrimaryContainer
-                            hasError -> MaterialTheme.colorScheme.onErrorContainer
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
+                        Text(
+                            text = if (isDesktopView) "1024px Desktop" else "Mobile",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
+                        Text(
+                            text = if (canvasDark) "Dark" else "Light",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+
+                    // Zoom Controls
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    ) {
+                        IconButton(onClick = onZoomOut, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.ZoomOut, contentDescription = "Thu nhỏ", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(13.dp))
                         }
-                    )
+                        IconButton(onClick = onZoomIn, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.ZoomIn, contentDescription = "Phóng to", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(13.dp))
+                        }
+                    }
+                }
+
+                Surface(
+                    onClick = onToggleConsole,
+                    shape = RoundedCornerShape(6.dp),
+                    color = when {
+                        showConsole -> MaterialTheme.colorScheme.primaryContainer
+                        hasError -> MaterialTheme.colorScheme.errorContainer
+                        else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (hasError) Icons.Default.ErrorOutline else Icons.Default.BugReport,
+                            contentDescription = null,
+                            tint = when {
+                                showConsole -> MaterialTheme.colorScheme.onPrimaryContainer
+                                hasError -> MaterialTheme.colorScheme.onErrorContainer
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Console ($consoleCount)",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = when {
+                                showConsole -> MaterialTheme.colorScheme.onPrimaryContainer
+                                hasError -> MaterialTheme.colorScheme.onErrorContainer
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+private fun getFileNameFromUri(context: Context, uri: Uri): String? {
+    var name: String? = null
+    if (uri.scheme == "content") {
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index != -1) {
+                    name = it.getString(index)
+                }
+            }
+        }
+    }
+    if (name == null) {
+        name = uri.path?.substringAfterLast('/')
+    }
+    return name
 }

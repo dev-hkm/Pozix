@@ -366,13 +366,9 @@ private fun HtmlLivePreview(
         val canvasTouchCss = """
             <style id="pozix-canvas-fix">
                 canvas {
-                    touch-action: none !important;
-                    -webkit-touch-callout: none !important;
-                    -webkit-user-select: none !important;
-                    user-select: none !important;
-                    display: block;
-                    margin: 0 auto;
-                    max-width: 100%;
+                    touch-action: none;
+                    -webkit-touch-callout: none;
+                    user-select: none;
                 }
                 * {
                     -webkit-tap-highlight-color: transparent;
