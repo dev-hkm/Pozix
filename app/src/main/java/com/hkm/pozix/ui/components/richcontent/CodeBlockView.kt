@@ -1,5 +1,8 @@
 package com.hkm.pozix.ui.components.richcontent
 
+import android.annotation.SuppressLint
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -25,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.hkm.pozix.R
 import com.hkm.pozix.ui.theme.readableContentColorFor
 import com.hkm.pozix.util.HapticUtil
@@ -67,6 +72,7 @@ val LocalCodeHighlight = compositionLocalOf { true }
  * Modern Jetpack Compose Code Block component designed for Computer Science (Tin học).
  * Provides:
  * - Language tag with icon
+ * - Live HTML & SVG rendering preview toggle
  * - One-tap copy to clipboard with haptic feedback
  * - Line numbers gutter
  * - Horizontal scrolling (never breaks line structure or indentation)
@@ -94,6 +100,19 @@ fun CodeBlockView(
     val displayLanguage = remember(language) {
         language.trim().ifBlank { "CODE" }.uppercase()
     }
+
+    val isPreviewable = remember(displayLanguage, code) {
+        val upperLang = displayLanguage.uppercase()
+        val trimmed = code.trimStart()
+        upperLang in listOf("HTML", "HTM", "SVG", "XML") ||
+        trimmed.startsWith("<!DOCTYPE html", ignoreCase = true) ||
+        trimmed.startsWith("<html", ignoreCase = true) ||
+        trimmed.startsWith("<svg", ignoreCase = true) ||
+        (code.contains("<html", ignoreCase = true) && code.contains("</html>", ignoreCase = true)) ||
+        (code.contains("<svg", ignoreCase = true) && code.contains("</svg>", ignoreCase = true)) ||
+        (code.contains("<div", ignoreCase = true) && code.contains("</div>", ignoreCase = true))
+    }
+    var isPreviewMode by remember { mutableStateOf(false) }
 
     // Code editor palette follows the app theme: bright paper-like light mode, rich contrast dark mode.
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
@@ -149,87 +168,281 @@ fun CodeBlockView(
                     }
                 }
 
-                val copySuccessText = stringResource(R.string.code_copied)
-                IconButton(
-                    onClick = {
-                        clipboardManager.setText(AnnotatedString(code))
-                        HapticUtil.actionConfirm(context)
-                        isCopied = true
-                        Toast.makeText(context, copySuccessText, Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    AnimatedContent(
-                        targetState = isCopied,
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "copyIcon"
-                    ) { copied ->
-                        if (copied) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = stringResource(R.string.code_copied),
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = stringResource(R.string.code_copy_content_desc),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isPreviewable) {
+                        Surface(
+                            onClick = {
+                                isPreviewMode = !isPreviewMode
+                                HapticUtil.actionConfirm(context)
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isPreviewMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isPreviewMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                            ),
+                            modifier = Modifier.padding(end = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isPreviewMode) Icons.Default.Code else Icons.Default.Visibility,
+                                    contentDescription = if (isPreviewMode) "Xem mã nguồn" else "Xem trước HTML",
+                                    tint = if (isPreviewMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isPreviewMode) "Mã" else "Xem trước",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isPreviewMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    val copySuccessText = stringResource(R.string.code_copied)
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(code))
+                            HapticUtil.actionConfirm(context)
+                            isCopied = true
+                            Toast.makeText(context, copySuccessText, Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        AnimatedContent(
+                            targetState = isCopied,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "copyIcon"
+                        ) { copied ->
+                            if (copied) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = stringResource(R.string.code_copied),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = stringResource(R.string.code_copy_content_desc),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // Code content with line numbers, vertical limit (~9 lines), and 2D scrolling
-            val vScrollState = rememberScrollState()
-            val hScrollState = rememberScrollState()
+            AnimatedContent(
+                targetState = isPreviewMode,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "codeVsPreview"
+            ) { inPreview ->
+                if (inPreview) {
+                    HtmlLivePreview(
+                        code = code,
+                        isDark = isDark,
+                        isSvg = displayLanguage == "SVG" || code.trimStart().startsWith("<svg", ignoreCase = true)
+                    )
+                } else {
+                    // Code content with line numbers, vertical limit (~9 lines), and 2D scrolling
+                    val vScrollState = rememberScrollState()
+                    val hScrollState = rememberScrollState()
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 182.dp)
-                    .verticalScroll(vScrollState)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(hScrollState)
-                        .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)
-                ) {
-                    // Line numbers gutter
-                    Column(horizontalAlignment = Alignment.End) {
-                        lines.forEachIndexed { index, _ ->
-                            Text(
-                                text = "${index + 1}",
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 12.sp,
-                                lineHeight = 18.sp,
-                                color = lineNumberColor,
-                                fontWeight = FontWeight.Normal
-                            )
-                        }
-                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 182.dp)
+                            .verticalScroll(vScrollState)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(hScrollState)
+                                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)
+                        ) {
+                            // Line numbers gutter
+                            Column(horizontalAlignment = Alignment.End) {
+                                lines.forEachIndexed { index, _ ->
+                                    Text(
+                                        text = "${index + 1}",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 12.sp,
+                                        lineHeight = 18.sp,
+                                        color = lineNumberColor,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
+                            }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
 
-                    // Code lines
-                    Column {
-                        lines.forEach { line ->
-                            Text(
-                                text = highlightCodeLine(line, displayLanguage, highlightEnabled, isDark),
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 12.sp,
-                                lineHeight = 18.sp,
-                                color = codeTextColor
-                            )
+                            // Code lines
+                            Column {
+                                lines.forEach { line ->
+                                    Text(
+                                        text = highlightCodeLine(line, displayLanguage, highlightEnabled, isDark),
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 12.sp,
+                                        lineHeight = 18.sp,
+                                        color = codeTextColor
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun HtmlLivePreview(
+    code: String,
+    isDark: Boolean,
+    isSvg: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val bgHex = if (isDark) "#1E1E2E" else "#FFFFFF"
+    val textColor = if (isDark) "#CDD6F4" else "#1E293B"
+
+    val formattedHtml = remember(code, isDark, isSvg) {
+        if (isSvg) {
+            """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
+                <style>
+                    html, body {
+                        margin: 0;
+                        padding: 12px;
+                        background: $bgHex;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        min-height: 100%;
+                        box-sizing: border-box;
+                    }
+                    svg {
+                        max-width: 100%;
+                        height: auto;
+                    }
+                </style>
+            </head>
+            <body>
+                $code
+            </body>
+            </html>
+            """.trimIndent()
+        } else {
+            val hasHtmlWrapper = code.contains("<html", ignoreCase = true) && code.contains("</html>", ignoreCase = true)
+            if (hasHtmlWrapper) {
+                if (!code.contains("<meta name=\"viewport\"", ignoreCase = true)) {
+                    code.replaceFirst("<head>", "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">", ignoreCase = true)
+                } else {
+                    code
+                }
+            } else {
+                """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
+                    <style>
+                        html, body {
+                            margin: 0;
+                            padding: 12px;
+                            background-color: $bgHex;
+                            color: $textColor;
+                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                            font-size: 14px;
+                            line-height: 1.5;
+                            word-break: break-word;
+                            box-sizing: border-box;
+                        }
+                        * {
+                            box-sizing: border-box;
+                        }
+                        img, svg {
+                            max-width: 100%;
+                            height: auto;
+                        }
+                        table {
+                            border-collapse: collapse;
+                            width: 100%;
+                            margin: 8px 0;
+                        }
+                        th, td {
+                            border: 1px solid ${if (isDark) "#45475A" else "#CBD5E1"};
+                            padding: 6px 10px;
+                            text-align: left;
+                        }
+                        th {
+                            background-color: ${if (isDark) "#313244" else "#F1F5F9"};
+                            font-weight: 600;
+                        }
+                        button, input, select {
+                            font-family: inherit;
+                            font-size: 13px;
+                            padding: 4px 8px;
+                            border-radius: 6px;
+                            border: 1px solid ${if (isDark) "#585B70" else "#94A3B8"};
+                            background: ${if (isDark) "#313244" else "#F8FAFC"};
+                            color: $textColor;
+                        }
+                    </style>
+                </head>
+                <body>
+                    $code
+                </body>
+                </html>
+                """.trimIndent()
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 140.dp, max = 280.dp)
+            .background(if (isDark) Color(0xFF1E1E2E) else Color.White)
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                WebView(ctx).apply {
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    isVerticalScrollBarEnabled = true
+                    isHorizontalScrollBarEnabled = true
+                    settings.apply {
+                        javaScriptEnabled = true
+                        domStorageEnabled = false
+                        allowFileAccess = false
+                        allowContentAccess = false
+                        useWideViewPort = true
+                        loadWithOverviewMode = true
+                    }
+                    webViewClient = object : WebViewClient() {
+                        @Suppress("DEPRECATION")
+                        override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean = true
+                    }
+                }
+            },
+            update = { webView ->
+                webView.loadDataWithBaseURL(null, formattedHtml, "text/html", "UTF-8", null)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 140.dp, max = 280.dp)
+        )
     }
 }
 

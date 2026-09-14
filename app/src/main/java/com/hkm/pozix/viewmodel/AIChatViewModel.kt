@@ -102,6 +102,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         {
           "title": "Quiz Title",
           "description": "A brief description of the quiz",
+          "lecture": "Optional theoretical lecture / core study notes summarizing key concepts before testing",
           "questions": [
             {
               "type": "single_choice",

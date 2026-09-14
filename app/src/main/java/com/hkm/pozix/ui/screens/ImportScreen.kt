@@ -64,6 +64,9 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.FormatAlignLeft
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material3.OutlinedButton
+import com.hkm.pozix.util.LectureManager
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.SaveAlt
@@ -156,6 +159,7 @@ private const val SAMPLE_STEM_JSON = """{
 fun ImportScreen(
     onQuizLoaded: () -> Unit,
     onPlayQuiz: (() -> Unit)? = null,
+    onOpenLecture: (() -> Unit)? = null,
     viewModel: ImportViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -877,6 +881,33 @@ fun ImportScreen(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
+                                    }
+                                }
+
+                                if (!state.result.quiz.lecture.isNullOrBlank()) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            HapticUtil.lightTap(context)
+                                            LectureManager.openLecture(state.result.quiz.title, state.result.quiz.lecture)
+                                            onOpenLecture?.invoke()
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 10.dp)
+                                            .height(46.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.primary
+                                        ),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.lecture_open_button),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
                                     }
                                 }
 

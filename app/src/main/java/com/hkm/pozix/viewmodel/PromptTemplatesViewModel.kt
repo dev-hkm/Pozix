@@ -74,6 +74,7 @@ Schema:
 {
   "title": "Tiêu đề quiz",
   "description": "Mô tả tùy chọn",
+  "lecture": "Tóm tắt bài giảng lý thuyết / kiến thức cốt lõi trước khi làm bài (tùy chọn, hỗ trợ markdown, latex, badges, code block)",
   "language": "vi",
   "questions": [
     {
@@ -114,6 +115,7 @@ Schema:
 {
   "title": "Quiz title",
   "description": "Optional description",
+  "lecture": "Optional theoretical lecture / core study notes summarizing key concepts before testing (supports markdown, latex, badges, code block)",
   "language": "en",
   "questions": [
     {

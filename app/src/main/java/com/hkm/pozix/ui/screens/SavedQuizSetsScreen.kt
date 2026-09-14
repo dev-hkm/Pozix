@@ -68,6 +68,9 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import com.hkm.pozix.ui.components.richcontent.RichContentText
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -117,6 +120,7 @@ import java.util.Locale
 fun SavedQuizSetsScreen(
     onPlayQuiz: () -> Unit,
     onStartTest: () -> Unit = {},
+    onOpenLecture: (String, String) -> Unit = { _, _ -> },
     viewModel: SavedQuizSetsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -524,8 +528,10 @@ fun SavedQuizSetsScreen(
             QuizPreviewContent(
                 title = uiState.previewTitle,
                 description = uiState.previewDescription,
+                lecture = uiState.previewLecture,
                 questions = uiState.previewQuestions,
-                onDismiss = { viewModel.hidePreview() }
+                onDismiss = { viewModel.hidePreview() },
+                onOpenLecture = onOpenLecture
             )
         }
     }
@@ -897,8 +903,10 @@ private fun formatTimestamp(timestamp: Long): String {
 fun QuizPreviewContent(
     title: String,
     description: String,
+    lecture: String? = null,
     questions: List<Question>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOpenLecture: ((String, String) -> Unit)? = null
 ) {
     val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 16.dp
     val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 32.dp
@@ -1011,6 +1019,59 @@ fun QuizPreviewContent(
                                     ),
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                                 )
+                            }
+                        }
+
+                        if (!lecture.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Surface(
+                                onClick = {
+                                    HapticUtil.lightTap(context)
+                                    onOpenLecture?.invoke(title, lecture)
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.lecture_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.lecture_subtitle),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
 

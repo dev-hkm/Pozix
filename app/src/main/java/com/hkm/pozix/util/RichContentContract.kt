@@ -4,9 +4,10 @@ package com.hkm.pozix.util
 object RichContentContract {
     fun guidance(language: String): String = if (language == "vi") """
 ĐỊNH DẠNG POZIX HỖ TRỢ (không phải toàn bộ CommonMark):
-- Trong question/explanation: # đến ######, **đậm**, *nghiêng*, ***đậm nghiêng***, ~~gạch ngang~~, ==tô nổi bật== và `code`.
+- Trong lecture/question/explanation: # đến ######, **đậm**, *nghiêng*, ***đậm nghiêng***, ~~gạch ngang~~, `code`, ==tô nổi bật== và các badge highlight màu sắc: ==pink:từ khóa==, ==yellow:tiêu điểm==, ==blue:xem trước==, ==orange:lưu ý==, ==green:đạt chuẩn==, ==purple:công thức==, ==red:cảnh báo== (hoặc cú pháp [pink:nội dung]).
+- Bài giảng lý thuyết (tùy chọn): trường "lecture" ở cấp độ quiz để tóm tắt bài giảng trước khi làm quiz, hỗ trợ đầy đủ Markdown, LaTeX, Code blocks, Badges và Tables.
 - Trích dẫn: > nội dung, >> trích dẫn lồng nhau; danh sách -, +, *, 1.; checklist - [ ] và - [x] chỉ để hiển thị; bảng Markdown | cột | và --- ngăn đoạn.
-- Code nhiều dòng: fence ba backtick kèm tên ngôn ngữ (python, java, kotlin, javascript, cpp, json…). Tô màu phụ thuộc ngôn ngữ được nhận diện; không chạy code.
+- Code nhiều dòng: fence ba backtick kèm tên ngôn ngữ (python, java, kotlin, javascript, cpp, json, html, svg…). Khối mã HTML/SVG hỗ trợ nút bấm xem trước (Live Preview) trực tiếp trong app.
 - Toán inline: ${'$'}x^2${'$'} hoặc \(x^2\), hiển thị bằng bộ ký hiệu gọn. Với phân số, tích phân, ma trận hoặc công thức phức tạp, dùng ${'$'}${'$'}\frac{a}{b}${'$'}${'$'} hoặc \[...\] để render bằng KaTeX offline.
 - KaTeX hỗ trợ \frac{a}{b}, \sqrt{x}, \sum, \int, \lim, \begin{matrix}...\end{matrix}. Không giả định mọi gói LaTeX đều có; không dùng \usepackage, HTML tùy ý, JavaScript hay hình ảnh nhúng.
 - Trong options: ưu tiên text, inline Markdown và toán inline; đặt công thức display/code/bảng dài vào question hoặc explanation.
@@ -15,9 +16,10 @@ object RichContentContract {
 - JSON phải hợp lệ: xuống dòng viết \n, dấu nháy viết \", một dấu \ của LaTeX viết \\ trong chuỗi JSON. Không đặt xuống dòng thô trong chuỗi. Markdown/code fence nằm TRONG chuỗi, không làm hỏng cấu trúc JSON.
     """.trimIndent() else """
 POZIX FORMATTING SUPPORT (not full CommonMark):
-- question/explanation: headings # through ######, **bold**, *italic*, ***bold italic***, ~~strikethrough~~, ==highlight== and `inline code`.
+- lecture/question/explanation: headings # through ######, **bold**, *italic*, ***bold italic***, ~~strikethrough~~, `inline code`, ==highlight== and colored badges: ==pink:keyword==, ==yellow:focus==, ==blue:preview==, ==orange:note==, ==green:passed==, ==purple:formula==, ==red:warning== (or [pink:content] syntax).
+- Theory lecture (optional): "lecture" field at the quiz root level for summarizing concepts before testing, supporting full Markdown, LaTeX, Code blocks, Badges, and Tables.
 - Blockquotes > and nested >>; lists -, +, *, 1.; display-only task lists - [ ] / - [x]; Markdown pipe tables and --- dividers.
-- Fenced code: triple backticks plus a language (python, java, kotlin, javascript, cpp, json…). Syntax coloring depends on recognized language; code is never executed.
+- Fenced code: triple backticks plus a language (python, java, kotlin, javascript, cpp, json, html, svg…). HTML and SVG blocks support interactive in-app Live Preview.
 - Inline math ${'$'}x^2${'$'} or \(x^2\) uses compact native notation. Use ${'$'}${'$'}\frac{a}{b}${'$'}${'$'} or \[...\] for complex fractions, sums, integrals and matrices rendered by offline KaTeX.
 - KaTeX: \frac{a}{b}, \sqrt{x}, \sum, \int, \lim, \begin{matrix}...\end{matrix}. Do not assume arbitrary LaTeX packages, \usepackage, custom HTML, JavaScript or embedded images are supported.
 - options: prefer text, inline Markdown and inline math. Put display equations, long code and tables in question/explanation.
@@ -29,6 +31,7 @@ POZIX FORMATTING SUPPORT (not full CommonMark):
     val example = """{
   "title": "Markdown and mathematics",
   "description": "Valid JSON with formatting inside strings",
+  "lecture": "# Tóm tắt bài giảng\n==pink:Kiến thức cốt lõi== về đạo hàm và toán học:\n$$\\frac{d}{dx}x^n = n x^{n-1}$$\n> ==yellow:Ghi nhớ==: Luôn kiểm tra điều kiện xác định.",
   "questions": [
     {
       "type": "single_choice",

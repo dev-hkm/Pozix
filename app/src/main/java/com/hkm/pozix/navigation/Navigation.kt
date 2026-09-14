@@ -18,6 +18,9 @@ import com.hkm.pozix.ui.screens.ImportScreen
 import com.hkm.pozix.ui.screens.QuizPlayerScreen
 import com.hkm.pozix.ui.screens.SavedQuizSetsScreen
 import com.hkm.pozix.ui.screens.SettingsScreen
+import com.hkm.pozix.ui.screens.LectureDetailScreen
+import com.hkm.pozix.util.LectureManager
+
 
 sealed class Screen(val route: String) {
     object Library : Screen("library")
@@ -28,6 +31,7 @@ sealed class Screen(val route: String) {
     object ExamPlayer : Screen("exam_player")
     object AIChat : Screen("ai_chat")
     object Home : Screen("home")
+    object Lecture : Screen("lecture")
 }
 
 private fun getTabIndex(route: String?): Int = when (route) {
@@ -84,6 +88,10 @@ fun PozixNavigation(
                 },
                 onStartTest = {
                     navController.navigate(Screen.ExamPlayer.route)
+                },
+                onOpenLecture = { title, lecture ->
+                    LectureManager.openLecture(title, lecture)
+                    navController.navigate(Screen.Lecture.route)
                 }
             )
         }
@@ -109,6 +117,9 @@ fun PozixNavigation(
                 },
                 onPlayQuiz = {
                     navController.navigate(Screen.QuizPlayer.route)
+                },
+                onOpenLecture = {
+                    navController.navigate(Screen.Lecture.route)
                 }
             )
         }
@@ -127,6 +138,9 @@ fun PozixNavigation(
                 },
                 onPlayQuiz = {
                     navController.navigate(Screen.QuizPlayer.route)
+                },
+                onOpenLecture = {
+                    navController.navigate(Screen.Lecture.route)
                 }
             )
         }
@@ -222,6 +236,31 @@ fun PozixNavigation(
                 },
                 onPlayQuiz = {
                     navController.navigate(Screen.QuizPlayer.route)
+                },
+                onOpenLecture = {
+                    navController.navigate(Screen.Lecture.route)
+                }
+            )
+        }
+ 
+        composable(
+            route = Screen.Lecture.route,
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(340, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(300))
+            },
+            exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(280, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(240))
+            }
+        ) {
+            LectureDetailScreen(
+                onBack = {
+                    navController.popBackStack()
                 }
             )
         }

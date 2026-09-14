@@ -70,7 +70,8 @@ fun PozixApp(
         Screen.QuizPlayer.route,
         Screen.ExamPlayer.route,
         Screen.Templates.route,
-        Screen.AIChat.route
+        Screen.AIChat.route,
+        Screen.Lecture.route
     ) && !isKeyboardOpen
 
     Box(

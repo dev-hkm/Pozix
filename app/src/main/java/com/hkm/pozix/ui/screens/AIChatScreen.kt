@@ -1,5 +1,9 @@
 package com.hkm.pozix.ui.screens
 
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material3.OutlinedButton
+import com.hkm.pozix.util.LectureManager
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -116,6 +120,7 @@ fun AIChatScreen(
     onNavigateBack: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onPlayQuiz: () -> Unit = {},
+    onOpenLecture: (() -> Unit)? = null,
     viewModel: AIChatViewModel = viewModel(),
     initialPrompt: String? = null,
     showBackButton: Boolean = true,
@@ -407,7 +412,8 @@ fun AIChatScreen(
                                         section = entry.section, phase = uiState.phase,
                                         onImageClick = { previewImageFilePath = it },
                                         onImportPlay = { viewModel.importQuizSet(it, onPlayQuiz) },
-                                        onSaveLibrary = { viewModel.saveQuizSetOnly(it) }
+                                        onSaveLibrary = { viewModel.saveQuizSetOnly(it) },
+                                        onOpenLecture = onOpenLecture
                                     )
                                 }
                             }
@@ -1353,6 +1359,7 @@ fun ChatBubbleItem(
     onImageClick: (String) -> Unit,
     onImportPlay: (String) -> Unit,
     onSaveLibrary: (String) -> Unit,
+    onOpenLecture: (() -> Unit)? = null,
     section: String = "all"
 ) {
     val isUser = message.role == "user"
@@ -1619,7 +1626,8 @@ fun ChatBubbleItem(
                         GeneratedQuizCard(
                             jsonText = jsonBlock,
                             onImportPlay = { onImportPlay(jsonBlock) },
-                            onSaveLibrary = { onSaveLibrary(jsonBlock) }
+                            onSaveLibrary = { onSaveLibrary(jsonBlock) },
+                            onOpenLecture = onOpenLecture
                         )
                     }
                 }
@@ -1636,7 +1644,8 @@ fun ChatBubbleItem(
 fun GeneratedQuizCard(
     jsonText: String,
     onImportPlay: () -> Unit,
-    onSaveLibrary: () -> Unit
+    onSaveLibrary: () -> Unit,
+    onOpenLecture: (() -> Unit)? = null
 ) {
     val parsed by produceState<QuizValidationResult?>(null, jsonText) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
@@ -1716,6 +1725,32 @@ fun GeneratedQuizCard(
                     }
                     if (validation.trueFalseCount > 0) {
                         BadgeChip(text = stringResource(R.string.ai_chat_true_false_count, validation.trueFalseCount), color = MaterialTheme.colorScheme.secondary)
+                    }
+                }
+
+                if (!validation.quiz.lecture.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            LectureManager.openLecture(validation.quiz.title, validation.quiz.lecture)
+                            onOpenLecture?.invoke()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.lecture_open_button),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
                     }
                 }
 

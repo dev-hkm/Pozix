@@ -133,4 +133,61 @@ class LatexMathParserTest {
         val fracExp3 = LatexMathParser.formatMathString("x^{\\frac{1}{3}}")
         assertEquals("x¹ᐟ³", fracExp3)
     }
+
+    @Test
+    fun testColoredHighlightBadges() {
+        val pinkBadge = LatexMathParser.parseToAnnotatedString("Hôm nay học ==pink:Từ vựng mới== rất vui.")
+        assertTrue(pinkBadge.text.contains("Từ vựng mới"))
+        assertTrue(pinkBadge.spanStyles.any { it.item.fontWeight == androidx.compose.ui.text.font.FontWeight.SemiBold })
+
+        val yellowBadge = LatexMathParser.parseToAnnotatedString("Môn ==yellow:TIẾNG ANH== là môn chính.")
+        assertTrue(yellowBadge.text.contains("TIẾNG ANH"))
+
+        val bracketBadge = LatexMathParser.parseToAnnotatedString("Xem lại [blue:Bài trước] nhé.")
+        assertTrue(bracketBadge.text.contains("Bài trước"))
+
+        val htmlMark = LatexMathParser.parseToAnnotatedString("Ghi nhớ <mark color=\"green\">Định lý 1</mark>.")
+        assertTrue(htmlMark.text.contains("Định lý 1"))
+    }
+
+    @Test
+    fun testQuizLectureSerializationAndDeserialization() {
+        val json = """{
+            "title": "Toán giải tích 12",
+            "description": "Chuyên đề khảo sát hàm số",
+            "lecture": "# Lý thuyết\n==pink:Đạo hàm== bậc nhất:\n$$\\frac{d}{dx}x^2=2x$$",
+            "questions": [
+                {
+                    "type": "true_false",
+                    "question": "Hàm số đồng biến trên R?",
+                    "correctAnswer": true
+                }
+            ]
+        }"""
+        val result = com.hkm.pozix.util.QuizJsonParser.parseAndValidate(json)
+        assertTrue(result is com.hkm.pozix.data.model.QuizValidationResult.Success)
+        val success = result as com.hkm.pozix.data.model.QuizValidationResult.Success
+        assertEquals("Toán giải tích 12", success.quiz.title)
+        assertEquals("# Lý thuyết\n==pink:Đạo hàm== bậc nhất:\n$$\\frac{d}{dx}x^2=2x$$", success.quiz.lecture)
+        assertEquals(1, success.parsedQuestions.size)
+    }
+
+    @Test
+    fun testQuizLectureAliasCompatibility() {
+        val json = """{
+            "title": "Vật lý hạt nhân",
+            "studyNotes": "Lý thuyết phản ứng nhiệt hạch",
+            "questions": [
+                {
+                    "type": "true_false",
+                    "question": "Khối lượng bảo toàn?",
+                    "correctAnswer": false
+                }
+            ]
+        }"""
+        val result = com.hkm.pozix.util.QuizJsonParser.parseAndValidate(json)
+        assertTrue(result is com.hkm.pozix.data.model.QuizValidationResult.Success)
+        val success = result as com.hkm.pozix.data.model.QuizValidationResult.Success
+        assertEquals("Lý thuyết phản ứng nhiệt hạch", success.quiz.lecture)
+    }
 }

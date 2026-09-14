@@ -1,6 +1,7 @@
 package com.hkm.pozix.ui.components.richcontent
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -20,6 +21,71 @@ import androidx.compose.ui.unit.em
  * with zero layout distortion or broken tags.
  */
 object LatexMathParser {
+    data class BadgeColors(val background: Color, val text: Color)
+
+    private val VALID_BADGE_COLORS = setOf(
+        "pink", "rose", "hong", "hồng",
+        "yellow", "amber", "vang", "vàng", "gold",
+        "blue", "cyan", "xanh_duong", "xanh_dương", "xanh", "sky",
+        "orange", "peach", "cam",
+        "green", "mint", "luc", "lục", "xanh_la", "xanh_lá",
+        "purple", "lavender", "violet", "tim", "tím",
+        "red", "coral", "do", "đỏ", "crimson",
+        "gray", "grey", "neutral", "xam", "xám"
+    )
+
+    fun isValidBadgeColor(color: String): Boolean = VALID_BADGE_COLORS.contains(color.trim().lowercase())
+
+    fun getBadgeColors(colorName: String, isDark: Boolean): BadgeColors {
+        return when (colorName.trim().lowercase()) {
+            "pink", "rose", "hong", "hồng" -> if (isDark) {
+                BadgeColors(Color(0xFF4E1D2D), Color(0xFFFFB2C9))
+            } else {
+                BadgeColors(Color(0xFFFCE4EC), Color(0xFFC2185B))
+            }
+            "yellow", "amber", "vang", "vàng", "gold" -> if (isDark) {
+                BadgeColors(Color(0xFF483D0F), Color(0xFFFFE082))
+            } else {
+                BadgeColors(Color(0xFFFFF9C4), Color(0xFF8D6E00))
+            }
+            "blue", "cyan", "xanh_duong", "xanh_dương", "xanh", "sky" -> if (isDark) {
+                BadgeColors(Color(0xFF103B52), Color(0xFF81D4FA))
+            } else {
+                BadgeColors(Color(0xFFE1F5FE), Color(0xFF0277BD))
+            }
+            "orange", "peach", "cam" -> if (isDark) {
+                BadgeColors(Color(0xFF4D260D), Color(0xFFFFB74D))
+            } else {
+                BadgeColors(Color(0xFFFFE0B2), Color(0xFFD84315))
+            }
+            "green", "mint", "luc", "lục", "xanh_la", "xanh_lá" -> if (isDark) {
+                BadgeColors(Color(0xFF144023), Color(0xFFA5D6A7))
+            } else {
+                BadgeColors(Color(0xFFE8F5E9), Color(0xFF2E7D32))
+            }
+            "purple", "lavender", "violet", "tim", "tím" -> if (isDark) {
+                BadgeColors(Color(0xFF3B1D59), Color(0xFFCE93D8))
+            } else {
+                BadgeColors(Color(0xFFEDE7F6), Color(0xFF6A1B9A))
+            }
+            "red", "coral", "do", "đỏ", "crimson" -> if (isDark) {
+                BadgeColors(Color(0xFF4F1A1E), Color(0xFFEF9A9A))
+            } else {
+                BadgeColors(Color(0xFFFFEBEE), Color(0xFFC62828))
+            }
+            "gray", "grey", "neutral", "xam", "xám" -> if (isDark) {
+                BadgeColors(Color(0xFF2E2E33), Color(0xFFE0E0E0))
+            } else {
+                BadgeColors(Color(0xFFF5F5F5), Color(0xFF424242))
+            }
+            else -> if (isDark) {
+                BadgeColors(Color(0xFF483D0F), Color(0xFFFFE082))
+            } else {
+                BadgeColors(Color(0xFFFFF9C4), Color(0xFF8D6E00))
+            }
+        }
+    }
+
     private val inlineMarkers = listOf("***", "___", "~~", "==", "__")
 
     private val GREEK_MAP = mapOf(
@@ -274,19 +340,91 @@ object LatexMathParser {
                     }
                 }
 
+                val isDark = codeTextColor.luminance() > 0.5f || codeBgColor.luminance() < 0.35f
+
                 // Longer delimiters must win before ** or *; otherwise *** leaves stray markers.
                 val extendedMarker = inlineMarkers.firstOrNull { cleanText.startsWith(it, i) }
                 if (extendedMarker != null) {
                     val end = cleanText.indexOf(extendedMarker, i + extendedMarker.length)
                     if (end > i + extendedMarker.length) {
+                        if (extendedMarker == "==") {
+                            val rawContent = cleanText.substring(i + 2, end)
+                            val colonIdx = rawContent.indexOfAny(charArrayOf(':', '|'))
+                            if (colonIdx in 1..15) {
+                                val potentialColor = rawContent.substring(0, colonIdx).trim().lowercase()
+                                if (isValidBadgeColor(potentialColor)) {
+                                    val badgeText = rawContent.substring(colonIdx + 1).trim()
+                                    val colors = getBadgeColors(potentialColor, isDark)
+                                    withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                                        append(parseToAnnotatedString(badgeText, colors.background, colors.text))
+                                    }
+                                    i = end + 2
+                                    continue
+                                }
+                            }
+                            val defaultColors = getBadgeColors("yellow", isDark)
+                            val bg = if (codeBgColor != Color(0x1F808080)) codeBgColor else defaultColors.background
+                            val fg = if (codeTextColor != Color.Unspecified) codeTextColor else defaultColors.text
+                            withStyle(SpanStyle(background = bg, color = fg, fontWeight = FontWeight.SemiBold)) {
+                                append(parseToAnnotatedString(rawContent, bg, fg))
+                            }
+                            i = end + 2
+                            continue
+                        }
+
                         val span = when (extendedMarker) {
                             "***", "___" -> SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)
                             "~~" -> SpanStyle(textDecoration = TextDecoration.LineThrough)
-                            "==" -> SpanStyle(background = codeBgColor, color = codeTextColor, fontWeight = FontWeight.SemiBold)
                             else -> SpanStyle(fontWeight = FontWeight.Bold)
                         }
                         withStyle(span) { append(parseToAnnotatedString(cleanText.substring(i + extendedMarker.length, end), codeBgColor, codeTextColor)) }
                         i = end + extendedMarker.length
+                        continue
+                    }
+                }
+
+                // Check for badge syntax [color:text] (e.g. [pink:từ khóa], [yellow:TIẾNG ANH], [blue:Xem bài trước])
+                if (cleanText[i] == '[') {
+                    val closeBracket = cleanText.indexOf(']', i + 1)
+                    if (closeBracket != -1 && !cleanText.substring(i + 1, closeBracket).contains('\n')) {
+                        val bracketContent = cleanText.substring(i + 1, closeBracket)
+                        val colonIdx = bracketContent.indexOf(':')
+                        if (colonIdx in 1..15) {
+                            val potentialColor = bracketContent.substring(0, colonIdx).trim().lowercase().removePrefix("badge:")
+                            if (isValidBadgeColor(potentialColor)) {
+                                val isLink = closeBracket + 1 < len && cleanText[closeBracket + 1] == '('
+                                if (!isLink) {
+                                    val badgeText = bracketContent.substring(colonIdx + 1).trim()
+                                    val colors = getBadgeColors(potentialColor, isDark)
+                                    withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                                        append(parseToAnnotatedString(badgeText, colors.background, colors.text))
+                                    }
+                                    i = closeBracket + 1
+                                    continue
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Check for <mark color="...">...</mark> or <badge color="...">...</badge>
+                val isMarkTag = cleanText.startsWith("<mark", i, ignoreCase = true)
+                val isBadgeTag = cleanText.startsWith("<badge", i, ignoreCase = true)
+                if (isMarkTag || isBadgeTag) {
+                    val tagClose = cleanText.indexOf('>', i)
+                    val tagName = if (isMarkTag) "mark" else "badge"
+                    val endTag = "</$tagName>"
+                    val closeIdx = if (tagClose != -1) cleanText.indexOf(endTag, tagClose, ignoreCase = true) else -1
+                    if (tagClose != -1 && closeIdx != -1) {
+                        val openTagStr = cleanText.substring(i, tagClose)
+                        val colorMatch = Regex("""(?:color|class)=["']?([a-zA-Z_]+)["']?""", RegexOption.IGNORE_CASE).find(openTagStr)
+                        val colorName = colorMatch?.groupValues?.get(1)?.lowercase() ?: "yellow"
+                        val colors = getBadgeColors(colorName, isDark)
+                        val markContent = cleanText.substring(tagClose + 1, closeIdx)
+                        withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                            append(parseToAnnotatedString(markContent, colors.background, colors.text))
+                        }
+                        i = closeIdx + endTag.length
                         continue
                     }
                 }

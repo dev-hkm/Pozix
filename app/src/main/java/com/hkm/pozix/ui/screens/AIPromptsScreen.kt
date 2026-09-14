@@ -25,7 +25,8 @@ fun AIPromptsScreen(
     initialTab: Int = 0,
     onNavigateBack: () -> Unit = {},
     onNavigateToSettings: () -> Unit,
-    onPlayQuiz: () -> Unit
+    onPlayQuiz: () -> Unit,
+    onOpenLecture: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(initialTab) }
     var pendingPrompt by remember { mutableStateOf<String?>(null) }
@@ -59,6 +60,7 @@ fun AIPromptsScreen(
                 onNavigateBack = onNavigateBack,
                 onNavigateToSettings = onNavigateToSettings,
                 onPlayQuiz = onPlayQuiz,
+                onOpenLecture = onOpenLecture,
                 initialPrompt = pendingPrompt,
                 showBackButton = true,
                 onOpenTemplates = { selectedTab = 1 }

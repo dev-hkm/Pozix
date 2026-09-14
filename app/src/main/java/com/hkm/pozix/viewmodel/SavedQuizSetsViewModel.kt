@@ -34,6 +34,7 @@ data class SavedQuizSetsUiState(
     val showPreview: Boolean = false,
     val previewTitle: String = "",
     val previewDescription: String = "",
+    val previewLecture: String? = null,
     val previewQuestions: List<Question> = emptyList(),
     val sharingSetId: String? = null,
     val shareUrl: String = "",
@@ -221,6 +222,7 @@ class SavedQuizSetsViewModel(application: Application) : AndroidViewModel(applic
                 showPreview = true,
                 previewTitle = result.quiz.title,
                 previewDescription = result.quiz.description ?: "",
+                previewLecture = result.quiz.lecture,
                 previewQuestions = result.parsedQuestions
             )
         }
@@ -231,6 +233,7 @@ class SavedQuizSetsViewModel(application: Application) : AndroidViewModel(applic
             showPreview = false,
             previewTitle = "",
             previewDescription = "",
+            previewLecture = null,
             previewQuestions = emptyList(),
             previewQuizSet = null
         )

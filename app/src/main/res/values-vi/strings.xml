@@ -533,4 +533,13 @@
     <string name="quiz_grid_view">Dạng lưới</string>
     <string name="quiz_list_view">Dạng danh sách</string>
     <string name="quiz_open_actions">Mở bộ câu hỏi</string>
+    <!-- Lecture / Study Notes -->
+    <string name="lecture_title">Bài giảng lý thuyết</string>
+    <string name="lecture_subtitle">Ôn tập kiến thức cốt lõi và công thức trước khi làm bài</string>
+    <string name="lecture_screen_title">Tài liệu &amp; Bài giảng</string>
+    <string name="lecture_action_copy">Sao chép bài giảng</string>
+    <string name="lecture_copied">Đã sao chép nội dung bài giảng</string>
+    <string name="lecture_empty">Chưa có bài giảng lý thuyết cho bộ câu hỏi này.</string>
+    <string name="lecture_read_time">%1$d phút đọc</string>
+    <string name="lecture_open_button">Xem bài giảng</string>
 </resources>
