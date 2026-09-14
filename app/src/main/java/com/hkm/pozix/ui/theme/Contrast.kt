@@ -49,7 +49,7 @@ internal fun readableContentColorFor(
     fallbackB = MaterialTheme.colorScheme.inverseOnSurface
 )
 
-private fun contrastRatio(first: Color, second: Color): Float {
+internal fun contrastRatio(first: Color, second: Color): Float {
     val firstLuminance = first.luminance()
     val secondLuminance = second.luminance()
     val lighter = maxOf(firstLuminance, secondLuminance)

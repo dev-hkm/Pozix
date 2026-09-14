@@ -110,7 +110,7 @@ class MainActivity : ComponentActivity() {
                 val codeHighlight by settingsRepository.getCodeHighlight().collectAsState(initial = true)
                 PozixTheme(
                     darkTheme = isDark,
-                    dynamicColor = false,
+                    dynamicColor = true,
                     fontFamily = currentFont
                 ) {
                     androidx.compose.material3.Surface(
