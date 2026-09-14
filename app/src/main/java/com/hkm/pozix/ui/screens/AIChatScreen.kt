@@ -1093,31 +1093,30 @@ fun DeepSeekStyleFloatingInputCard(
                         }
 
                         // Quiz availability: permission, not forced generation.
-                        val quizContainer by animateColorAsState(
-                            targetValue = if (quizToolEnabled) {
-                                MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.24f else 0.12f)
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f)
-                            },
-                            animationSpec = tween(220),
-                            label = "quizToolContainer"
-                        )
+                        val quizContainer = if (quizToolEnabled) {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        }
                         val quizContent = if (quizToolEnabled) {
                             readableContentColorFor(
                                 quizContainer,
-                                MaterialTheme.colorScheme.primary
+                                MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            readableContentColorFor(
+                                quizContainer,
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         Surface(
                             onClick = onToggleQuizTool,
                             shape = RoundedCornerShape(20.dp),
                             color = quizContainer,
                             border = BorderStroke(
-                                width = if (quizToolEnabled) 1.1.dp else 0.8.dp,
-                                color = if (quizToolEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                                width = if (quizToolEnabled) 1.2.dp else 0.8.dp,
+                                color = if (quizToolEnabled) MaterialTheme.colorScheme.secondary
+                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                             )
                         ) {
                             Row(
@@ -1135,7 +1134,7 @@ fun DeepSeekStyleFloatingInputCard(
                                     text = if (quizToolEnabled) "Quiz: On" else "Quiz: Off",
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontSize = 12.sp,
-                                        fontWeight = if (quizToolEnabled) FontWeight.SemiBold else FontWeight.Medium
+                                        fontWeight = if (quizToolEnabled) FontWeight.Bold else FontWeight.Medium
                                     ),
                                     color = quizContent
                                 )

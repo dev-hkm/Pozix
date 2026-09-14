@@ -18,6 +18,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.em
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.fillMaxSize
 import com.hkm.pozix.ui.theme.readableContentColorFor
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -44,6 +50,39 @@ private fun rememberStyledInline(text: String): androidx.compose.ui.text.Annotat
         preferred = MaterialTheme.colorScheme.onTertiaryContainer
     )
     return remember(text, background, foreground) { LatexMathParser.parseToAnnotatedString(text, background, foreground) }
+}
+
+@Composable
+fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString): Map<String, InlineTextContent> {
+    return remember(annotated) {
+        val annotations = annotated.getStringAnnotations("androidx.compose.foundation.text.inlineContent", 0, annotated.length)
+        if (annotations.isEmpty()) emptyMap()
+        else {
+            annotations.associate { annotation ->
+                val id = annotation.item
+                id to InlineTextContent(
+                    Placeholder(
+                        width = 1.2.em,
+                        height = 1.2.em,
+                        placeholderVerticalAlign = PlaceholderVerticalAlign.Center
+                    )
+                ) {
+                    val parts = id.split(":")
+                    val iconName = parts.getOrElse(1) { "" }
+                    val colorInt = parts.getOrNull(2)?.toIntOrNull() ?: android.graphics.Color.GRAY
+                    val iconVector = LucideIconMap.getIcon(iconName)
+                    if (iconVector != null) {
+                        Icon(
+                            imageVector = iconVector,
+                            contentDescription = null,
+                            tint = Color(colorInt),
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 sealed interface ContentBlock {
@@ -92,8 +131,10 @@ fun RichContentText(
     if (inlineOnly && !text.contains("```")) {
         // Fast path for answer options (A, B, C, D)
         val annotated = rememberStyledInline(text)
+        val inlineContent = rememberInlineContentFor(annotated)
         Text(
             text = annotated,
+            inlineContent = inlineContent,
             modifier = modifier,
             color = textColor,
             fontSize = fontSize,
@@ -129,8 +170,10 @@ fun RichContentText(
                         else -> MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp) to 4.dp
                     }
                     val annotated = rememberStyledInline(block.text)
+                    val inlineContent = rememberInlineContentFor(annotated)
                     Text(
                         text = annotated,
+                        inlineContent = inlineContent,
                         color = accentColor,
                         style = headingStyle,
                         modifier = Modifier
@@ -152,8 +195,10 @@ fun RichContentText(
                             style = style.copy(fontWeight = FontWeight.Bold, fontSize = fontSize),
                             modifier = Modifier.padding(end = 8.dp)
                         )
+                        val inlineContent = rememberInlineContentFor(annotated)
                         Text(
                             text = annotated,
+                            inlineContent = inlineContent,
                             color = textColor,
                             fontSize = fontSize,
                             fontWeight = fontWeight,
@@ -165,8 +210,10 @@ fun RichContentText(
                 }
                 is ContentBlock.Paragraph -> {
                     val annotated = rememberStyledInline(block.text)
+                    val inlineContent = rememberInlineContentFor(annotated)
                     Text(
                         text = annotated,
+                        inlineContent = inlineContent,
                         color = textColor,
                         fontSize = fontSize,
                         fontWeight = fontWeight,
@@ -584,6 +631,7 @@ fun MarkdownTableView(
                             val align = alignments.getOrElse(colIdx) { TextAlign.Start }
                             val width = finalWidths.getOrElse(colIdx) { 100.dp }
                             val annotated = remember(headerText) { LatexMathParser.parseToAnnotatedString(headerText) }
+                            val inlineContent = rememberInlineContentFor(annotated)
                             Box(
                                 modifier = Modifier
                                     .width(width)
@@ -591,6 +639,7 @@ fun MarkdownTableView(
                             ) {
                                 Text(
                                     text = annotated,
+                                    inlineContent = inlineContent,
                                     color = headerTextColor,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = fontSize,
@@ -625,6 +674,7 @@ fun MarkdownTableView(
                                 val align = alignments.getOrElse(colIdx) { TextAlign.Start }
                                 val width = finalWidths.getOrElse(colIdx) { 100.dp }
                                 val annotated = remember(cellText) { LatexMathParser.parseToAnnotatedString(cellText) }
+                                val inlineContent = rememberInlineContentFor(annotated)
                                 Box(
                                     modifier = Modifier
                                         .width(width)
@@ -632,6 +682,7 @@ fun MarkdownTableView(
                                 ) {
                                     Text(
                                         text = annotated,
+                                        inlineContent = inlineContent,
                                         color = rowTextColor,
                                         fontSize = fontSize,
                                         textAlign = align,

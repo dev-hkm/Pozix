@@ -2,6 +2,7 @@ package com.hkm.pozix.ui.components.richcontent
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -31,10 +32,30 @@ object LatexMathParser {
         "green", "mint", "luc", "lục", "xanh_la", "xanh_lá",
         "purple", "lavender", "violet", "tim", "tím",
         "red", "coral", "do", "đỏ", "crimson",
-        "gray", "grey", "neutral", "xam", "xám"
+        "gray", "grey", "neutral", "xam", "xám",
+        "teal", "indigo", "emerald"
     )
 
     fun isValidBadgeColor(color: String): Boolean = VALID_BADGE_COLORS.contains(color.trim().lowercase())
+
+    /**
+     * Extracts an optional Lucide icon name and badge label from raw badge text.
+     * Supports formats like:
+     * - "star:Quang hợp" -> ("star", "Quang hợp")
+     * - "icon=check:Đã chứng minh" -> ("check", "Đã chứng minh")
+     * - "Quang hợp" -> (null, "Quang hợp")
+     */
+    fun extractIconAndText(raw: String): Pair<String?, String> {
+        val trimmed = raw.trim()
+        val nextColon = trimmed.indexOfAny(charArrayOf(':', '|'))
+        if (nextColon in 1..25) {
+            val candidate = trimmed.substring(0, nextColon).trim().lowercase().removePrefix("icon=")
+            if (LucideIconMap.isValidIcon(candidate)) {
+                return candidate to trimmed.substring(nextColon + 1).trim()
+            }
+        }
+        return null to trimmed
+    }
 
     fun getBadgeColors(colorName: String, isDark: Boolean): BadgeColors {
         return when (colorName.trim().lowercase()) {
@@ -52,6 +73,21 @@ object LatexMathParser {
                 BadgeColors(Color(0xFF103B52), Color(0xFF81D4FA))
             } else {
                 BadgeColors(Color(0xFFE1F5FE), Color(0xFF0277BD))
+            }
+            "teal" -> if (isDark) {
+                BadgeColors(Color(0xFF0F3E3A), Color(0xFF80CBC4))
+            } else {
+                BadgeColors(Color(0xFFE0F2F1), Color(0xFF00695C))
+            }
+            "indigo" -> if (isDark) {
+                BadgeColors(Color(0xFF1E2652), Color(0xFF9FA8DA))
+            } else {
+                BadgeColors(Color(0xFFE8EAF6), Color(0xFF283593))
+            }
+            "emerald" -> if (isDark) {
+                BadgeColors(Color(0xFF0D3D28), Color(0xFFA7F3D0))
+            } else {
+                BadgeColors(Color(0xFFD1FAE5), Color(0xFF047857))
             }
             "orange", "peach", "cam" -> if (isDark) {
                 BadgeColors(Color(0xFF4D260D), Color(0xFFFFB74D))
@@ -353,9 +389,17 @@ object LatexMathParser {
                             if (colonIdx in 1..15) {
                                 val potentialColor = rawContent.substring(0, colonIdx).trim().lowercase()
                                 if (isValidBadgeColor(potentialColor)) {
-                                    val badgeText = rawContent.substring(colonIdx + 1).trim()
+                                    val rawBadgeText = rawContent.substring(colonIdx + 1).trim()
+                                    val (iconName, badgeText) = extractIconAndText(rawBadgeText)
                                     val colors = getBadgeColors(potentialColor, isDark)
                                     withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                                        if (iconName != null) {
+                                            val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
+                                            pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                                            append("\uFFFC")
+                                            pop()
+                                            append(" ")
+                                        }
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
                                     }
                                     i = end + 2
@@ -394,9 +438,17 @@ object LatexMathParser {
                             if (isValidBadgeColor(potentialColor)) {
                                 val isLink = closeBracket + 1 < len && cleanText[closeBracket + 1] == '('
                                 if (!isLink) {
-                                    val badgeText = bracketContent.substring(colonIdx + 1).trim()
+                                    val rawBadgeText = bracketContent.substring(colonIdx + 1).trim()
+                                    val (iconName, badgeText) = extractIconAndText(rawBadgeText)
                                     val colors = getBadgeColors(potentialColor, isDark)
                                     withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                                        if (iconName != null) {
+                                            val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
+                                            pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                                            append("\uFFFC")
+                                            pop()
+                                            append(" ")
+                                        }
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
                                     }
                                     i = closeBracket + 1
@@ -419,9 +471,23 @@ object LatexMathParser {
                         val openTagStr = cleanText.substring(i, tagClose)
                         val colorMatch = Regex("""(?:color|class)=["']?([a-zA-Z_]+)["']?""", RegexOption.IGNORE_CASE).find(openTagStr)
                         val colorName = colorMatch?.groupValues?.get(1)?.lowercase() ?: "yellow"
+                        val iconAttrMatch = Regex("""icon=["']?([a-zA-Z0-9_-]+)["']?""", RegexOption.IGNORE_CASE).find(openTagStr)
+                        val rawIconAttr = iconAttrMatch?.groupValues?.get(1)?.lowercase()
+                        val attrIcon = if (rawIconAttr != null && LucideIconMap.isValidIcon(rawIconAttr)) rawIconAttr else null
+
+                        val rawInnerContent = cleanText.substring(tagClose + 1, closeIdx)
+                        val (extractedIcon, markContent) = extractIconAndText(rawInnerContent)
+                        val finalIcon = attrIcon ?: extractedIcon
+
                         val colors = getBadgeColors(colorName, isDark)
-                        val markContent = cleanText.substring(tagClose + 1, closeIdx)
                         withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                            if (finalIcon != null) {
+                                val iconId = "lucide:${finalIcon}:${colors.text.toArgb()}"
+                                pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                                append("\uFFFC")
+                                pop()
+                                append(" ")
+                            }
                             append(parseToAnnotatedString(markContent, colors.background, colors.text))
                         }
                         i = closeIdx + endTag.length

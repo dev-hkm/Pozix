@@ -29,12 +29,14 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -113,6 +115,7 @@ fun CodeBlockView(
         (code.contains("<div", ignoreCase = true) && code.contains("</div>", ignoreCase = true))
     }
     var isPreviewMode by remember { mutableStateOf(false) }
+    var showFullscreenBrowser by remember { mutableStateOf(false) }
 
     // Code editor palette follows the app theme: bright paper-like light mode, rich contrast dark mode.
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
@@ -181,7 +184,7 @@ fun CodeBlockView(
                                 1.dp,
                                 if (isPreviewMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
                             ),
-                            modifier = Modifier.padding(end = 6.dp)
+                            modifier = Modifier.padding(end = 4.dp)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -199,6 +202,23 @@ fun CodeBlockView(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = if (isPreviewMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        if (isPreviewMode) {
+                            IconButton(
+                                onClick = {
+                                    HapticUtil.actionConfirm(context)
+                                    showFullscreenBrowser = true
+                                },
+                                modifier = Modifier.size(32.dp).padding(end = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.OpenInFull,
+                                    contentDescription = "Toàn màn hình",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
@@ -248,7 +268,11 @@ fun CodeBlockView(
                     HtmlLivePreview(
                         code = code,
                         isDark = isDark,
-                        isSvg = displayLanguage == "SVG" || code.trimStart().startsWith("<svg", ignoreCase = true)
+                        isSvg = displayLanguage == "SVG" || code.trimStart().startsWith("<svg", ignoreCase = true),
+                        onExpand = {
+                            HapticUtil.actionConfirm(context)
+                            showFullscreenBrowser = true
+                        }
                     )
                 } else {
                     // Code content with line numbers, vertical limit (~9 lines), and 2D scrolling
@@ -301,6 +325,14 @@ fun CodeBlockView(
             }
         }
     }
+
+    if (showFullscreenBrowser) {
+        HtmlMiniBrowserDialog(
+            code = code,
+            language = displayLanguage,
+            onDismiss = { showFullscreenBrowser = false }
+        )
+    }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -309,12 +341,45 @@ private fun HtmlLivePreview(
     code: String,
     isDark: Boolean,
     isSvg: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onExpand: (() -> Unit)? = null
 ) {
     val bgHex = if (isDark) "#1E1E2E" else "#FFFFFF"
     val textColor = if (isDark) "#CDD6F4" else "#1E293B"
 
+    var webViewRef by remember { mutableStateOf<WebView?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            webViewRef?.apply {
+                stopLoading()
+                loadUrl("about:blank")
+                onPause()
+                removeAllViews()
+                destroy()
+            }
+            webViewRef = null
+        }
+    }
+
     val formattedHtml = remember(code, isDark, isSvg) {
+        val canvasTouchCss = """
+            <style id="pozix-canvas-fix">
+                canvas {
+                    touch-action: none !important;
+                    -webkit-touch-callout: none !important;
+                    -webkit-user-select: none !important;
+                    user-select: none !important;
+                    display: block;
+                    margin: 0 auto;
+                    max-width: 100%;
+                }
+                * {
+                    -webkit-tap-highlight-color: transparent;
+                }
+            </style>
+        """.trimIndent()
+
         if (isSvg) {
             """
             <!DOCTYPE html>
@@ -346,17 +411,27 @@ private fun HtmlLivePreview(
         } else {
             val hasHtmlWrapper = code.contains("<html", ignoreCase = true) && code.contains("</html>", ignoreCase = true)
             if (hasHtmlWrapper) {
-                if (!code.contains("<meta name=\"viewport\"", ignoreCase = true)) {
-                    code.replaceFirst("<head>", "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">", ignoreCase = true)
-                } else {
-                    code
+                var modified = code
+                if (!modified.contains("<meta name=\"viewport\"", ignoreCase = true)) {
+                    if (modified.contains("<head>", ignoreCase = true)) {
+                        modified = modified.replaceFirst("<head>", "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">", ignoreCase = true)
+                    } else if (modified.contains("<html>", ignoreCase = true)) {
+                        modified = modified.replaceFirst("<html>", "<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head>", ignoreCase = true)
+                    }
                 }
+                if (modified.contains("</head>", ignoreCase = true)) {
+                    modified = modified.replaceFirst("</head>", "$canvasTouchCss</head>", ignoreCase = true)
+                } else if (modified.contains("<body>", ignoreCase = true)) {
+                    modified = modified.replaceFirst("<body>", "<head>$canvasTouchCss</head><body>", ignoreCase = true)
+                }
+                modified
             } else {
                 """
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
+                    $canvasTouchCss
                     <style>
                         html, body {
                             margin: 0;
@@ -419,12 +494,18 @@ private fun HtmlLivePreview(
         AndroidView(
             factory = { ctx ->
                 WebView(ctx).apply {
+                    webViewRef = this
+                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+                    isFocusable = true
+                    isFocusableInTouchMode = true
                     setBackgroundColor(android.graphics.Color.TRANSPARENT)
                     isVerticalScrollBarEnabled = true
                     isHorizontalScrollBarEnabled = true
                     settings.apply {
                         javaScriptEnabled = true
-                        domStorageEnabled = false
+                        domStorageEnabled = true
+                        databaseEnabled = true
+                        mediaPlaybackRequiresUserGesture = false
                         allowFileAccess = false
                         allowContentAccess = false
                         useWideViewPort = true
@@ -433,16 +514,52 @@ private fun HtmlLivePreview(
                     webViewClient = object : WebViewClient() {
                         @Suppress("DEPRECATION")
                         override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean = true
+                        override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean = true
                     }
                 }
             },
             update = { webView ->
-                webView.loadDataWithBaseURL(null, formattedHtml, "text/html", "UTF-8", null)
+                val loadKey = "$isDark:$isSvg:${code.hashCode()}"
+                if (webView.tag != loadKey) {
+                    webView.tag = loadKey
+                    webView.loadDataWithBaseURL("https://sandbox.local/", formattedHtml, "text/html", "UTF-8", null)
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 140.dp, max = 280.dp)
         )
+
+        if (onExpand != null) {
+            Surface(
+                onClick = onExpand,
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.OpenInFull,
+                        contentDescription = "Toàn màn hình",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Toàn màn hình",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
     }
 }
 
