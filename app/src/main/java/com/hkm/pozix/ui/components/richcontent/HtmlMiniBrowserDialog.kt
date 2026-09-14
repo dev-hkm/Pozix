@@ -296,67 +296,59 @@ fun HtmlMiniBrowserDialog(
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=3.0, user-scalable=yes\">"
         }
 
-        // Dedicated theme override style block ensuring Dark / Light mode works on ALL HTML documents
-        val themeOverride = if (canvasDark) {
-            """
-            <meta name="color-scheme" content="dark">
-            <style id="pozix-theme-override">
-                :root {
-                    color-scheme: dark !important;
-                }
-                html, body {
-                    background-color: #181825 !important;
-                    color: #CDD6F4 !important;
-                }
-            </style>
-            """.trimIndent()
-        } else {
-            """
-            <meta name="color-scheme" content="light">
-            <style id="pozix-theme-override">
-                :root {
-                    color-scheme: light !important;
-                }
-                html, body {
-                    background-color: #FFFFFF !important;
-                    color: #1E293B !important;
-                }
-            </style>
-            """.trimIndent()
-        }
+        val hasCanvas = currentCode.contains("<canvas", ignoreCase = true)
 
-        // Auto-center canvas games vertically and horizontally (prevents game squished at the top)
-        val autoCenterAndTouchCss = """
-            <style id="pozix-layout-center">
-                html {
-                    height: 100%;
-                    width: 100%;
-                }
-                body {
-                    min-height: 100%;
-                    width: 100%;
-                    margin: 0;
-                    padding: 8px;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                    align-items: center;
-                    box-sizing: border-box;
-                }
-                canvas {
-                    margin: auto !important;
-                    display: block !important;
-                    max-width: 100%;
-                    max-height: 88vh;
-                    touch-action: none !important;
-                    user-select: none !important;
-                    -webkit-user-select: none !important;
-                }
-                * {
-                    -webkit-tap-highlight-color: transparent;
-                }
-            </style>
-        """.trimIndent()
+        // Engine CSS:
+        // 1. Preserves CSS Background Propagation: html { background-color: transparent } ensures
+        //    body backgrounds (linear-gradient, colors, patterns) cover 100% of the screen without cutting off.
+        // 2. Full-height viewport: html, body { min-height: 100%; height: 100%; } ensures the document fills the screen.
+        // 3. Canvas auto-centering: Only centers canvas games without breaking standard block-flow HTML pages.
+        val proEngineCss = buildString {
+            append("""
+                <meta name="color-scheme" content="${if (canvasDark) "dark" else "light"}">
+                <style id="pozix-pro-engine">
+                    :root {
+                        color-scheme: ${if (canvasDark) "dark" else "light"};
+                    }
+                    html {
+                        min-height: 100%;
+                        height: 100%;
+                        width: 100%;
+                        background-color: transparent;
+                    }
+                    body {
+                        min-height: 100%;
+                        width: 100%;
+                        margin: 0;
+                        box-sizing: border-box;
+                        -webkit-tap-highlight-color: transparent;
+                    }
+            """.trimIndent())
+
+            if (hasCanvas) {
+                append("""
+                    
+                    /* Auto-center Canvas games perfectly both horizontally and vertically */
+                    body {
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                    }
+                    canvas {
+                        margin: auto !important;
+                        display: block !important;
+                        max-width: 100% !important;
+                        max-height: 88vh !important;
+                        touch-action: none !important;
+                        user-select: none !important;
+                        -webkit-user-select: none !important;
+                    }
+                """.trimIndent())
+            }
+
+            append("\n</style>")
+        }
 
         if (isSvg) {
             """
@@ -364,12 +356,12 @@ fun HtmlMiniBrowserDialog(
             <html>
             <head>
                 $viewportMeta
-                $themeOverride
+                $proEngineCss
                 <style>
                     html, body {
                         margin: 0;
                         padding: 16px;
-                        background: $bgHex !important;
+                        background: transparent;
                         display: flex;
                         justify-content: center;
                         align-items: center;
@@ -393,17 +385,32 @@ fun HtmlMiniBrowserDialog(
             val hasHtml = currentCode.contains("<html", ignoreCase = true) && currentCode.contains("</html>", ignoreCase = true)
             if (hasHtml) {
                 var modified = currentCode
+                val headOpenRegex = Regex("<head[^>]*>", RegexOption.IGNORE_CASE)
+                val headCloseRegex = Regex("</head>", RegexOption.IGNORE_CASE)
+                val htmlOpenRegex = Regex("<html[^>]*>", RegexOption.IGNORE_CASE)
+                val bodyOpenRegex = Regex("<body[^>]*>", RegexOption.IGNORE_CASE)
+
                 if (!modified.contains("<meta name=\"viewport\"", ignoreCase = true)) {
-                    if (modified.contains("<head>", ignoreCase = true)) {
-                        modified = modified.replaceFirst("<head>", "<head>$viewportMeta", ignoreCase = true)
-                    } else if (modified.contains("<html>", ignoreCase = true)) {
-                        modified = modified.replaceFirst("<html>", "<html><head>$viewportMeta</head>", ignoreCase = true)
+                    val headOpenMatch = headOpenRegex.find(modified)
+                    if (headOpenMatch != null) {
+                        modified = modified.replaceRange(headOpenMatch.range, headOpenMatch.value + "\n" + viewportMeta)
+                    } else {
+                        val htmlOpenMatch = htmlOpenRegex.find(modified)
+                        if (htmlOpenMatch != null) {
+                            modified = modified.replaceRange(htmlOpenMatch.range, htmlOpenMatch.value + "\n<head>" + viewportMeta + "</head>")
+                        }
                     }
                 }
-                if (modified.contains("</head>", ignoreCase = true)) {
-                    modified = modified.replaceFirst("</head>", "$themeOverride\n$autoCenterAndTouchCss</head>", ignoreCase = true)
-                } else if (modified.contains("<body>", ignoreCase = true)) {
-                    modified = modified.replaceFirst("<body>", "<head>$themeOverride\n$autoCenterAndTouchCss</head><body>", ignoreCase = true)
+                val headCloseMatch = headCloseRegex.find(modified)
+                if (headCloseMatch != null) {
+                    modified = modified.replaceRange(headCloseMatch.range, proEngineCss + "\n" + headCloseMatch.value)
+                } else {
+                    val bodyOpenMatch = bodyOpenRegex.find(modified)
+                    if (bodyOpenMatch != null) {
+                        modified = modified.replaceRange(bodyOpenMatch.range, "<head>\n" + proEngineCss + "\n</head>\n" + bodyOpenMatch.value)
+                    } else {
+                        modified = "<head>\n$proEngineCss\n</head>\n$modified"
+                    }
                 }
                 modified
             } else {
@@ -412,18 +419,15 @@ fun HtmlMiniBrowserDialog(
                 <html>
                 <head>
                     $viewportMeta
-                    $themeOverride
-                    $autoCenterAndTouchCss
+                    $proEngineCss
                     <style>
-                        html, body {
+                        body {
                             margin: 0;
                             padding: 12px;
-                            background-color: $bgHex;
                             color: $textHex;
                             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                             font-size: 15px;
                             line-height: 1.5;
-                            box-sizing: border-box;
                         }
                         *, *:before, *:after {
                             box-sizing: border-box;
@@ -1048,7 +1052,8 @@ private fun BrowserHeaderPro(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1350,31 +1355,31 @@ private fun BrowserStatusBar(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Viewport Mode Badge
                     Surface(
                         shape = RoundedCornerShape(6.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest
                     ) {
-                        Text(
-                            text = if (isDesktopView) "1024px Desktop" else "Mobile",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest
-                    ) {
-                        Text(
-                            text = if (canvasDark) "Dark" else "Light",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isDesktopView) Icons.Default.DesktopWindows else Icons.Default.PhoneAndroid,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isDesktopView) "1024px Desktop" else "Toàn màn hình",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
                     // Zoom Controls
