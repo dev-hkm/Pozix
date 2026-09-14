@@ -45,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -117,14 +118,15 @@ fun CodeBlockView(
     var isPreviewMode by remember { mutableStateOf(false) }
     var showFullscreenBrowser by remember { mutableStateOf(false) }
 
-    // Code editor palette follows the app theme: bright paper-like light mode, rich contrast dark mode.
+    // Code editor palette: Tokyo Night Pro for Dark Mode, GitHub High-Contrast for Light Mode.
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val editorBg = MaterialTheme.colorScheme.surfaceContainer
-    val headerBg = MaterialTheme.colorScheme.surfaceContainerHigh
-    val lineNumberColor = if (isDark) Color(0xFF6C7086) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
-    val codeTextColor = MaterialTheme.colorScheme.onSurface
-    val badgeBg = MaterialTheme.colorScheme.secondaryContainer
-    val badgeText = readableContentColorFor(
+    val editorBg = if (isDark) Color(0xFF1A1B26) else Color(0xFFF8FAFC)
+    val headerBg = if (isDark) Color(0xFF24283B) else Color(0xFFF1F5F9)
+    val borderColor = if (isDark) Color(0xFF414868).copy(alpha = 0.6f) else Color(0xFFCBD5E1)
+    val lineNumberColor = if (isDark) Color(0xFF565F89) else Color(0xFF94A3B8)
+    val codeTextColor = if (isDark) Color(0xFFC0CAF5) else Color(0xFF0F172A)
+    val badgeBg = if (isDark) Color(0xFF7AA2F7).copy(alpha = 0.2f) else MaterialTheme.colorScheme.secondaryContainer
+    val badgeText = if (isDark) Color(0xFF7AA2F7) else readableContentColorFor(
         background = badgeBg,
         preferred = MaterialTheme.colorScheme.onSecondaryContainer
     )
@@ -136,33 +138,36 @@ fun CodeBlockView(
         shape = RoundedCornerShape(14.dp),
         color = editorBg,
         shadowElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Header bar
+            // Header bar with macOS-style terminal dots
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(headerBg)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Code,
-                        contentDescription = null,
-                        tint = badgeText,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    // Terminal traffic dots
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 10.dp)
+                    ) {
+                        Box(modifier = Modifier.size(9.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFFFF5F56)))
+                        Box(modifier = Modifier.size(9.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFFFFBD2E)))
+                        Box(modifier = Modifier.size(9.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFF27C93F)))
+                    }
                     Surface(
                         color = badgeBg,
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             text = displayLanguage,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                             color = badgeText,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -572,13 +577,14 @@ private fun highlightCodeLine(
 ): AnnotatedString {
     if (!enabled) return AnnotatedString(line)
 
-    val commentColor = if (darkMode) Color(0xFF6C7086) else Color(0xFF64748B)
-    val stringColor = if (darkMode) Color(0xFFA6E3A1) else Color(0xFF047857)
-    val tagColor = if (darkMode) Color(0xFF89DCEB) else Color(0xFF0369A1)
-    val attributeColor = if (darkMode) Color(0xFFF9E2AF) else Color(0xFF9A3412)
-    val keywordColor = if (darkMode) Color(0xFFCBA6F7) else Color(0xFF7C3AED)
-    val typeColor = if (darkMode) Color(0xFF89B4FA) else Color(0xFF1D4ED8)
-    val constantColor = if (darkMode) Color(0xFFFAB387) else Color(0xFFC2410C)
+    // Tokyo Night Pro Vibrant (Dark) & GitHub Studio High-Contrast (Light)
+    val commentColor = if (darkMode) Color(0xFF565F89) else Color(0xFF64748B)  // Slate italic
+    val stringColor = if (darkMode) Color(0xFF9ECE6A) else Color(0xFF047857)   // Vivid Emerald
+    val tagColor = if (darkMode) Color(0xFF7DCFFF) else Color(0xFF6F42C1)      // Electric Cyan / Purple
+    val attributeColor = if (darkMode) Color(0xFFFF9E64) else Color(0xFFD97706) // Vivid Peach Orange / Amber
+    val keywordColor = if (darkMode) Color(0xFFBB9AF7) else Color(0xFFD73A49)   // Neon Purple / Crimson
+    val typeColor = if (darkMode) Color(0xFF2AC3DE) else Color(0xFF0284C7)      // Turquoise / Electric Blue
+    val constantColor = if (darkMode) Color(0xFFE0AF68) else Color(0xFF005CC5)  // Warm Gold / Cobalt
 
     val trimmed = line.trimStart()
 

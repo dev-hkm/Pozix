@@ -138,18 +138,20 @@ private data class JsPromptData(
 private val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
 /**
- * Fullscreen Interactive Mini Browser Pro for Pozix (v1.8.2).
+ * Fullscreen Interactive Mini Browser Pro for Pozix (v1.8.3 Production).
  * Features:
  * - Edge-to-edge transparent navigation bar & status bar (zero white gap)
- * - Powerful Dark / Light mode toggle that works across ALL HTML documents
- * - Open HTML/SVG files from local device storage (SAF GetContent)
+ * - Auto-centering for Canvas games & graphics (no more game pushed to the top)
+ * - Two-row pro header toolbar with roomy omnibox and dedicated tool chips
+ * - Full Dark / Light mode toggle working across ALL HTML documents
+ * - Open local HTML/SVG files from device storage (SAF GetContent)
  * - WebView file input support (<input type="file"> via WebChromeClient.onShowFileChooser)
  * - Export current HTML code to device storage or Share via system share sheet
  * - Web Audio API & HTML5 Audio with automatic permission grant
  * - Native JavaScript alert(), confirm(), and prompt() dialog support
  * - Recomposition reload guard prevents canvas / game frame resets
  * - Desktop 1024px simulation with smooth horizontal pan
- * - Zoom in / Zoom out / Zoom reset controls
+ * - Zoom in / Zoom out controls
  * - Real-time JavaScript console inspector with log filters & error badges
  * - Full memory leak prevention with explicit WebView cleanup on dismiss
  */
@@ -323,13 +325,32 @@ fun HtmlMiniBrowserDialog(
             """.trimIndent()
         }
 
-        // Clean canvas touch fix without intrusive forced layout overrides
-        val canvasTouchCss = """
-            <style id="pozix-canvas-fix">
+        // Auto-center canvas games vertically and horizontally (prevents game squished at the top)
+        val autoCenterAndTouchCss = """
+            <style id="pozix-layout-center">
+                html {
+                    height: 100%;
+                    width: 100%;
+                }
+                body {
+                    min-height: 100%;
+                    width: 100%;
+                    margin: 0;
+                    padding: 8px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    box-sizing: border-box;
+                }
                 canvas {
-                    touch-action: none;
-                    -webkit-touch-callout: none;
-                    user-select: none;
+                    margin: auto !important;
+                    display: block !important;
+                    max-width: 100%;
+                    max-height: 88vh;
+                    touch-action: none !important;
+                    user-select: none !important;
+                    -webkit-user-select: none !important;
                 }
                 * {
                     -webkit-tap-highlight-color: transparent;
@@ -380,9 +401,9 @@ fun HtmlMiniBrowserDialog(
                     }
                 }
                 if (modified.contains("</head>", ignoreCase = true)) {
-                    modified = modified.replaceFirst("</head>", "$themeOverride\n$canvasTouchCss</head>", ignoreCase = true)
+                    modified = modified.replaceFirst("</head>", "$themeOverride\n$autoCenterAndTouchCss</head>", ignoreCase = true)
                 } else if (modified.contains("<body>", ignoreCase = true)) {
-                    modified = modified.replaceFirst("<body>", "<head>$themeOverride\n$canvasTouchCss</head><body>", ignoreCase = true)
+                    modified = modified.replaceFirst("<body>", "<head>$themeOverride\n$autoCenterAndTouchCss</head><body>", ignoreCase = true)
                 }
                 modified
             } else {
@@ -392,7 +413,7 @@ fun HtmlMiniBrowserDialog(
                 <head>
                     $viewportMeta
                     $themeOverride
-                    $canvasTouchCss
+                    $autoCenterAndTouchCss
                     <style>
                         html, body {
                             margin: 0;
@@ -509,20 +530,17 @@ fun HtmlMiniBrowserDialog(
 
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
+            color = if (canvasDark) Color(0xFF181825) else MaterialTheme.colorScheme.background
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // 1. Browser Navigation Header
-                BrowserHeader(
+                // 1. Two-Row Pro Browser Header
+                BrowserHeaderPro(
                     title = extractedTitle,
                     isReloading = isReloading,
                     refreshRotation = refreshRotation,
                     isDesktopView = isDesktopView,
                     canvasDark = canvasDark,
                     activeTab = activeTab,
-                    consoleCount = consoleLogs.size,
-                    hasError = errorCount > 0,
-                    showConsole = showConsole,
                     onClose = onDismiss,
                     onReload = {
                         isReloading = true
@@ -552,7 +570,7 @@ fun HtmlMiniBrowserDialog(
                         HapticUtil.selectionTick(context)
                         Toast.makeText(
                             context,
-                            if (canvasDark) "Đã bật nền Tối (Dark Mode)" else "Đã bật nền Sáng (Light Mode)",
+                            if (canvasDark) "Đã bật nền Tối (Dark Canvas)" else "Đã bật nền Sáng (Light Canvas)",
                             Toast.LENGTH_SHORT
                         ).show()
                     },
@@ -564,10 +582,6 @@ fun HtmlMiniBrowserDialog(
                             if (activeTab == 1) "Đang xem mã nguồn" else "Đang xem giao diện",
                             Toast.LENGTH_SHORT
                         ).show()
-                    },
-                    onToggleConsole = {
-                        showConsole = !showConsole
-                        HapticUtil.selectionTick(context)
                     },
                     onCopy = {
                         clipboardManager.setText(AnnotatedString(currentCode))
@@ -598,7 +612,7 @@ fun HtmlMiniBrowserDialog(
                                 .fillMaxSize()
                                 .background(if (canvasDark) Color(0xFF181825) else Color.White)
                                 .then(if (isDesktopView) Modifier.horizontalScroll(desktopScrollState) else Modifier),
-                            contentAlignment = if (isDesktopView) Alignment.TopStart else Alignment.TopCenter
+                            contentAlignment = if (isDesktopView) Alignment.TopStart else Alignment.Center
                         ) {
                             AndroidView(
                                 factory = { ctx ->
@@ -929,17 +943,19 @@ fun HtmlMiniBrowserDialog(
     }
 }
 
+/**
+ * Two-Row Pro Browser Header:
+ * Row 1: Close button + Full-width Smart Omnibox (with Lock, Title, Reload) + Share/Export
+ * Row 2: Action Chips (Open file, Desktop, Dark mode, View code, Copy)
+ */
 @Composable
-private fun BrowserHeader(
+private fun BrowserHeaderPro(
     title: String,
     isReloading: Boolean,
     refreshRotation: Float,
     isDesktopView: Boolean,
     canvasDark: Boolean,
     activeTab: Int,
-    consoleCount: Int,
-    hasError: Boolean,
-    showConsole: Boolean,
     onClose: () -> Unit,
     onReload: () -> Unit,
     onOpenFile: () -> Unit,
@@ -947,7 +963,6 @@ private fun BrowserHeader(
     onToggleDesktop: () -> Unit,
     onToggleCanvasDark: () -> Unit,
     onToggleTab: () -> Unit,
-    onToggleConsole: () -> Unit,
     onCopy: () -> Unit
 ) {
     Surface(
@@ -958,9 +973,9 @@ private fun BrowserHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 6.dp, vertical = 6.dp)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
         ) {
-            // Row 1: Back + Smart Omnibox + Actions
+            // Row 1: Back + Smart Omnibox + Export
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -973,7 +988,7 @@ private fun BrowserHeader(
                     )
                 }
 
-                // Smart Omnibox
+                // Smart Omnibox with plenty of space
                 Surface(
                     shape = RoundedCornerShape(18.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -1014,68 +1029,106 @@ private fun BrowserHeader(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(2.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
-                // Open File from device
-                IconButton(onClick = onOpenFile, modifier = Modifier.size(34.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.FileOpen,
-                        contentDescription = "Mở file từ thiết bị",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                // Export / Save file
-                IconButton(onClick = onExportFile, modifier = Modifier.size(34.dp)) {
+                // Export / Save file button
+                IconButton(onClick = onExportFile, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = Icons.Default.Download,
                         contentDescription = "Lưu / Xuất file",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                // Desktop / Mobile Viewport
-                IconButton(onClick = onToggleDesktop, modifier = Modifier.size(34.dp)) {
-                    Icon(
-                        imageVector = if (isDesktopView) Icons.Default.DesktopWindows else Icons.Default.PhoneAndroid,
-                        contentDescription = if (isDesktopView) "Chế độ máy tính" else "Chế độ di động",
-                        tint = if (isDesktopView) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                // Light / Dark Canvas Toggle
-                IconButton(onClick = onToggleCanvasDark, modifier = Modifier.size(34.dp)) {
-                    Icon(
-                        imageVector = if (canvasDark) Icons.Default.LightMode else Icons.Default.DarkMode,
-                        contentDescription = "Đổi nền Canvas",
-                        tint = if (canvasDark) Color(0xFFF9E2AF) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                // Code vs Preview toggle
-                IconButton(onClick = onToggleTab, modifier = Modifier.size(34.dp)) {
-                    Icon(
-                        imageVector = if (activeTab == 0) Icons.Default.Code else Icons.Default.Visibility,
-                        contentDescription = if (activeTab == 0) "Xem mã nguồn" else "Xem giao diện",
-                        tint = if (activeTab == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                // Copy source
-                IconButton(onClick = onCopy, modifier = Modifier.size(34.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = stringResource(R.string.code_copy_content_desc),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(17.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(19.dp)
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Row 2: Pro Tool Action Chips (roomy, clearly visible, comfortable to tap)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 1. Open file from device
+                HeaderToolChip(
+                    icon = Icons.Default.FileOpen,
+                    label = "Mở file",
+                    isActive = false,
+                    onClick = onOpenFile
+                )
+
+                // 2. Desktop Mode toggle
+                HeaderToolChip(
+                    icon = if (isDesktopView) Icons.Default.DesktopWindows else Icons.Default.PhoneAndroid,
+                    label = if (isDesktopView) "1024px" else "Di động",
+                    isActive = isDesktopView,
+                    onClick = onToggleDesktop
+                )
+
+                // 3. Dark / Light canvas toggle
+                HeaderToolChip(
+                    icon = if (canvasDark) Icons.Default.DarkMode else Icons.Default.LightMode,
+                    label = if (canvasDark) "Nền Tối" else "Nền Sáng",
+                    isActive = canvasDark,
+                    onClick = onToggleCanvasDark
+                )
+
+                // 4. Source Code view toggle
+                HeaderToolChip(
+                    icon = if (activeTab == 0) Icons.Default.Code else Icons.Default.Visibility,
+                    label = if (activeTab == 0) "Xem mã" else "Xem web",
+                    isActive = activeTab == 1,
+                    onClick = onToggleTab
+                )
+
+                // 5. Copy source code
+                HeaderToolChip(
+                    icon = Icons.Default.ContentCopy,
+                    label = "Sao chép",
+                    isActive = false,
+                    onClick = onCopy
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeaderToolChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(8.dp),
+        color = if (isActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = BorderStroke(
+            1.dp,
+            if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
