@@ -1725,6 +1725,9 @@ fun GeneratedQuizCard(
                     if (validation.trueFalseCount > 0) {
                         BadgeChip(text = stringResource(R.string.ai_chat_true_false_count, validation.trueFalseCount), color = MaterialTheme.colorScheme.secondary)
                     }
+                    if (validation.shortAnswerCount > 0) {
+                        BadgeChip(text = stringResource(R.string.ai_chat_short_answer_count, validation.shortAnswerCount), color = MaterialTheme.colorScheme.tertiary)
+                    }
                 }
 
                 if (!validation.quiz.lecture.isNullOrBlank()) {

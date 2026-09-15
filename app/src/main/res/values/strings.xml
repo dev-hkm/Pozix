@@ -147,6 +147,7 @@
     <string name="saved_quiz_sets_questions">Questions</string>
     <string name="saved_quiz_sets_single_choice">Single</string>
     <string name="saved_quiz_sets_true_false">T/F</string>
+    <string name="saved_quiz_sets_short_answer">Short Ans</string>
     <string name="saved_quiz_sets_last_played">Last played: %s</string>
     <string name="saved_quiz_sets_delete_title">Delete Quiz Set?</string>
     <string name="saved_quiz_sets_delete_message">Are you sure you want to delete "%s"? This cannot be undone.</string>
@@ -167,6 +168,7 @@
     <string name="saved_quiz_sets_copy_link">Copy link</string>
     <string name="saved_quiz_sets_question_count">%d questions</string>
     <string name="saved_quiz_sets_type_count">%1$d SC · %2$d TF</string>
+    <string name="saved_quiz_sets_type_count_with_short">%1$d SC · %2$d TF · %3$d SA</string>
     <string name="saved_quiz_sets_invalid">This quiz set is no longer valid</string>
     <string name="saved_quiz_sets_share_failed">Unable to share this quiz set</string>
     <string name="saved_quiz_sets_share_expiry">This public link expires automatically after 30 days.</string>
@@ -473,6 +475,13 @@
     <string name="ai_chat_questions_count">%1$d questions</string>
     <string name="ai_chat_single_choice_count">%1$d single choice</string>
     <string name="ai_chat_true_false_count">%1$d true/false</string>
+    <string name="ai_chat_short_answer_count">%1$d short answer</string>
+    <string name="quiz_short_answer_title">Your Answer</string>
+    <string name="quiz_short_answer_hint">Type your answer (e.g. 1.5, -4, Hanoi)...</string>
+    <string name="quiz_short_answer_submit">Confirm Answer</string>
+    <string name="quiz_short_answer_correct">Correct! Your answer: %1$s</string>
+    <string name="quiz_short_answer_incorrect">Incorrect! You answered: %1$s</string>
+    <string name="quiz_short_answer_expected">Expected: %1$s</string>
     <string name="ai_chat_start_exam">Start Quiz Now</string>
     <string name="ai_chat_saved_quiz">Saved</string>
     <string name="ai_chat_save_quiz">Save Quiz</string>
@@ -541,4 +550,5 @@
     <string name="lecture_empty">No study notes available for this quiz set.</string>
     <string name="lecture_read_time">%1$d min read</string>
     <string name="lecture_open_button">Read Study Notes</string>
+    <string name="lecture_loading">Preparing study notes…</string>
 </resources>

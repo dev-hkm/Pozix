@@ -61,6 +61,7 @@ sealed class ExamState {
         val questions: List<Question>,
         val currentIndex: Int = 0,
         val answers: Map<Int, Int> = emptyMap(),
+        val textAnswers: Map<Int, String> = emptyMap(),
         val flaggedQuestions: Set<Int> = emptySet(),
         val timeLimitMillis: Long,
         val remainingMillis: Long,
@@ -77,6 +78,7 @@ sealed class ExamState {
         val quizTitle: String,
         val questions: List<Question>,
         val answers: Map<Int, Int>,
+        val textAnswers: Map<Int, String> = emptyMap(),
         val correctCount: Int,
         val totalQuestions: Int,
         val scoreOutOf10: Double,
@@ -139,6 +141,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
                         questions = saved.questions,
                         currentIndex = saved.currentIndex.coerceIn(saved.questions.indices),
                         answers = saved.answers,
+                        textAnswers = saved.textAnswers,
                         flaggedQuestions = saved.flaggedQuestions.filterTo(mutableSetOf()) {
                             isValidExamQuestionIndex(it, saved.questions.size)
                         },
@@ -206,6 +209,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
                             question.copy(options = shuffledOptions, correctIndex = newCorrectIndex)
                         }
                         is Question.TrueFalse -> question
+                        is Question.ShortAnswer -> question
                     }
                 }
             }
@@ -276,6 +280,8 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectAnswer(answerIndex: Int) {
         val current = _examState.value as? ExamState.Playing ?: return
+        val currentQuestion = current.questions[current.currentIndex]
+        if (currentQuestion is Question.ShortAnswer) return
         val newAnswers = current.answers.toMutableMap()
         newAnswers[current.currentIndex] = answerIndex
         val updated = current.copy(answers = newAnswers)
@@ -283,10 +289,26 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         persist(updated)
     }
 
+    fun setTextAnswer(index: Int, text: String) {
+        val current = _examState.value as? ExamState.Playing ?: return
+        if (!isValidExamQuestionIndex(index, current.questions.size)) return
+        val updatedTextAnswers = if (text.isBlank()) {
+            current.textAnswers - index
+        } else {
+            current.textAnswers + (index to text)
+        }
+        val updated = current.copy(textAnswers = updatedTextAnswers)
+        _examState.value = updated
+        persist(updated)
+    }
+
     fun clearAnswer() {
         val current = _examState.value as? ExamState.Playing ?: return
-        if (current.currentIndex !in current.answers) return
-        val updated = current.copy(answers = current.answers - current.currentIndex)
+        if (current.currentIndex !in current.answers && current.currentIndex !in current.textAnswers) return
+        val updated = current.copy(
+            answers = current.answers - current.currentIndex,
+            textAnswers = current.textAnswers - current.currentIndex
+        )
         _examState.value = updated
         persist(updated)
     }
@@ -403,17 +425,30 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         recordTimeForQuestion(current.currentIndex)
 
         val answers = current.answers
+        val textAnswers = current.textAnswers
         var correctCount = 0
         current.questions.forEachIndexed { index, question ->
-            val selected = answers[index]
-            val isCorrect = when {
-                selected == null -> false
-                question is Question.SingleChoice -> selected == question.correctIndex
-                question is Question.TrueFalse -> {
-                    val selectedBool = selected == 0
-                    selectedBool == question.correctAnswer
+            val isCorrect = when (question) {
+                is Question.ShortAnswer -> {
+                    val userText = textAnswers[index]
+                    if (userText.isNullOrBlank()) {
+                        false
+                    } else {
+                        com.hkm.pozix.util.ShortAnswerMatcher.isMatch(
+                            userText,
+                            question.correctAnswer,
+                            question.acceptedAnswers
+                        )
+                    }
                 }
-                else -> false
+                is Question.SingleChoice -> {
+                    val selected = answers[index]
+                    selected != null && selected == question.correctIndex
+                }
+                is Question.TrueFalse -> {
+                    val selected = answers[index]
+                    selected != null && (selected == 0) == question.correctAnswer
+                }
             }
             if (isCorrect) correctCount++
         }
@@ -441,12 +476,13 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             else -> "dark_red"
         }
 
-        val unansweredCount = current.questions.indices.count { it !in answers }
+        val unansweredCount = current.questions.indices.count { it !in answers && textAnswers[it].isNullOrBlank() }
 
         _examState.value = ExamState.Finished(
             quizTitle = current.quizTitle,
             questions = current.questions,
             answers = answers,
+            textAnswers = textAnswers,
             correctCount = correctCount,
             totalQuestions = total,
             scoreOutOf10 = scoreOutOf10,
@@ -465,15 +501,19 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
                     sessionRepository.clear()
                 }
             }
+            val allAnsweredIndices = (answers.keys + textAnswers.keys).distinct()
             val progress = QuizProgress(
                 quizSetId = current.quizSetId,
                 currentQuestionIndex = current.currentIndex,
                 score = correctCount,
-                answeredQuestions = answers.keys.toList(),
+                answeredQuestions = allAnsweredIndices,
                 elapsedTimeMillis = current.timeLimitMillis - current.remainingMillis,
                 totalQuestions = total,
                 isCompleted = true,
-                completedTimestamp = System.currentTimeMillis()
+                completedTimestamp = System.currentTimeMillis(),
+                selectedAnswers = answers,
+                userTextAnswers = textAnswers,
+                questionSnapshot = current.questions
             )
             progressRepository.saveProgressForQuiz(current.quizSetId, progress)
             savedQuizRepository.updateLastUsedTimestamp(current.quizSetId)
@@ -507,7 +547,8 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun ExamState.Playing.toSession(pausedByUser: Boolean = false) = ExamSession(
         quizSetId = quizSetId, quizTitle = quizTitle, questions = questions,
-        currentIndex = currentIndex, answers = answers, timeLimitMillis = timeLimitMillis,
+        currentIndex = currentIndex, answers = answers, textAnswers = textAnswers,
+        timeLimitMillis = timeLimitMillis,
         deadlineEpochMillis = deadlineEpochMillis,
         remainingMillis = remainingMillis,
         questionTimes = questionTimes.toMap(),

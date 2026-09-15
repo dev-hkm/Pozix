@@ -274,6 +274,7 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
                     questionCount = validationState.result.parsedQuestions.size,
                     singleChoiceCount = validationState.result.singleChoiceCount,
                     trueFalseCount = validationState.result.trueFalseCount,
+                    shortAnswerCount = validationState.result.shortAnswerCount,
                     description = validationState.result.quiz.description ?: "",
                     lastUsedTimestamp = System.currentTimeMillis()
                 )
@@ -308,6 +309,7 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
                     questionCount = validationState.result.parsedQuestions.size,
                     singleChoiceCount = validationState.result.singleChoiceCount,
                     trueFalseCount = validationState.result.trueFalseCount,
+                    shortAnswerCount = validationState.result.shortAnswerCount,
                     description = validationState.result.quiz.description ?: ""
                 )
                 savedQuizRepository.saveQuizSet(quizSet)

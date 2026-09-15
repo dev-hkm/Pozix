@@ -4,6 +4,8 @@ import com.hkm.pozix.data.model.Question
 import com.hkm.pozix.data.model.Quiz
 import com.hkm.pozix.data.model.QuizValidationResult
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 object QuizJsonParser {
     
@@ -31,6 +33,7 @@ object QuizJsonParser {
             val parsedQuestions = mutableListOf<Question>()
             var singleChoiceCount = 0
             var trueFalseCount = 0
+            var shortAnswerCount = 0
             
             quiz.questions.forEachIndexed { index, rawQuestion ->
                 val questionNumber = index + 1
@@ -83,15 +86,20 @@ object QuizJsonParser {
                     
                     "true_false" -> {
                         // Validate correctAnswer
-                        val correctAnswer = rawQuestion.correctAnswer
-                        if (correctAnswer == null) {
-                            return QuizValidationResult.Error("Question $questionNumber: correctAnswer is required for true_false")
+                        val boolAnswer = try {
+                            rawQuestion.correctAnswer?.jsonPrimitive?.booleanOrNull
+                                ?: rawQuestion.correctAnswer?.jsonPrimitive?.content?.toBooleanStrictOrNull()
+                        } catch (_: Exception) {
+                            null
+                        }
+                        if (boolAnswer == null) {
+                            return QuizValidationResult.Error("Question $questionNumber: correctAnswer (true or false) is required for true_false")
                         }
                         
                         parsedQuestions.add(
                             Question.TrueFalse(
                                 question = rawQuestion.question,
-                                correctAnswer = correctAnswer,
+                                correctAnswer = boolAnswer,
                                 explanation = rawQuestion.explanation,
                                 media = QuestionMediaSanitizer.sanitize(rawQuestion.media.orEmpty())
                             )
@@ -99,8 +107,35 @@ object QuizJsonParser {
                         trueFalseCount++
                     }
                     
+                    "short_answer", "shortAnswer", "fill_in", "text" -> {
+                        val textAnswer = try {
+                            rawQuestion.correctAnswer?.jsonPrimitive?.content?.trim()
+                        } catch (_: Exception) {
+                            null
+                        }
+                        if (textAnswer.isNullOrBlank()) {
+                            return QuizValidationResult.Error("Question $questionNumber: correctAnswer is required for short_answer")
+                        }
+
+                        val accepted = rawQuestion.acceptedAnswers
+                            ?.map { it.trim() }
+                            ?.filter { it.isNotBlank() }
+                            ?: emptyList()
+
+                        parsedQuestions.add(
+                            Question.ShortAnswer(
+                                question = rawQuestion.question,
+                                correctAnswer = textAnswer,
+                                acceptedAnswers = accepted,
+                                explanation = rawQuestion.explanation,
+                                media = QuestionMediaSanitizer.sanitize(rawQuestion.media.orEmpty())
+                            )
+                        )
+                        shortAnswerCount++
+                    }
+                    
                     else -> {
-                        return QuizValidationResult.Error("Question $questionNumber: invalid question type '${rawQuestion.type}'. Only 'single_choice' and 'true_false' are supported")
+                        return QuizValidationResult.Error("Question $questionNumber: invalid question type '${rawQuestion.type}'. Supported types: 'single_choice', 'true_false', 'short_answer'")
                     }
                 }
             }
@@ -109,7 +144,8 @@ object QuizJsonParser {
                 quiz = quiz,
                 parsedQuestions = parsedQuestions,
                 singleChoiceCount = singleChoiceCount,
-                trueFalseCount = trueFalseCount
+                trueFalseCount = trueFalseCount,
+                shortAnswerCount = shortAnswerCount
             )
             
         } catch (e: Exception) {

@@ -89,13 +89,21 @@ Schema:
       "question": "Nội dung câu hỏi",
       "correctAnswer": true,
       "explanation": "Giải thích tùy chọn"
+    },
+    {
+      "type": "short_answer",
+      "question": "Nội dung câu hỏi trắc nghiệm trả lời ngắn (điền kết quả)",
+      "correctAnswer": "1.5",
+      "acceptedAnswers": ["1.5", "1,5", "3/2"],
+      "explanation": "Giải thích tùy chọn"
     }
   ]
 }
 
 Yêu cầu:
 - Tạo 10-15 câu hỏi
-- Kết hợp cả hai loại single_choice và true_false
+- Hỗ trợ cả 3 dạng chuẩn đề thi THPTQG: single_choice (Phần I - 4 lựa chọn), true_false (Phần II - Đúng/Sai), short_answer (Phần III - Trả lời ngắn)
+- short_answer: correctAnswer là số/chuỗi ngắn, kèm acceptedAnswers chứa các cách viết tương đương
 - single_choice phải có 2-6 lựa chọn
 - correctIndex phải hợp lệ (bắt đầu từ 0)
 - Câu hỏi phải rõ ràng và có thể trả lời được
@@ -130,13 +138,21 @@ Schema:
       "question": "Question text",
       "correctAnswer": true,
       "explanation": "Optional explanation"
+    },
+    {
+      "type": "short_answer",
+      "question": "Short answer question text",
+      "correctAnswer": "1.5",
+      "acceptedAnswers": ["1.5", "1,5", "3/2"],
+      "explanation": "Optional explanation"
     }
   ]
 }
 
 Requirements:
 - Generate 10-15 questions
-- Mix single_choice and true_false types
+- Mix single_choice, true_false, and short_answer types
+- short_answer: correctAnswer is concise number/text, acceptedAnswers contains equivalent valid answers
 - single_choice must have 2-6 options
 - correctIndex must be valid (0-based)
 - Questions should be clear and answerable

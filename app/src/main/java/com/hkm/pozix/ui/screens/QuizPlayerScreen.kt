@@ -198,6 +198,9 @@ fun QuizPlayerScreen(
                     onPrevious = {
                         viewModel.previousQuestion()
                         HapticUtil.veryLightTap(context)
+                    },
+                    onSelectTextAnswer = { text ->
+                        viewModel.submitShortAnswer(text)
                     }
                 )
             }
@@ -207,7 +210,7 @@ fun QuizPlayerScreen(
                     onReviewWithAi = {
                         HapticUtil.lightTap(context)
                         com.hkm.pozix.util.QuizAiFollowUp.queue(context, com.hkm.pozix.util.QuizAiFollowUp.report(
-                            state.quizTitle, state.questions, state.selectedAnswers, state.score, state.elapsedTimeMillis))
+                            state.quizTitle, state.questions, state.selectedAnswers, state.userTextAnswers, state.score, state.elapsedTimeMillis))
                     },
                     quizTitle = state.quizTitle,
                     score = state.score,
@@ -286,7 +289,8 @@ fun PlayingContent(
     onNavigateBack: () -> Unit,
     onSelectAnswer: (Int) -> Unit,
     onNext: () -> Unit,
-    onPrevious: () -> Unit = {}
+    onPrevious: () -> Unit = {},
+    onSelectTextAnswer: (String) -> Unit = {}
 ) {
     val currentQuestion = state.questions[state.currentQuestionIndex]
     val context = LocalContext.current
@@ -385,6 +389,19 @@ fun PlayingContent(
                                             contentPadding = effectiveContentPadding
                                         )
                                     }
+                                    is Question.ShortAnswer -> {
+                                        com.hkm.pozix.ui.components.ShortAnswerLayout(
+                                            userAnswer = state.currentTextAnswer ?: state.userTextAnswers[state.currentQuestionIndex].orEmpty(),
+                                            correctAnswer = currentQuestion.correctAnswer,
+                                            acceptedAnswers = currentQuestion.acceptedAnswers,
+                                            isAnswered = state.isAnswered,
+                                            isCorrect = state.isCorrect,
+                                            explanation = currentQuestion.explanation,
+                                            showExplanation = state.showExplanation,
+                                            onSubmit = onSelectTextAnswer,
+                                            contentPadding = effectiveContentPadding
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -438,7 +455,7 @@ fun PlayingContent(
                         isLastQuestion = state.currentQuestionIndex == state.questions.size - 1,
                         onNext = onNext,
                         canNext = state.isAnswered,
-                        canPrevious = state.currentQuestionIndex - 1 in state.selectedAnswers,
+                        canPrevious = (state.currentQuestionIndex - 1 in state.selectedAnswers) || (state.currentQuestionIndex - 1 in state.userTextAnswers),
                         onPrevious = onPrevious
                     )
                 }

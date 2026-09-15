@@ -27,7 +27,15 @@ object QuizAiFollowUp {
     fun decode(payload: String): QuizReviewPayload? = runCatching {
         json.decodeFromString<QuizReviewPayload>(payload)
     }.getOrNull()
-    fun report(title: String, questions: List<Question>, answers: Map<Int, Int>, score: Int, elapsed: Long): String {
+
+    fun report(
+        title: String,
+        questions: List<Question>,
+        answers: Map<Int, Int>,
+        textAnswers: Map<Int, String> = emptyMap(),
+        score: Int,
+        elapsed: Long
+    ): String {
         val payload = QuizReviewPayload(
             title = title,
             score = score,
@@ -35,17 +43,42 @@ object QuizAiFollowUp {
             elapsedTimeMillis = elapsed,
             reviewId = java.util.UUID.randomUUID().toString(),
             items = questions.mapIndexed { index, question ->
-                val options = when (question) {
-                    is Question.SingleChoice -> question.options
-                    is Question.TrueFalse -> listOf("True", "False")
+                when (question) {
+                    is Question.SingleChoice -> {
+                        QuizReviewItem(
+                            question = question.question,
+                            options = question.options,
+                            selectedIndex = answers[index],
+                            correctIndex = question.correctIndex,
+                            explanation = question.explanation
+                        )
+                    }
+                    is Question.TrueFalse -> {
+                        QuizReviewItem(
+                            question = question.question,
+                            options = listOf("True", "False"),
+                            selectedIndex = answers[index],
+                            correctIndex = if (question.correctAnswer) 0 else 1,
+                            explanation = question.explanation
+                        )
+                    }
+                    is Question.ShortAnswer -> {
+                        QuizReviewItem(
+                            question = question.question,
+                            options = emptyList(),
+                            selectedIndex = null,
+                            correctIndex = -1,
+                            explanation = question.explanation,
+                            userTextAnswer = textAnswers[index],
+                            correctTextAnswer = question.correctAnswer
+                        )
+                    }
                 }
-                val correct = when (question) {
-                    is Question.SingleChoice -> question.correctIndex
-                    is Question.TrueFalse -> if (question.correctAnswer) 0 else 1
-                }
-                QuizReviewItem(question.question, options, answers[index], correct, question.explanation)
             }
         )
         return json.encodeToString(payload)
     }
+
+    fun report(title: String, questions: List<Question>, answers: Map<Int, Int>, score: Int, elapsed: Long): String =
+        report(title, questions, answers, emptyMap(), score, elapsed)
 }

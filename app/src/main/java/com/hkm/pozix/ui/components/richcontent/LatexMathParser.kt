@@ -48,10 +48,19 @@ object LatexMathParser {
     fun extractIconAndText(raw: String): Pair<String?, String> {
         val trimmed = raw.trim()
         val nextColon = trimmed.indexOfAny(charArrayOf(':', '|'))
-        if (nextColon in 1..25) {
-            val candidate = trimmed.substring(0, nextColon).trim().lowercase().removePrefix("icon=")
-            if (LucideIconMap.isValidIcon(candidate)) {
-                return candidate to trimmed.substring(nextColon + 1).trim()
+        if (nextColon in 1..30) {
+            val candidate = trimmed.substring(0, nextColon).trim()
+            val normalized = LucideIconMap.normalizeIconName(candidate)
+            if (LucideIconMap.isValidIcon(normalized)) {
+                return normalized to trimmed.substring(nextColon + 1).trim()
+            }
+            // Fallback protection: If candidate is formatted like an icon identifier (e.g. "foo-bar" or "icon-name")
+            // never leak raw "candidate:" into user visible text. Strip it and map to normalized candidate.
+            if (candidate.matches(Regex("^[a-zA-Z0-9_-]{2,25}$"))) {
+                val remainingText = trimmed.substring(nextColon + 1).trim()
+                if (remainingText.isNotEmpty()) {
+                    return normalized to remainingText
+                }
             }
         }
         return null to trimmed
@@ -386,8 +395,9 @@ object LatexMathParser {
                         if (extendedMarker == "==") {
                             val rawContent = cleanText.substring(i + 2, end)
                             val colonIdx = rawContent.indexOfAny(charArrayOf(':', '|'))
-                            if (colonIdx in 1..15) {
-                                val potentialColor = rawContent.substring(0, colonIdx).trim().lowercase()
+                            if (colonIdx in 1..25) {
+                                val firstToken = rawContent.substring(0, colonIdx).trim()
+                                val potentialColor = firstToken.lowercase().removePrefix("badge:")
                                 if (isValidBadgeColor(potentialColor)) {
                                     val rawBadgeText = rawContent.substring(colonIdx + 1).trim()
                                     val (iconName, badgeText) = extractIconAndText(rawBadgeText)
@@ -400,6 +410,22 @@ object LatexMathParser {
                                             pop()
                                             append(" ")
                                         }
+                                        append(parseToAnnotatedString(badgeText, colors.background, colors.text))
+                                    }
+                                    i = end + 2
+                                    continue
+                                } else if (LucideIconMap.isValidIcon(firstToken) || firstToken.startsWith("icon=") || firstToken.startsWith("lucide:")) {
+                                    // Direct icon badge without explicit color: e.g. ==x-circle:Bẫy 1== or ==scale:Khái niệm==
+                                    val iconName = LucideIconMap.normalizeIconName(firstToken)
+                                    val inferredColor = LucideIconMap.resolveDefaultColor(iconName)
+                                    val badgeText = rawContent.substring(colonIdx + 1).trim()
+                                    val colors = getBadgeColors(inferredColor, isDark)
+                                    withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                                        val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
+                                        pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                                        append("\uFFFC")
+                                        pop()
+                                        append(" ")
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
                                     }
                                     i = end + 2
@@ -427,17 +453,18 @@ object LatexMathParser {
                     }
                 }
 
-                // Check for badge syntax [color:text] (e.g. [pink:từ khóa], [yellow:TIẾNG ANH], [blue:Xem bài trước])
+                // Check for badge syntax [color:text] or [icon:text] (e.g. [pink:từ khóa], [yellow:TIẾNG ANH], [x-circle:Bẫy 1], [scale:Khái niệm])
                 if (cleanText[i] == '[') {
                     val closeBracket = cleanText.indexOf(']', i + 1)
                     if (closeBracket != -1 && !cleanText.substring(i + 1, closeBracket).contains('\n')) {
                         val bracketContent = cleanText.substring(i + 1, closeBracket)
                         val colonIdx = bracketContent.indexOf(':')
-                        if (colonIdx in 1..15) {
-                            val potentialColor = bracketContent.substring(0, colonIdx).trim().lowercase().removePrefix("badge:")
-                            if (isValidBadgeColor(potentialColor)) {
-                                val isLink = closeBracket + 1 < len && cleanText[closeBracket + 1] == '('
-                                if (!isLink) {
+                        if (colonIdx in 1..25) {
+                            val firstToken = bracketContent.substring(0, colonIdx).trim()
+                            val potentialColor = firstToken.lowercase().removePrefix("badge:")
+                            val isLink = closeBracket + 1 < len && cleanText[closeBracket + 1] == '('
+                            if (!isLink) {
+                                if (isValidBadgeColor(potentialColor)) {
                                     val rawBadgeText = bracketContent.substring(colonIdx + 1).trim()
                                     val (iconName, badgeText) = extractIconAndText(rawBadgeText)
                                     val colors = getBadgeColors(potentialColor, isDark)
@@ -449,6 +476,22 @@ object LatexMathParser {
                                             pop()
                                             append(" ")
                                         }
+                                        append(parseToAnnotatedString(badgeText, colors.background, colors.text))
+                                    }
+                                    i = closeBracket + 1
+                                    continue
+                                } else if (LucideIconMap.isValidIcon(firstToken) || firstToken.startsWith("icon=") || firstToken.startsWith("lucide:")) {
+                                    // Direct icon badge in brackets: e.g. [x-circle:Bẫy 1] or [scale:Khái niệm]
+                                    val iconName = LucideIconMap.normalizeIconName(firstToken)
+                                    val inferredColor = LucideIconMap.resolveDefaultColor(iconName)
+                                    val badgeText = bracketContent.substring(colonIdx + 1).trim()
+                                    val colors = getBadgeColors(inferredColor, isDark)
+                                    withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                                        val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
+                                        pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                                        append("\uFFFC")
+                                        pop()
+                                        append(" ")
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
                                     }
                                     i = closeBracket + 1

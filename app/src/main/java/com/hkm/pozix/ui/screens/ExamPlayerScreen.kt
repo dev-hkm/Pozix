@@ -186,6 +186,7 @@ fun ExamPlayerScreen(
                     onNext = { viewModel.nextQuestion() },
                     onPrevious = { viewModel.previousQuestion() },
                     onGoTo = { viewModel.goToQuestion(it) },
+                    onSetTextAnswer = { index, text -> viewModel.setTextAnswer(index, text) },
                     onTogglePalette = { viewModel.togglePalette() },
                     onSubmit = { viewModel.requestSubmit() },
                     onConfirmSubmit = { viewModel.confirmSubmit() },
@@ -435,7 +436,8 @@ fun ExamPlayingContent(
     onCancelExit: () -> Unit,
     onSaveAndExit: () -> Unit,
     onContinueSaved: () -> Unit,
-    onRestartSaved: () -> Unit
+    onRestartSaved: () -> Unit,
+    onSetTextAnswer: (Int, String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val totalQuestions = state.questions.size
@@ -542,7 +544,7 @@ fun ExamPlayingContent(
                         HapticUtil.ultraLightTap(context)
                         onClearAnswer()
                     },
-                    enabled = state.currentIndex in state.answers
+                    enabled = (state.currentIndex in state.answers) || (!state.textAnswers[state.currentIndex].isNullOrBlank())
                 ) {
                     Icon(
                         imageVector = Icons.Default.Clear,
@@ -562,13 +564,6 @@ fun ExamPlayingContent(
             ) {
                 val safeIndex = state.currentIndex.coerceIn(state.questions.indices)
                 val question = state.questions[safeIndex]
-                val options = when (question) {
-                    is Question.SingleChoice -> question.options
-                    is Question.TrueFalse -> listOf(
-                        stringResource(R.string.quiz_true),
-                        stringResource(R.string.quiz_false)
-                    )
-                }
 
                 Column(
                     modifier = Modifier
@@ -686,11 +681,26 @@ fun ExamPlayingContent(
                             .weight(1f)
                             .padding(horizontal = 16.dp)
                     ) {
-                        ExamAnswerLayout(
-                            options = options,
-                            selectedIndex = state.answers[safeIndex],
-                            onSelectAnswer = onSelectAnswer
-                        )
+                        if (question is Question.ShortAnswer) {
+                            com.hkm.pozix.ui.components.ExamShortAnswerLayout(
+                                userText = state.textAnswers[safeIndex].orEmpty(),
+                                onTextChange = { onSetTextAnswer(safeIndex, it) }
+                            )
+                        } else {
+                            val options = when (question) {
+                                is Question.SingleChoice -> question.options
+                                is Question.TrueFalse -> listOf(
+                                    stringResource(R.string.quiz_true),
+                                    stringResource(R.string.quiz_false)
+                                )
+                                else -> emptyList()
+                            }
+                            ExamAnswerLayout(
+                                options = options,
+                                selectedIndex = state.answers[safeIndex],
+                                onSelectAnswer = onSelectAnswer
+                            )
+                        }
                     }
                 }
             }
@@ -721,6 +731,7 @@ fun ExamPlayingContent(
             ExamQuestionPalette(
                 questions = state.questions,
                 answers = state.answers,
+                textAnswers = state.textAnswers,
                 flaggedQuestions = state.flaggedQuestions,
                 currentIndex = state.currentIndex,
                 onGoTo = {
@@ -734,7 +745,7 @@ fun ExamPlayingContent(
 
         if (state.showSubmitConfirm) {
             val total = state.questions.size
-            val answered = state.answers.size
+            val answered = state.questions.indices.count { it in state.answers || !state.textAnswers[it].isNullOrBlank() }
             val unanswered = total - answered
             val flagged = state.flaggedQuestions.size
 
@@ -1262,6 +1273,7 @@ fun ExamNavigationBar(
 fun ExamQuestionPalette(
     questions: List<Question>,
     answers: Map<Int, Int>,
+    textAnswers: Map<Int, String> = emptyMap(),
     flaggedQuestions: Set<Int>,
     currentIndex: Int,
     onGoTo: (Int) -> Unit,
@@ -1270,12 +1282,14 @@ fun ExamQuestionPalette(
     val context = LocalContext.current
     var selectedFilter by remember { mutableIntStateOf(0) } // 0: All, 1: Unanswered, 2: Flagged
 
-    val unansweredCount = questions.indices.count { it !in answers }
+    fun isItemAnswered(idx: Int) = idx in answers || !textAnswers[idx].isNullOrBlank()
+
+    val unansweredCount = questions.indices.count { !isItemAnswered(it) }
     val flaggedCount = flaggedQuestions.size
 
-    val displayedIndices = remember(selectedFilter, questions.size, answers, flaggedQuestions) {
+    val displayedIndices = remember(selectedFilter, questions.size, answers, textAnswers, flaggedQuestions) {
         when (selectedFilter) {
-            1 -> questions.indices.filter { it !in answers }
+            1 -> questions.indices.filter { !isItemAnswered(it) }
             2 -> questions.indices.filter { it in flaggedQuestions }
             else -> questions.indices.toList()
         }
@@ -1411,7 +1425,7 @@ fun ExamQuestionPalette(
                     ) {
                         items(displayedIndices.size) { i ->
                             val index = displayedIndices[i]
-                            val isAnswered = index in answers
+                            val isAnswered = isItemAnswered(index)
                             val isCurrent = index == currentIndex
                             val isFlagged = index in flaggedQuestions
 

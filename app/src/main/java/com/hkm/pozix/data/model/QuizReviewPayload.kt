@@ -16,10 +16,17 @@ data class QuizReviewPayload(
 @Serializable
 data class QuizReviewItem(
     val question: String,
-    val options: List<String>,
+    val options: List<String> = emptyList(),
     val selectedIndex: Int? = null,
-    val correctIndex: Int,
-    val explanation: String? = null
+    val correctIndex: Int = -1,
+    val explanation: String? = null,
+    val userTextAnswer: String? = null,
+    val correctTextAnswer: String? = null
 ) {
-    val isCorrect: Boolean get() = selectedIndex != null && selectedIndex == correctIndex
+    val isCorrect: Boolean get() = when {
+        userTextAnswer != null && correctTextAnswer != null ->
+            com.hkm.pozix.util.ShortAnswerMatcher.isMatch(userTextAnswer, correctTextAnswer)
+        selectedIndex != null && correctIndex >= 0 -> selectedIndex == correctIndex
+        else -> false
+    }
 }

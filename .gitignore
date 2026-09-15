@@ -23,3 +23,7 @@ release-signing.jks
 *.aab
 *.keystore
 
+
+.codex/
+.codex*
+Gemini_3_8_Flash_Toan_Bo_Loi_Codebase_Pozix.md

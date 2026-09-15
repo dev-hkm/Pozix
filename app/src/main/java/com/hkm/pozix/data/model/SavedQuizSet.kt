@@ -10,6 +10,7 @@ data class SavedQuizSet(
     val questionCount: Int,
     val singleChoiceCount: Int,
     val trueFalseCount: Int,
+    val shortAnswerCount: Int = 0,
     val description: String = "",
     val savedTimestamp: Long = System.currentTimeMillis(),
     val lastUsedTimestamp: Long = 0L,

@@ -9,6 +9,7 @@ data class ExamSession(
     val questions: List<Question>,
     val currentIndex: Int,
     val answers: Map<Int, Int>,
+    val textAnswers: Map<Int, String> = emptyMap(),
     val timeLimitMillis: Long,
     val deadlineEpochMillis: Long,
     val remainingMillis: Long,

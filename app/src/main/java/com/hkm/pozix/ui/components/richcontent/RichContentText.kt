@@ -53,6 +53,55 @@ private fun rememberStyledInline(text: String): androidx.compose.ui.text.Annotat
 }
 
 @Composable
+fun LucideIconView(
+    iconName: String,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    // 1. First priority: Check LucideIconMap for Outlined ImageVector
+    // Compose's native Icon renderer fills the entire placeholder with crisp, bold strokes
+    val iconVector = LucideIconMap.getIcon(iconName)
+    if (iconVector != null) {
+        Icon(
+            imageVector = iconVector,
+            contentDescription = null,
+            tint = tint,
+            modifier = modifier.fillMaxSize().padding(0.5.dp)
+        )
+        return
+    }
+
+    // 2. Second priority: If not in curated ImageVectors, render from official Lucide font (lucide.ttf)
+    val glyph = LucideGlyphMap.getGlyph(iconName)
+    if (glyph != null) {
+        BoxWithConstraints(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            val glyphSp = if (maxHeight > 0.dp) (maxHeight.value * 1.15f).sp else 18.sp
+            Text(
+                text = glyph.toString(),
+                fontFamily = LucideGlyphMap.LucideFont,
+                color = tint,
+                fontSize = glyphSp,
+                lineHeight = glyphSp,
+                textAlign = TextAlign.Center
+            )
+        }
+        return
+    }
+
+    // 3. Fallback: Clean vector icon
+    val fallback = LucideIconMap.getIconOrDefault(iconName)
+    Icon(
+        imageVector = fallback,
+        contentDescription = null,
+        tint = tint,
+        modifier = modifier.fillMaxSize().padding(0.5.dp)
+    )
+}
+
+@Composable
 fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString): Map<String, InlineTextContent> {
     return remember(annotated) {
         val annotations = annotated.getStringAnnotations("androidx.compose.foundation.text.inlineContent", 0, annotated.length)
@@ -62,23 +111,15 @@ fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString
                 val id = annotation.item
                 id to InlineTextContent(
                     Placeholder(
-                        width = 1.2.em,
-                        height = 1.2.em,
+                        width = 1.35.em,
+                        height = 1.35.em,
                         placeholderVerticalAlign = PlaceholderVerticalAlign.Center
                     )
                 ) {
                     val parts = id.split(":")
                     val iconName = parts.getOrElse(1) { "" }
                     val colorInt = parts.getOrNull(2)?.toIntOrNull() ?: android.graphics.Color.GRAY
-                    val iconVector = LucideIconMap.getIcon(iconName)
-                    if (iconVector != null) {
-                        Icon(
-                            imageVector = iconVector,
-                            contentDescription = null,
-                            tint = Color(colorInt),
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    LucideIconView(iconName = iconName, tint = Color(colorInt))
                 }
             }
         }

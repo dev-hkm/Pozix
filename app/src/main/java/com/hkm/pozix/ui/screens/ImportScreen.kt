@@ -882,6 +882,31 @@ fun ImportScreen(
                                             )
                                         }
                                     }
+
+                                    if (state.result.shortAnswerCount > 0) {
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text(
+                                                    text = "${state.result.shortAnswerCount}",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.saved_quiz_sets_short_answer),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
 
                                 if (!state.result.quiz.lecture.isNullOrBlank()) {

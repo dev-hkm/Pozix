@@ -5,7 +5,8 @@ sealed class QuizValidationResult {
         val quiz: Quiz,
         val parsedQuestions: List<Question>,
         val singleChoiceCount: Int,
-        val trueFalseCount: Int
+        val trueFalseCount: Int,
+        val shortAnswerCount: Int = 0
     ) : QuizValidationResult()
     
     data class Error(val message: String) : QuizValidationResult()

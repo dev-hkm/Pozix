@@ -24,4 +24,13 @@ sealed class Question {
         override val explanation: String? = null,
         override val media: List<QuestionMedia> = emptyList()
     ) : Question()
+
+    @Serializable
+    data class ShortAnswer(
+        override val question: String,
+        val correctAnswer: String,
+        val acceptedAnswers: List<String> = emptyList(),
+        override val explanation: String? = null,
+        override val media: List<QuestionMedia> = emptyList()
+    ) : Question()
 }

@@ -629,11 +629,20 @@ fun PremiumQuizCard(
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = stringResource(
-                                    R.string.saved_quiz_sets_type_count,
-                                    quizSet.singleChoiceCount,
-                                    quizSet.trueFalseCount
-                                ),
+                                text = if (quizSet.shortAnswerCount > 0) {
+                                    stringResource(
+                                        R.string.saved_quiz_sets_type_count_with_short,
+                                        quizSet.singleChoiceCount,
+                                        quizSet.trueFalseCount,
+                                        quizSet.shortAnswerCount
+                                    )
+                                } else {
+                                    stringResource(
+                                        R.string.saved_quiz_sets_type_count,
+                                        quizSet.singleChoiceCount,
+                                        quizSet.trueFalseCount
+                                    )
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             )
@@ -1170,6 +1179,31 @@ fun PreviewQuestionItem(index: Int, question: Question) {
                     text = stringResource(R.string.quiz_false),
                     isCorrect = question.correctAnswer == false
                 )
+            }
+            is Question.ShortAnswer -> {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = stringResource(R.string.quiz_short_answer_expected, question.correctAnswer),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        if (question.acceptedAnswers.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "Chấp nhận: ${question.acceptedAnswers.joinToString(", ")}",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
         }
 

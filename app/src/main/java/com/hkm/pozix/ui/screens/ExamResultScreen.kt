@@ -266,7 +266,8 @@ fun ExamResultScreen(
                     ReviewQuestionCard(
                         index = index + 1,
                         question = question,
-                        selectedAnswer = state.answers[index]
+                        selectedAnswer = state.answers[index],
+                        selectedTextAnswer = state.textAnswers[index]
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
@@ -283,7 +284,7 @@ fun ExamResultScreen(
                 OutlinedButton(onClick = {
                     HapticUtil.lightTap(context)
                     com.hkm.pozix.util.QuizAiFollowUp.queue(context, com.hkm.pozix.util.QuizAiFollowUp.report(
-                        state.quizTitle, state.questions, state.answers, state.correctCount, state.timeUsedMillis))
+                        state.quizTitle, state.questions, state.answers, state.textAnswers, state.correctCount, state.timeUsedMillis))
                 }, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.ai_review_results))
                 }
@@ -382,23 +383,25 @@ fun ResultStatCard(
 fun ReviewQuestionCard(
     index: Int,
     question: Question,
-    selectedAnswer: Int?
+    selectedAnswer: Int?,
+    selectedTextAnswer: String? = null
 ) {
     val questionText = question.question
-    val correctIndex = when (question) {
-        is Question.SingleChoice -> question.correctIndex
-        is Question.TrueFalse -> if (question.correctAnswer) 0 else 1
-    }
-    val options = when (question) {
-        is Question.SingleChoice -> question.options
-        is Question.TrueFalse -> listOf(
-            stringResource(R.string.quiz_true),
-            stringResource(R.string.quiz_false)
-        )
-    }
-    val isUnanswered = selectedAnswer == null
-    val isCorrect = selectedAnswer == correctIndex
     val explanation = question.explanation
+    val isUnanswered = if (question is Question.ShortAnswer) {
+        selectedTextAnswer.isNullOrBlank()
+    } else {
+        selectedAnswer == null
+    }
+    val isCorrect = when (question) {
+        is Question.ShortAnswer -> !selectedTextAnswer.isNullOrBlank() && com.hkm.pozix.util.ShortAnswerMatcher.isMatch(
+            selectedTextAnswer,
+            question.correctAnswer,
+            question.acceptedAnswers
+        )
+        is Question.SingleChoice -> selectedAnswer == question.correctIndex
+        is Question.TrueFalse -> selectedAnswer != null && (selectedAnswer == 0) == question.correctAnswer
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -461,54 +464,145 @@ fun ReviewQuestionCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            options.forEachIndexed { optIndex, option ->
-                val isThisCorrect = optIndex == correctIndex
-                val isThisSelected = optIndex == selectedAnswer
+            if (question is Question.ShortAnswer) {
+                if (isUnanswered) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                            Text(
+                                text = stringResource(R.string.quiz_short_answer_expected, question.correctAnswer),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (question.acceptedAnswers.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Chấp nhận: ${question.acceptedAnswers.joinToString(", ")}",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    val userText = selectedTextAnswer.orEmpty()
+                    val statusBg = if (isCorrect) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
+                    val statusTxt = if (isCorrect) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onErrorContainer
 
-                val bgColor = when {
-                    isThisCorrect -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                    isThisSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
-                    else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(statusBg)
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = if (isCorrect) stringResource(R.string.quiz_short_answer_correct, userText)
+                                    else stringResource(R.string.quiz_short_answer_incorrect, userText),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = statusTxt,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = statusTxt
+                            )
+                        }
+                        if (!isCorrect) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(R.string.quiz_short_answer_expected, question.correctAnswer),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (question.acceptedAnswers.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Chấp nhận: ${question.acceptedAnswers.joinToString(", ")}",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
-                val txtColor = when {
-                    isThisCorrect -> MaterialTheme.colorScheme.onPrimaryContainer
-                    isThisSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            } else {
+                val correctIndex = when (question) {
+                    is Question.SingleChoice -> question.correctIndex
+                    is Question.TrueFalse -> if (question.correctAnswer) 0 else 1
+                    else -> -1
                 }
-                val readableTxtColor = readableContentColorFor(
-                    bgColor.compositeOver(MaterialTheme.colorScheme.background),
-                    txtColor
-                )
+                val options = when (question) {
+                    is Question.SingleChoice -> question.options
+                    is Question.TrueFalse -> listOf(
+                        stringResource(R.string.quiz_true),
+                        stringResource(R.string.quiz_false)
+                    )
+                    else -> emptyList()
+                }
+                options.forEachIndexed { optIndex, option ->
+                    val isThisCorrect = optIndex == correctIndex
+                    val isThisSelected = optIndex == selectedAnswer
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 3.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(bgColor)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${('A' + optIndex)}.",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = readableTxtColor
+                    val bgColor = when {
+                        isThisCorrect -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        isThisSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
+                        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                    }
+                    val txtColor = when {
+                        isThisCorrect -> MaterialTheme.colorScheme.onPrimaryContainer
+                        isThisSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    }
+                    val readableTxtColor = readableContentColorFor(
+                        bgColor.compositeOver(MaterialTheme.colorScheme.background),
+                        txtColor
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = option,
-                        fontSize = 13.sp,
-                        color = readableTxtColor,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (isThisCorrect) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(bgColor)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${('A' + optIndex)}.",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = readableTxtColor
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = option,
+                            fontSize = 13.sp,
+                            color = readableTxtColor,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (isThisCorrect) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }

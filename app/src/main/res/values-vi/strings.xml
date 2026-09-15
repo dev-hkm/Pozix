@@ -148,6 +148,7 @@
     <string name="saved_quiz_sets_questions">Câu hỏi</string>
     <string name="saved_quiz_sets_single_choice">Trắc nghiệm</string>
     <string name="saved_quiz_sets_true_false">Đ/S</string>
+    <string name="saved_quiz_sets_short_answer">Trả lời ngắn</string>
     <string name="saved_quiz_sets_last_played">Chơi lần cuối: %s</string>
     <string name="saved_quiz_sets_delete_title">Xóa Bộ Quiz?</string>
     <string name="saved_quiz_sets_delete_message">Bạn có chắc muốn xóa "%s"? Không thể hoàn tác.</string>
@@ -168,6 +169,7 @@
     <string name="saved_quiz_sets_copy_link">Sao chép liên kết</string>
     <string name="saved_quiz_sets_question_count">%d câu hỏi</string>
     <string name="saved_quiz_sets_type_count">%1$d TN · %2$d Đ/S</string>
+    <string name="saved_quiz_sets_type_count_with_short">%1$d TN · %2$d Đ/S · %3$d TLN</string>
     <string name="saved_quiz_sets_invalid">Bộ câu hỏi này không còn hợp lệ</string>
     <string name="saved_quiz_sets_share_failed">Không thể chia sẻ bộ câu hỏi này</string>
     <string name="saved_quiz_sets_share_expiry">Liên kết công khai này sẽ tự hết hạn sau 30 ngày.</string>
@@ -474,6 +476,13 @@
     <string name="ai_chat_questions_count">%1$d câu hỏi</string>
     <string name="ai_chat_single_choice_count">%1$d trắc nghiệm</string>
     <string name="ai_chat_true_false_count">%1$d đúng/sai</string>
+    <string name="ai_chat_short_answer_count">%1$d trả lời ngắn</string>
+    <string name="quiz_short_answer_title">Câu trả lời của bạn</string>
+    <string name="quiz_short_answer_hint">Nhập kết quả (ví dụ: 1.5, -4, Hà Nội)...</string>
+    <string name="quiz_short_answer_submit">Xác nhận câu trả lời</string>
+    <string name="quiz_short_answer_correct">Chính xác! Đáp án của bạn: %1$s</string>
+    <string name="quiz_short_answer_incorrect">Chưa đúng! Bạn đã nhập: %1$s</string>
+    <string name="quiz_short_answer_expected">Đáp án đúng: %1$s</string>
     <string name="ai_chat_start_exam">Vào thi ngay</string>
     <string name="ai_chat_saved_quiz">Đã lưu</string>
     <string name="ai_chat_save_quiz">Lưu đề</string>
@@ -542,4 +551,5 @@
     <string name="lecture_empty">Chưa có bài giảng lý thuyết cho bộ câu hỏi này.</string>
     <string name="lecture_read_time">%1$d phút đọc</string>
     <string name="lecture_open_button">Xem bài giảng</string>
+    <string name="lecture_loading">Đang tải bài giảng lý thuyết…</string>
 </resources>

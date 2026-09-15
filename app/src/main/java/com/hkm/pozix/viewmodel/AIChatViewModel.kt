@@ -694,6 +694,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         questionCount = validation.parsedQuestions.size,
                         singleChoiceCount = validation.singleChoiceCount,
                         trueFalseCount = validation.trueFalseCount,
+                        shortAnswerCount = validation.shortAnswerCount,
                         description = validation.quiz.description ?: "",
                         lastUsedTimestamp = System.currentTimeMillis()
                     )
@@ -735,6 +736,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         questionCount = validation.parsedQuestions.size,
                         singleChoiceCount = validation.singleChoiceCount,
                         trueFalseCount = validation.trueFalseCount,
+                        shortAnswerCount = validation.shortAnswerCount,
                         description = validation.quiz.description ?: ""
                     )
                     savedQuizRepository.saveQuizSet(quizSet)
