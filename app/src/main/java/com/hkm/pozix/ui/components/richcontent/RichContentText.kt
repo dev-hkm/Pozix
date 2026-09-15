@@ -66,7 +66,7 @@ fun LucideIconView(
             imageVector = iconVector,
             contentDescription = null,
             tint = tint,
-            modifier = modifier.fillMaxSize().padding(0.5.dp)
+            modifier = modifier.fillMaxSize().padding(1.dp)
         )
         return
     }
@@ -78,7 +78,7 @@ fun LucideIconView(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            val glyphSp = if (maxHeight > 0.dp) (maxHeight.value * 1.15f).sp else 18.sp
+            val glyphSp = if (maxHeight > 0.dp) (maxHeight.value * 0.90f).sp else 15.sp
             Text(
                 text = glyph.toString(),
                 fontFamily = LucideGlyphMap.LucideFont,
@@ -97,7 +97,7 @@ fun LucideIconView(
         imageVector = fallback,
         contentDescription = null,
         tint = tint,
-        modifier = modifier.fillMaxSize().padding(0.5.dp)
+        modifier = modifier.fillMaxSize().padding(1.dp)
     )
 }
 
@@ -111,8 +111,8 @@ fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString
                 val id = annotation.item
                 id to InlineTextContent(
                     Placeholder(
-                        width = 1.35.em,
-                        height = 1.35.em,
+                        width = 1.15.em,
+                        height = 1.15.em,
                         placeholderVerticalAlign = PlaceholderVerticalAlign.Center
                     )
                 ) {

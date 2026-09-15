@@ -408,7 +408,7 @@ object LatexMathParser {
                                             pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                             append("\uFFFC")
                                             pop()
-                                            append(" ")
+                                            append("\u00A0")
                                         }
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
                                     }
@@ -425,7 +425,7 @@ object LatexMathParser {
                                         pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                         append("\uFFFC")
                                         pop()
-                                        append(" ")
+                                        append("\u00A0")
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
                                     }
                                     i = end + 2
@@ -474,7 +474,7 @@ object LatexMathParser {
                                             pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                             append("\uFFFC")
                                             pop()
-                                            append(" ")
+                                            append("\u00A0")
                                         }
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
                                     }
@@ -491,7 +491,7 @@ object LatexMathParser {
                                         pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                         append("\uFFFC")
                                         pop()
-                                        append(" ")
+                                        append("\u00A0")
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
                                     }
                                     i = closeBracket + 1
@@ -529,7 +529,7 @@ object LatexMathParser {
                                 pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                 append("\uFFFC")
                                 pop()
-                                append(" ")
+                                append("\u00A0")
                             }
                             append(parseToAnnotatedString(markContent, colors.background, colors.text))
                         }
