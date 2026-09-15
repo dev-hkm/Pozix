@@ -1,21 +1,71 @@
-MIT License
+PROPRIETARY AND CONFIDENTIAL SOFTWARE LICENSE AGREEMENT
+======================================================
+Copyright (c) 2026 Tran Hoang Khanh Minh. All rights reserved.
 
-Copyright (c) 2026 Tran Hoang Khanh Minh
+NOTICE TO ALL USERS: THIS SOFTWARE AND SOURCE CODE IS STRICTLY PROPRIETARY, 
+CONFIDENTIAL, AND CLOSED SOURCE.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+By viewing, accessing, downloading, installing, compiling, executing, or using 
+any portion of this software, including but not limited to its source code, 
+binaries (APK/AAB), assets, designs, algorithms, architectures, models, and 
+documentation (collectively, the "Software"), you unconditionally agree to be 
+bound by the terms of this Agreement. If you do not agree to all terms, you 
+must immediately destroy, delete, and cease all use of any copies in your possession.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. EXCLUSIVE OWNERSHIP & TRADE SECRETS
+The Software is the sole, exclusive, and confidential intellectual property of 
+Tran Hoang Khanh Minh ("Author" / "Licensor"). The Software is protected by 
+international copyright, trade secret, trademark, and intellectual property laws. 
+No title, ownership, or intellectual property rights are transferred to any user, 
+viewer, or third party.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. STRICT PROHIBITION OF REDISTRIBUTION & COPYING
+Except as expressly authorized in writing by the Author:
+- You may NOT copy, duplicate, reproduce, distribute, publish, sublicense, rent, 
+  lease, loan, sell, resell, assign, transmit, broadcast, mirror, or host this 
+  Software or any part thereof in source code, byte-code, or binary form.
+- You may NOT upload, mirror, fork, or redistribute this codebase or any portion 
+  to any public or private repository, forum, website, file-sharing service, or 
+  cloud hosting service.
+
+3. STRICT PROHIBITION OF REVERSE ENGINEERING & DECOMPILATION
+You shall NOT, and shall not permit or assist any third party to:
+- Decompile, disassemble, reverse engineer, decrypt, un-minify, decode, trace, or 
+  attempt to derive the source code, internal algorithms, data structures, or trade 
+  secrets of the Software or its compiled packages.
+- Bypass, disable, circumvent, tamper with, or manipulate any security, licensing, 
+  signature verification, or integrity controls incorporated within the Software.
+
+4. NO DERIVATIVE WORKS OR COMMERCIAL EXPLOITATION
+- You may NOT modify, alter, adapt, translate, enhance, refactor, or create derivative 
+  works based upon the Software or any component thereof.
+- You may NOT incorporate, integrate, link, or bundle any portion of this Software 
+  into any other application, framework, library, service, or commercial product.
+- Any unauthorized derivative work or modification created in violation of this 
+  Agreement shall automatically become the sole and exclusive property of the Author.
+
+5. PROHIBITION OF AI TRAINING & DATA SCRAPING
+No part of this Software, its source code, prompt templates, architecture, UI/UX 
+patterns, or content may be scraped, indexed, fed, or used directly or indirectly 
+to train, fine-tune, evaluate, benchmark, or develop any machine learning, deep learning, 
+large language model (LLM), or artificial intelligence system without prior express 
+written authorization from the Author.
+
+6. PERSONAL, NON-EXCLUSIVE RUNTIME ONLY
+Unless provided under a separate written commercial agreement, any license granted 
+hereunder is strictly limited to personal, non-commercial execution of official 
+binary releases provided directly by the Author for private, educational study.
+
+7. TERMINATION & LEGAL REMEDIES
+Any breach of this Agreement terminates any and all rights immediately and automatically 
+without notice. The Author reserves all rights to seek full civil damages, injunctive 
+relief, statutory damages, legal fees, and criminal prosecution under all applicable 
+local and international copyright and intellectual property jurisdictions.
+
+8. DISCLAIMER OF WARRANTIES
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A 
+PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE 
+FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THE 
+SOFTWARE OR THE USE THEREOF.
+
