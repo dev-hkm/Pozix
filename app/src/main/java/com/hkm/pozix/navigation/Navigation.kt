@@ -18,6 +18,26 @@ import com.hkm.pozix.ui.screens.ImportScreen
 import com.hkm.pozix.ui.screens.QuizPlayerScreen
 import com.hkm.pozix.ui.screens.SavedQuizSetsScreen
 import com.hkm.pozix.ui.screens.SettingsScreen
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.hkm.pozix.R
 import com.hkm.pozix.ui.screens.LectureDetailScreen
 import com.hkm.pozix.util.LectureManager
 
@@ -50,7 +70,7 @@ private fun tabEnterTransition(scope: AnimatedContentTransitionScope<NavBackStac
         ) + fadeIn(animationSpec = tween(240))
     } else {
         slideInHorizontally(
-            initialOffsetX = { -(it * 0.35f).toInt() },
+            initialOffsetX = { (-it * 0.35f).toInt() },
             animationSpec = tween(280, easing = FastOutSlowInEasing)
         ) + fadeIn(animationSpec = tween(240))
     }
@@ -58,7 +78,7 @@ private fun tabEnterTransition(scope: AnimatedContentTransitionScope<NavBackStac
 private fun tabExitTransition(scope: AnimatedContentTransitionScope<NavBackStackEntry>) =
     if (getTabIndex(scope.initialState.destination.route) < getTabIndex(scope.targetState.destination.route)) {
         slideOutHorizontally(
-            targetOffsetX = { -(it * 0.35f).toInt() },
+            targetOffsetX = { (-it * 0.35f).toInt() },
             animationSpec = tween(280, easing = FastOutSlowInEasing)
         ) + fadeOut(animationSpec = tween(240))
     } else {
@@ -73,6 +93,43 @@ fun PozixNavigation(
     navController: NavHostController,
     onLanguageChanged: () -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    val isPreparingLecture by LectureManager.isPreparing.collectAsState()
+
+    // Smooth modal loading dialog while background coroutine pre-parses heavy theory content
+    // Ensures zero transition stutter ("load xong mới vào")
+    if (isPreparingLecture) {
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                shadowElevation = 8.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        strokeWidth = 3.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = stringResource(R.string.lecture_loading),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Screen.Library.route
@@ -90,8 +147,14 @@ fun PozixNavigation(
                     navController.navigate(Screen.ExamPlayer.route)
                 },
                 onOpenLecture = { title, lecture ->
-                    LectureManager.openLecture(title, lecture)
-                    navController.navigate(Screen.Lecture.route)
+                    LectureManager.openLectureWithPreload(
+                        title = title,
+                        content = lecture,
+                        scope = coroutineScope,
+                        onReady = {
+                            navController.navigate(Screen.Lecture.route)
+                        }
+                    )
                 }
             )
         }

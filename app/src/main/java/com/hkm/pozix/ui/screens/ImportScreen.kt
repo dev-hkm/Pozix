@@ -910,12 +910,18 @@ fun ImportScreen(
                                 }
 
                                 if (!state.result.quiz.lecture.isNullOrBlank()) {
+                                    val isPreparingLecture by LectureManager.isPreparing.collectAsState()
                                     OutlinedButton(
                                         onClick = {
                                             HapticUtil.lightTap(context)
-                                            LectureManager.openLecture(state.result.quiz.title, state.result.quiz.lecture)
-                                            onOpenLecture?.invoke()
+                                            LectureManager.openLectureWithPreload(
+                                                title = state.result.quiz.title,
+                                                content = state.result.quiz.lecture,
+                                                scope = coroutineScope,
+                                                onReady = { onOpenLecture?.invoke() }
+                                            )
                                         },
+                                        enabled = !isPreparingLecture,
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(bottom = 10.dp)
@@ -926,13 +932,27 @@ fun ImportScreen(
                                         ),
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                                     ) {
-                                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = stringResource(R.string.lecture_open_button),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp
-                                        )
+                                        if (isPreparingLecture) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = stringResource(R.string.lecture_loading),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp
+                                            )
+                                        } else {
+                                            Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = stringResource(R.string.lecture_open_button),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp
+                                            )
+                                        }
                                     }
                                 }
 

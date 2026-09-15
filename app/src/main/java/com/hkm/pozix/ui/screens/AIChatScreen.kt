@@ -1731,12 +1731,22 @@ fun GeneratedQuizCard(
                 }
 
                 if (!validation.quiz.lecture.isNullOrBlank()) {
+                    val context = LocalContext.current
+                    val coroutineScope = rememberCoroutineScope()
+                    val isPreparingLecture by LectureManager.isPreparing.collectAsState()
+
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedButton(
                         onClick = {
-                            LectureManager.openLecture(validation.quiz.title, validation.quiz.lecture)
-                            onOpenLecture?.invoke()
+                            HapticUtil.lightTap(context)
+                            LectureManager.openLectureWithPreload(
+                                title = validation.quiz.title,
+                                content = validation.quiz.lecture,
+                                scope = coroutineScope,
+                                onReady = { onOpenLecture?.invoke() }
+                            )
                         },
+                        enabled = !isPreparingLecture,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp),
@@ -1746,13 +1756,27 @@ fun GeneratedQuizCard(
                         ),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.lecture_open_button),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
+                        if (isPreparingLecture) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.lecture_loading),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        } else {
+                            Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.lecture_open_button),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
                     }
                 }
 

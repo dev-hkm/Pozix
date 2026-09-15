@@ -120,14 +120,18 @@ fun LectureDetailScreen(
     var fontScale by remember { mutableFloatStateOf(1.0f) }
     val scrollState = rememberScrollState()
 
-    // Circular loading state for seamless instant navigation transition on large texts
-    var isContentReady by remember(lecture) { mutableStateOf(lecture.length <= 400) }
+    // Precomputed content blocks from background preload
+    val precomputedBlocks = lectureData?.precomputedBlocks
 
-    LaunchedEffect(lecture) {
-        if (lecture.length > 400) {
+    // When precomputed via openLectureWithPreload, content is 100% ready immediately
+    var isContentReady by remember(lecture, precomputedBlocks) {
+        mutableStateOf(precomputedBlocks != null || lecture.length <= 400)
+    }
+
+    LaunchedEffect(lecture, precomputedBlocks) {
+        if (!isContentReady) {
             withContext(Dispatchers.Default) {
-                // Yield to allow smooth screen transition animation
-                delay(120)
+                delay(60)
             }
             isContentReady = true
         }
@@ -184,59 +188,66 @@ fun LectureDetailScreen(
                     },
                     actions = {
                         if (lecture.isNotBlank()) {
-                            // Font sizing controls
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(end = 4.dp)
-                            ) {
-                                IconButton(
-                                    onClick = {
-                                        if (fontScale > 0.85f) {
-                                            fontScale = (fontScale - 0.1f).coerceAtLeast(0.8f)
-                                            HapticUtil.lightTap(context)
-                                        }
-                                    },
-                                    enabled = fontScale > 0.85f,
-                                    modifier = Modifier.size(32.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.padding(end = 4.dp)
                                 ) {
-                                    Text(
-                                        text = "A-",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (fontScale > 0.85f) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        if (fontScale < 1.35f) {
-                                            fontScale = (fontScale + 0.1f).coerceAtMost(1.4f)
-                                            HapticUtil.lightTap(context)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                if (fontScale > 0.85f) {
+                                                    fontScale -= 0.1f
+                                                    HapticUtil.lightTap(context)
+                                                }
+                                            },
+                                            modifier = Modifier.size(32.dp),
+                                            enabled = fontScale > 0.85f
+                                        ) {
+                                            Text(
+                                                text = "A-",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (fontScale > 0.85f) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                            )
                                         }
-                                    },
-                                    enabled = fontScale < 1.35f,
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Text(
-                                        text = "A+",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (fontScale < 1.35f) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    )
+                                        IconButton(
+                                            onClick = {
+                                                if (fontScale < 1.35f) {
+                                                    fontScale += 0.1f
+                                                    HapticUtil.lightTap(context)
+                                                }
+                                            },
+                                            modifier = Modifier.size(32.dp),
+                                            enabled = fontScale < 1.35f
+                                        ) {
+                                            Text(
+                                                text = "A+",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (fontScale < 1.35f) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                            )
+                                        }
+                                    }
                                 }
-                            }
 
-                            IconButton(
-                                onClick = {
-                                    clipboardManager.setText(AnnotatedString(lecture))
-                                    HapticUtil.actionConfirm(context)
-                                    Toast.makeText(context, copySuccessMsg, Toast.LENGTH_SHORT).show()
+                                IconButton(
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(lecture))
+                                        HapticUtil.actionConfirm(context)
+                                        Toast.makeText(context, copySuccessMsg, Toast.LENGTH_SHORT).show()
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = stringResource(R.string.lecture_action_copy),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ContentCopy,
-                                    contentDescription = stringResource(R.string.lecture_action_copy),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                         }
                     },
@@ -257,13 +268,16 @@ fun LectureDetailScreen(
                 }
             }
         },
+        contentWindowInsets = WindowInsets.statusBars,
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        val topPadding = innerPadding.calculateTopPadding()
+
         if (lecture.isBlank()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding),
+                    .padding(top = topPadding),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -288,7 +302,7 @@ fun LectureDetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding),
+                    .padding(top = topPadding),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -310,137 +324,136 @@ fun LectureDetailScreen(
                 }
             }
         } else {
-            BouncyContainer(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(top = topPadding)
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Column(
+                // Clean, borderless header metadata
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Clean, borderless header metadata
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(17.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = stringResource(R.string.lecture_title),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(17.dp)
                             )
                         }
-
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Schedule,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = stringResource(R.string.lecture_read_time, readMinutes),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = stringResource(R.string.lecture_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
 
-                    if (headings.isNotEmpty()) {
-                        Column(
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.lecture_read_time, readMinutes),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+
+                if (headings.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Mục lục nội dung",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 6.dp)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(bottom = 6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Mục lục nội dung",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                headings.forEach { (level, headingText) ->
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                    ) {
-                                        Text(
-                                            text = if (level > 1) "• $headingText" else headingText,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            maxLines = 1,
-                                            fontWeight = if (level == 1) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    }
+                            headings.forEach { (level, headingText) ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                ) {
+                                    Text(
+                                        text = if (level > 1) "• $headingText" else headingText,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        maxLines = 1,
+                                        fontWeight = if (level == 1) FontWeight.Bold else FontWeight.Normal
+                                    )
                                 }
                             }
                         }
                     }
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 10.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-                    )
-
-                    // Full-screen, seamless theory document reader - no boxed container, no outer card borders
-                    RichContentText(
-                        text = lecture,
-                        fontSize = (16.5f * fontScale).sp,
-                        lineHeight = (25 * fontScale).sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 48.dp)
-                    )
                 }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 10.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                )
+
+                // Full-screen, seamless theory document reader - no boxed container, no outer card borders
+                RichContentText(
+                    text = lecture,
+                    blocksOverride = precomputedBlocks,
+                    fontSize = (16.5f * fontScale).sp,
+                    lineHeight = (25 * fontScale).sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Guaranteed generous bottom clearance: accounts for system navigation bar + reading cushion
+                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.navigationBarsPadding())
+                Spacer(modifier = Modifier.height(72.dp))
             }
         }
     }
