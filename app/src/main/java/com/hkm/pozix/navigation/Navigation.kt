@@ -225,6 +225,12 @@ fun PozixNavigation(
             },
             exitTransition = {
                 fadeOut(animationSpec = tween(240))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(280))
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(240))
             }
         ) {
             QuizPlayerScreen(
@@ -315,6 +321,18 @@ fun PozixNavigation(
                 ) + fadeIn(animationSpec = tween(300))
             },
             exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { -it / 3 },
+                    animationSpec = tween(280, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(240))
+            },
+            popEnterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { -it / 3 },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(280))
+            },
+            popExitTransition = {
                 slideOutHorizontally(
                     targetOffsetX = { it },
                     animationSpec = tween(280, easing = FastOutSlowInEasing)

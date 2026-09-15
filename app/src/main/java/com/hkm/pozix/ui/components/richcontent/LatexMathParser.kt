@@ -76,7 +76,7 @@ object LatexMathParser {
             "yellow", "amber", "vang", "vàng", "gold" -> if (isDark) {
                 BadgeColors(Color(0xFF483D0F), Color(0xFFFFE082))
             } else {
-                BadgeColors(Color(0xFFFFF9C4), Color(0xFF8D6E00))
+                BadgeColors(Color(0xFFFFF9C4), Color(0xFF745B00))
             }
             "blue", "cyan", "xanh_duong", "xanh_dương", "xanh", "sky" -> if (isDark) {
                 BadgeColors(Color(0xFF103B52), Color(0xFF81D4FA))
@@ -179,6 +179,10 @@ object LatexMathParser {
         "\\ln", "\\log", "\\lg", "\\exp",
         "\\lim", "\\det", "\\gcd", "\\deg", "\\dim",
         "\\max", "\\min", "\\sup", "\\inf"
+    )
+
+    private val MATH_FUNCTIONS_REGEX = Regex(
+        """\\(arcsin|arccos|arctan|sin|cos|tan|cot|sec|csc|ln|log|lg|exp|lim|det|gcd|deg|dim|max|min|sup|inf)(?![a-zA-Z])"""
     )
 
     private val SUPERSCRIPT_MAP = mapOf(
@@ -403,6 +407,7 @@ object LatexMathParser {
                                     val (iconName, badgeText) = extractIconAndText(rawBadgeText)
                                     val colors = getBadgeColors(potentialColor, isDark)
                                     withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                                        append("\u2005")
                                         if (iconName != null) {
                                             val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
                                             pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
@@ -411,6 +416,7 @@ object LatexMathParser {
                                             append("\u00A0")
                                         }
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
+                                        append("\u2005")
                                     }
                                     i = end + 2
                                     continue
@@ -421,12 +427,14 @@ object LatexMathParser {
                                     val badgeText = rawContent.substring(colonIdx + 1).trim()
                                     val colors = getBadgeColors(inferredColor, isDark)
                                     withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                                        append("\u2005")
                                         val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
                                         pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                         append("\uFFFC")
                                         pop()
                                         append("\u00A0")
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
+                                        append("\u2005")
                                     }
                                     i = end + 2
                                     continue
@@ -469,6 +477,7 @@ object LatexMathParser {
                                     val (iconName, badgeText) = extractIconAndText(rawBadgeText)
                                     val colors = getBadgeColors(potentialColor, isDark)
                                     withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                                        append("\u2005")
                                         if (iconName != null) {
                                             val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
                                             pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
@@ -477,6 +486,7 @@ object LatexMathParser {
                                             append("\u00A0")
                                         }
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
+                                        append("\u2005")
                                     }
                                     i = closeBracket + 1
                                     continue
@@ -487,12 +497,14 @@ object LatexMathParser {
                                     val badgeText = bracketContent.substring(colonIdx + 1).trim()
                                     val colors = getBadgeColors(inferredColor, isDark)
                                     withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                                        append("\u2005")
                                         val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
                                         pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                         append("\uFFFC")
                                         pop()
                                         append("\u00A0")
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
+                                        append("\u2005")
                                     }
                                     i = closeBracket + 1
                                     continue
@@ -512,7 +524,7 @@ object LatexMathParser {
                     val closeIdx = if (tagClose != -1) cleanText.indexOf(endTag, tagClose, ignoreCase = true) else -1
                     if (tagClose != -1 && closeIdx != -1) {
                         val openTagStr = cleanText.substring(i, tagClose)
-                        val colorMatch = Regex("""(?:color|class)=["']?([a-zA-Z_]+)["']?""", RegexOption.IGNORE_CASE).find(openTagStr)
+                        val colorMatch = Regex("""(?:color|class)=["']?([\p{L}_]+)["']?""", RegexOption.IGNORE_CASE).find(openTagStr)
                         val colorName = colorMatch?.groupValues?.get(1)?.lowercase() ?: "yellow"
                         val iconAttrMatch = Regex("""icon=["']?([a-zA-Z0-9_-]+)["']?""", RegexOption.IGNORE_CASE).find(openTagStr)
                         val rawIconAttr = iconAttrMatch?.groupValues?.get(1)?.lowercase()
@@ -524,6 +536,7 @@ object LatexMathParser {
 
                         val colors = getBadgeColors(colorName, isDark)
                         withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
+                            append("\u2005")
                             if (finalIcon != null) {
                                 val iconId = "lucide:${finalIcon}:${colors.text.toArgb()}"
                                 pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
@@ -532,6 +545,7 @@ object LatexMathParser {
                                 append("\u00A0")
                             }
                             append(parseToAnnotatedString(markContent, colors.background, colors.text))
+                            append("\u2005")
                         }
                         i = closeIdx + endTag.length
                         continue
@@ -570,7 +584,7 @@ object LatexMathParser {
                     val segment = cleanText.substring(i, end)
                     val formatted = formatMathString(segment)
                     if (formatted != segment) {
-                        appendMathFormatted(segment)
+                        appendMathWithItalicVariables(formatted)
                         i = end
                         continue
                     }
@@ -589,6 +603,7 @@ object LatexMathParser {
 
         fun consumeBalanced(open: Char, close: Char): Boolean {
             if (cursor >= text.length || text[cursor] != open) return false
+            val startCursor = cursor
             var depth = 0
             while (cursor < text.length) {
                 when (text[cursor]) {
@@ -602,6 +617,7 @@ object LatexMathParser {
                 }
                 cursor++
             }
+            cursor = startCursor
             return false
         }
 
@@ -644,14 +660,14 @@ object LatexMathParser {
             .replace("\\right)", ")")
             .replace("\\left[", "[")
             .replace("\\right]", "]")
-            .replace("\\left\\{", "{")
-            .replace("\\right\\}", "}")
+            .replace("\\left\\{", "\uFF5B")
+            .replace("\\right\\}", "\uFF5D")
             .replace("\\left|", "|")
             .replace("\\right|", "|")
             .replace("\\left.", "")
             .replace("\\right.", "")
-            .replace("\\{", "{")
-            .replace("\\}", "}")
+            .replace("\\{", "\uFF5B")
+            .replace("\\}", "\uFF5D")
             .replace("\\|", "‖")
 
         // 2. Text / styling macros
@@ -673,11 +689,13 @@ object LatexMathParser {
         }
 
         // 5. Greek letters & Symbols (resolve early so \Delta, \pi inside roots/fractions format cleanly)
-        for ((key, value) in GREEK_MAP) {
-            text = text.replace(key, value)
-        }
-        for ((key, value) in SYMBOL_MAP) {
-            text = text.replace(key, value)
+        if (text.contains('\\')) {
+            for ((key, value) in GREEK_MAP) {
+                text = text.replace(key, value)
+            }
+            for ((key, value) in SYMBOL_MAP) {
+                text = text.replace(key, value)
+            }
         }
 
         // 6. Fractions: \dfrac, \frac, \tfrac, \cfrac (with balanced braces)
@@ -704,9 +722,8 @@ object LatexMathParser {
         }
 
         // 9. Math functions (sin, cos, ln, log, etc.)
-        for (fn in FUNCTIONS) {
-            val fnName = fn.substring(1)
-            text = text.replace(Regex("""\\${fnName}(?![a-zA-Z])""")) { "$fnName " }
+        if (text.contains('\\')) {
+            text = text.replace(MATH_FUNCTIONS_REGEX) { "${it.groupValues[1]} " }
         }
 
         // 10. Superscripts: ^{...} or ^x
@@ -725,11 +742,12 @@ object LatexMathParser {
             toSubscript(match.groupValues[1])
         }
 
-        // 11. Clean up remaining unhandled LaTeX command prefixes
+        // 12. Clean up remaining unhandled LaTeX command prefixes
         text = text.replace(Regex("""\\([a-zA-Z]+)""")) { match ->
             match.groupValues[1]
         }
         text = text.replace("{", "").replace("}", "")
+        text = text.replace('\uFF5B', '{').replace('\uFF5D', '}')
 
         // Normalize spaces around operators
         text = text.replace(Regex("""\s+"""), " ")
@@ -800,6 +818,16 @@ object LatexMathParser {
                 }
             }
             return null
+        } else if (text[start] == '\\') {
+            var cursor = start + 1
+            if (cursor < text.length && text[cursor].isLetter()) {
+                while (cursor < text.length && text[cursor].isLetter()) {
+                    cursor++
+                }
+            } else if (cursor < text.length) {
+                cursor++
+            }
+            return Pair(text.substring(start, cursor), cursor)
         } else {
             // Single non-whitespace token (e.g. \frac 1 2 or \frac12)
             return Pair(text[start].toString(), start + 1)

@@ -30,15 +30,40 @@ object LucideIconMap {
      * - Trims and converts to lowercase
      */
     fun normalizeIconName(name: String): String {
-        var s = name.trim().lowercase()
+        var s = name.trim().lowercase().trim(':', ' ', '"', '\'')
         if (s.startsWith("lucide:")) s = s.removePrefix("lucide:")
         if (s.startsWith("lucide-")) s = s.removePrefix("lucide-")
         if (s.startsWith("icon:")) s = s.removePrefix("icon:")
         if (s.startsWith("icon=")) s = s.removePrefix("icon=")
+        if (s.startsWith("icon-")) s = s.removePrefix("icon-")
         if (s.startsWith("badge:")) s = s.removePrefix("badge:")
+        if (s.startsWith("fa:")) s = s.removePrefix("fa:")
+        if (s.startsWith("fa-")) s = s.removePrefix("fa-")
+        if (s.startsWith("feather:")) s = s.removePrefix("feather:")
         s = s.replace('_', '-')
-        s = s.replace(Regex("-+"), "-").trim('-')
-        return s
+        s = s.replace(Regex("-+"), "-").trim('-', ':')
+
+        return when (s) {
+            "light-bulb" -> "lightbulb"
+            "info-circle" -> "circle-info"
+            "question-circle", "question-mark" -> "circle-help"
+            "exclamation-triangle", "warning-triangle" -> "triangle-alert"
+            "exclamation-circle", "error-circle", "danger-circle" -> "circle-alert"
+            "times-circle", "close-circle" -> "circle-x"
+            "checkmark" -> "check"
+            "checkbox", "check-box" -> "check-square"
+            "gear", "gears", "cog" -> "settings"
+            "trash-can" -> "trash"
+            "file-lines", "file-document" -> "file-text"
+            "pencil-alt" -> "pencil"
+            "chart-bar" -> "bar-chart"
+            "chart-pie" -> "pie-chart"
+            "chart-line" -> "line-chart"
+            "robot" -> "bot"
+            "speaker" -> "volume"
+            "alarm" -> "alarm-clock"
+            else -> s
+        }
     }
 
     private val ICONS: Map<String, ImageVector> = mapOf(
@@ -315,9 +340,28 @@ object LucideIconMap {
 
     /**
      * Resolves an icon with a clean fallback so vector rendering never breaks.
+     * Uses contextual semantic mapping if the exact name isn't in curated ICONS.
      */
-    fun getIconOrDefault(name: String, fallback: ImageVector = Icons.Outlined.AutoAwesome): ImageVector {
-        return getIcon(name) ?: fallback
+    fun getIconOrDefault(name: String, fallback: ImageVector? = null): ImageVector {
+        val direct = getIcon(name)
+        if (direct != null) return direct
+
+        if (fallback != null) return fallback
+
+        val norm = normalizeIconName(name)
+        return when {
+            norm.contains("check") || norm.contains("done") || norm.contains("success") -> Icons.Outlined.CheckCircleOutline
+            norm.contains("alert") || norm.contains("warn") || norm.contains("caution") -> Icons.Outlined.WarningAmber
+            norm.contains("error") || norm.contains("cancel") || norm.contains("close") || norm.contains("cross") || norm.contains("ban") -> Icons.Outlined.Cancel
+            norm.contains("help") || norm.contains("question") -> Icons.AutoMirrored.Outlined.HelpOutline
+            norm.contains("info") -> Icons.Outlined.Info
+            norm.contains("book") || norm.contains("read") || norm.contains("lesson") || norm.contains("theory") -> Icons.AutoMirrored.Outlined.MenuBook
+            norm.contains("calc") || norm.contains("math") -> Icons.Outlined.Calculate
+            norm.contains("clock") || norm.contains("time") || norm.contains("timer") || norm.contains("date") -> Icons.Outlined.Schedule
+            norm.contains("setting") || norm.contains("gear") || norm.contains("config") -> Icons.Outlined.Settings
+            norm.contains("chart") || norm.contains("graph") -> Icons.Outlined.BarChart
+            else -> Icons.Outlined.AutoAwesome
+        }
     }
 
     /**

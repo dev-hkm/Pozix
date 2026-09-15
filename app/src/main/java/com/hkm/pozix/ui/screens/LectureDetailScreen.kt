@@ -205,7 +205,7 @@ fun LectureDetailScreen(
                                                     HapticUtil.lightTap(context)
                                                 }
                                             },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(38.dp),
                                             enabled = fontScale > 0.85f
                                         ) {
                                             Text(
@@ -222,7 +222,7 @@ fun LectureDetailScreen(
                                                     HapticUtil.lightTap(context)
                                                 }
                                             },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(38.dp),
                                             enabled = fontScale < 1.35f
                                         ) {
                                             Text(

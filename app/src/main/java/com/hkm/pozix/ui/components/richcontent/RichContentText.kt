@@ -38,6 +38,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.PlatformTextStyle
 
 /**
  * Represents a parsed segment of rich educational STEM content.
@@ -78,14 +80,19 @@ fun LucideIconView(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            val glyphSp = if (maxHeight > 0.dp) (maxHeight.value * 0.90f).sp else 15.sp
+            val glyphSp = with(LocalDensity.current) {
+                if (maxHeight > 0.dp) (maxHeight.toSp() * 0.90f) else 15.sp
+            }
             Text(
                 text = glyph.toString(),
                 fontFamily = LucideGlyphMap.LucideFont,
                 color = tint,
                 fontSize = glyphSp,
                 lineHeight = glyphSp,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                style = TextStyle(
+                    platformStyle = PlatformTextStyle(includeFontPadding = false)
+                )
             )
         }
         return
@@ -113,7 +120,7 @@ fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString
                     Placeholder(
                         width = 1.15.em,
                         height = 1.15.em,
-                        placeholderVerticalAlign = PlaceholderVerticalAlign.Center
+                        placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter
                     )
                 ) {
                     val parts = id.split(":")
@@ -368,7 +375,17 @@ private fun parseMarkdownText(text: String): List<ContentBlock> {
                 lineIdx++
             }
             if (headers.isNotEmpty() && rows.isNotEmpty()) {
-                results.add(ContentBlock.Table(headers, rows, aligns))
+                val colCount = maxOf(headers.size, rows.maxOfOrNull { it.size } ?: 0)
+                val paddedHeaders = if (headers.size < colCount) {
+                    headers + List(colCount - headers.size) { "" }
+                } else headers
+                val paddedRows = rows.map { r ->
+                    if (r.size < colCount) r + List(colCount - r.size) { "" } else r
+                }
+                val paddedAligns = if (aligns.size < colCount) {
+                    aligns + List(colCount - aligns.size) { TextAlign.Start }
+                } else aligns
+                results.add(ContentBlock.Table(paddedHeaders, paddedRows, paddedAligns))
             }
             continue
         }
@@ -617,7 +634,7 @@ fun MarkdownTableView(
             val maxRowCellLen = rows.maxOfOrNull { r -> r.getOrElse(colIdx) { "" }.length } ?: 0
             val maxLen = maxOf(headerLen, maxRowCellLen)
             when {
-                maxLen <= 4 -> 56.dp
+                maxLen <= 4 -> 68.dp
                 maxLen <= 8 -> 88.dp
                 maxLen <= 16 -> 120.dp
                 maxLen <= 30 -> 160.dp
@@ -646,12 +663,14 @@ fun MarkdownTableView(
                 }
             }
 
+            val headerBg = MaterialTheme.colorScheme.surfaceContainerHigh
             val headerTextColor = readableContentColorFor(
-                background = MaterialTheme.colorScheme.surfaceContainerHigh,
+                background = headerBg,
                 preferred = textColor
             )
+            val cellBaseBg = MaterialTheme.colorScheme.surfaceContainerLow
             val rowTextColor = readableContentColorFor(
-                background = MaterialTheme.colorScheme.surfaceContainerLow,
+                background = cellBaseBg,
                 preferred = textColor
             )
 
@@ -664,19 +683,21 @@ fun MarkdownTableView(
                     // Header Row
                     Row(
                         modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .background(headerBg)
                             .padding(vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         headers.forEachIndexed { colIdx, headerText ->
                             val align = alignments.getOrElse(colIdx) { TextAlign.Start }
                             val width = finalWidths.getOrElse(colIdx) { 100.dp }
-                            val annotated = remember(headerText) { LatexMathParser.parseToAnnotatedString(headerText) }
+                            val annotated = remember(headerText, headerBg, headerTextColor) {
+                                LatexMathParser.parseToAnnotatedString(headerText, headerBg, headerTextColor)
+                            }
                             val inlineContent = rememberInlineContentFor(annotated)
                             Box(
                                 modifier = Modifier
                                     .width(width)
-                                    .padding(horizontal = 12.dp, vertical = 2.dp)
+                                    .padding(horizontal = 10.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = annotated,
@@ -699,27 +720,34 @@ fun MarkdownTableView(
                     // Data Rows
                     rows.forEachIndexed { rowIdx, rowCells ->
                         val rowBg = if (rowIdx % 2 == 1) {
-                            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.35f)
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f)
                         } else {
                             Color.Transparent
+                        }
+                        val cellBg = if (rowIdx % 2 == 1) {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        } else {
+                            cellBaseBg
                         }
 
                         Row(
                             modifier = Modifier
                                 .background(rowBg)
                                 .padding(vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.Top
                         ) {
                             headers.indices.forEach { colIdx ->
                                 val cellText = rowCells.getOrElse(colIdx) { "" }
                                 val align = alignments.getOrElse(colIdx) { TextAlign.Start }
                                 val width = finalWidths.getOrElse(colIdx) { 100.dp }
-                                val annotated = remember(cellText) { LatexMathParser.parseToAnnotatedString(cellText) }
+                                val annotated = remember(cellText, cellBg, rowTextColor) {
+                                    LatexMathParser.parseToAnnotatedString(cellText, cellBg, rowTextColor)
+                                }
                                 val inlineContent = rememberInlineContentFor(annotated)
                                 Box(
                                     modifier = Modifier
                                         .width(width)
-                                        .padding(horizontal = 12.dp, vertical = 2.dp)
+                                        .padding(horizontal = 10.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = annotated,
@@ -736,7 +764,7 @@ fun MarkdownTableView(
                         if (rowIdx < rows.lastIndex) {
                             HorizontalDivider(
                                 thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                             )
                         }
                     }

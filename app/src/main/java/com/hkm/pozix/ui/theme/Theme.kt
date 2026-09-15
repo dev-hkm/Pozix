@@ -188,7 +188,7 @@ private fun ColorScheme.harmonize(isDark: Boolean): ColorScheme {
 }
 
 private fun ensureDarkContainer(color: Color, targetBrightness: Float): Color {
-    if (color.luminance() <= 0.35f) return color
+    if (color.luminance() <= 0.18f) return color
     val hsv = FloatArray(3)
     android.graphics.Color.RGBToHSV(
         (color.red * 255).toInt(),

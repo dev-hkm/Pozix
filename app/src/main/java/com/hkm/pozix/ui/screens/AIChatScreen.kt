@@ -255,7 +255,8 @@ fun AIChatScreen(
     }
 
     val followTail by rememberUpdatedState(!userScrolledUp)
-    LaunchedEffect(uiState.currentSessionId) {
+    val lastMsg = uiState.messages.lastOrNull()
+    LaunchedEffect(uiState.currentSessionId, lastMsg?.text?.length, lastMsg?.reasoning?.length) {
         snapshotFlow {
             listState.layoutInfo.let { layout ->
                 val last = layout.visibleItemsInfo.lastOrNull()
@@ -263,17 +264,17 @@ fun AIChatScreen(
                     (last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset).coerceAtLeast(0)
                 else 0
             }
-        }.distinctUntilChanged().debounce(48L).collect { overflow ->
+        }.distinctUntilChanged().debounce(32L).collect { overflow ->
             if (overflow > 0 && followTail && !listState.isScrollInProgress) {
                 listState.scroll { scrollBy(overflow.toFloat()) }
             }
         }
     }
 
-    LaunchedEffect(renderEntries.size, renderEntries.lastOrNull()?.message?.text?.length) {
+    LaunchedEffect(renderEntries.size) {
         withFrameNanos { }
         if (followTail && !listState.isScrollInProgress && renderEntries.isNotEmpty()) {
-            listState.scrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+            listState.animateScrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
         }
     }
 
@@ -701,7 +702,7 @@ fun DeepSeekStyleFloatingInputCard(
     // The target inset changes at IME animation start, unlike the current inset.
     val imeTargetVisible = WindowInsets.imeAnimationTarget.getBottom(LocalDensity.current) > 0
     val interactiveFocus = inputFocused && imeTargetVisible
-    val expanded = interactiveFocus || showAttachmentTray || isAttaching ||
+    val expanded = interactiveFocus || textInput.isNotBlank() || showAttachmentTray || isAttaching ||
         pendingReview != null || pendingAttachments.isNotEmpty()
     val inset by animateDpAsState(
         if (expanded) 8.dp else 44.dp,
@@ -739,7 +740,7 @@ fun DeepSeekStyleFloatingInputCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
+            .then(if (!imeTargetVisible) Modifier.navigationBarsPadding() else Modifier)
             .padding(horizontal = inset, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

@@ -235,7 +235,9 @@ fun CodeBlockView(
                             clipboardManager.setText(AnnotatedString(code))
                             HapticUtil.actionConfirm(context)
                             isCopied = true
-                            Toast.makeText(context, copySuccessText, Toast.LENGTH_SHORT).show()
+                            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+                                Toast.makeText(context, copySuccessText, Toast.LENGTH_SHORT).show()
+                            }
                         },
                         modifier = Modifier.size(32.dp)
                     ) {
@@ -287,17 +289,19 @@ fun CodeBlockView(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 182.dp)
+                            .heightIn(max = 240.dp)
                             .verticalScroll(vScrollState)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .horizontalScroll(hScrollState)
-                                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)
+                                .padding(top = 8.dp, bottom = 10.dp)
                         ) {
-                            // Line numbers gutter
-                            Column(horizontalAlignment = Alignment.End) {
+                            // Sticky line numbers gutter
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                modifier = Modifier.padding(start = 12.dp, end = 10.dp)
+                            ) {
                                 lines.forEachIndexed { index, _ ->
                                     Text(
                                         text = "${index + 1}",
@@ -310,18 +314,33 @@ fun CodeBlockView(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                            // Thin vertical separator
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height((lines.size * 18).dp)
+                                    .background(lineNumberColor.copy(alpha = 0.2f))
+                            )
 
-                            // Code lines
-                            Column {
-                                lines.forEach { line ->
-                                    Text(
-                                        text = highlightCodeLine(line, displayLanguage, highlightEnabled, isDark),
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 12.sp,
-                                        lineHeight = 18.sp,
-                                        color = codeTextColor
-                                    )
+                            // Horizontally scrollable code content with selection support
+                            androidx.compose.foundation.text.selection.SelectionContainer(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .horizontalScroll(hScrollState)
+                                    .padding(start = 10.dp, end = 12.dp)
+                            ) {
+                                Column {
+                                    lines.forEach { line ->
+                                        val renderText = if (line.isEmpty()) " " else line
+                                        Text(
+                                            text = highlightCodeLine(renderText, displayLanguage, highlightEnabled, isDark),
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 12.sp,
+                                            lineHeight = 18.sp,
+                                            softWrap = false,
+                                            color = codeTextColor
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -505,10 +524,18 @@ private fun HtmlLivePreview(
                     settings.apply {
                         javaScriptEnabled = true
                         domStorageEnabled = true
+                        @Suppress("DEPRECATION")
                         databaseEnabled = true
                         mediaPlaybackRequiresUserGesture = false
                         allowFileAccess = false
                         allowContentAccess = false
+                        @Suppress("DEPRECATION")
+                        allowFileAccessFromFileURLs = false
+                        @Suppress("DEPRECATION")
+                        allowUniversalAccessFromFileURLs = false
+                        cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                        mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                        loadsImagesAutomatically = true
                         useWideViewPort = true
                         loadWithOverviewMode = true
                     }
@@ -516,6 +543,18 @@ private fun HtmlLivePreview(
                         @Suppress("DEPRECATION")
                         override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean = true
                         override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean = true
+
+                        override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
+                            return true
+                        }
+
+                        override fun onReceivedError(
+                            view: WebView?,
+                            request: android.webkit.WebResourceRequest?,
+                            error: android.webkit.WebResourceError?
+                        ) {
+                            super.onReceivedError(view, request, error)
+                        }
                     }
                 }
             },
@@ -569,7 +608,7 @@ private fun HtmlLivePreview(
  * Supports HTML/XML, CSS, JavaScript, TypeScript, Python, C, C++, Java, Kotlin, SQL.
  * Falls back to clean monospace text when highlighting is toggled off in Settings.
  */
-private fun highlightCodeLine(
+internal fun highlightCodeLine(
     line: String,
     language: String,
     enabled: Boolean,
@@ -589,7 +628,8 @@ private fun highlightCodeLine(
     val trimmed = line.trimStart()
 
     // 1. Full-line Comments
-    if (trimmed.startsWith("//") || trimmed.startsWith("#") || trimmed.startsWith("--") || trimmed.startsWith("<!--")) {
+    if (trimmed.startsWith("//") || trimmed.startsWith("#") || trimmed.startsWith("--") ||
+        trimmed.startsWith("<!--") || trimmed.startsWith("/*") || trimmed.startsWith("*")) {
         return buildAnnotatedString {
             withStyle(SpanStyle(color = commentColor, fontStyle = FontStyle.Italic)) {
                 append(line)
@@ -618,7 +658,19 @@ private fun highlightCodeLine(
             // String literals: "..." or '...'
             if (line[i] == '"' || line[i] == '\'') {
                 val quote = line[i]
-                val endIdx = line.indexOf(quote, i + 1)
+                var endIdx = -1
+                var j = i + 1
+                while (j < len) {
+                    if (line[j] == '\\') {
+                        j += 2
+                        continue
+                    }
+                    if (line[j] == quote) {
+                        endIdx = j
+                        break
+                    }
+                    j++
+                }
                 if (endIdx != -1) {
                     withStyle(SpanStyle(color = stringColor)) {
                         append(line.substring(i, endIdx + 1))

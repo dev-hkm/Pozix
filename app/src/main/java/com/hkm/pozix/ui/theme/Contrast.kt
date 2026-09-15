@@ -18,9 +18,10 @@ internal fun readableContentColor(
     background: Color,
     preferred: Color,
     fallbackA: Color,
-    fallbackB: Color
+    fallbackB: Color,
+    minRatio: Float = 4.5f
 ): Color {
-    if (contrastRatio(background, preferred) >= 4.5f) {
+    if (contrastRatio(background, preferred) >= minRatio) {
         return preferred
     }
     val bestFallback = if (contrastRatio(background, fallbackA) >= contrastRatio(background, fallbackB)) {
@@ -28,7 +29,7 @@ internal fun readableContentColor(
     } else {
         fallbackB
     }
-    if (contrastRatio(background, bestFallback) >= 4.5f) {
+    if (contrastRatio(background, bestFallback) >= minRatio) {
         return bestFallback
     }
     return if (contrastRatio(background, Color.White) >= contrastRatio(background, Color(0xFF1B1B1F))) {
@@ -41,12 +42,14 @@ internal fun readableContentColor(
 @Composable
 internal fun readableContentColorFor(
     background: Color,
-    preferred: Color
+    preferred: Color,
+    minRatio: Float = 4.5f
 ): Color = readableContentColor(
     background = background,
     preferred = preferred,
     fallbackA = MaterialTheme.colorScheme.onSurface,
-    fallbackB = MaterialTheme.colorScheme.inverseOnSurface
+    fallbackB = MaterialTheme.colorScheme.inverseOnSurface,
+    minRatio = minRatio
 )
 
 internal fun contrastRatio(first: Color, second: Color): Float {
