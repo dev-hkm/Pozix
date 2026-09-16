@@ -18,8 +18,8 @@ android {
         applicationId = "com.hkm.pozix"
         minSdk = 24
         targetSdk = 36
-        versionCode = 37
-        versionName = "1.8.12"
+        versionCode = 38
+        versionName = "1.8.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

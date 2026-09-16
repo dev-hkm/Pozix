@@ -40,6 +40,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
 
 /**
  * Represents a parsed segment of rich educational STEM content.
@@ -120,22 +125,41 @@ fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString
                 val iconName = parts.getOrElse(1) { "" }
                 val colorInt = parts.getOrNull(2)?.toIntOrNull() ?: android.graphics.Color.GRAY
                 val bgInt = parts.getOrNull(3)?.toIntOrNull()
-                val bgColor = if (bgInt != null && bgInt != 0) Color(bgInt) else Color.Transparent
+                val hasBadgeBg = bgInt != null && bgInt != 0
+                val bgColor = if (hasBadgeBg) Color(bgInt!!) else Color.Transparent
+
+                val pHeight = if (hasBadgeBg) 1.45.em else 1.15.em
+                val pAlign = if (hasBadgeBg) PlaceholderVerticalAlign.Center else PlaceholderVerticalAlign.TextCenter
 
                 id to InlineTextContent(
                     Placeholder(
                         width = 1.15.em,
-                        height = 1.15.em,
-                        placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter
+                        height = pHeight,
+                        placeholderVerticalAlign = pAlign
                     )
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(if (bgColor != Color.Transparent) Modifier.background(bgColor) else Modifier),
+                            .then(
+                                if (hasBadgeBg) {
+                                    Modifier.drawBehind {
+                                        val verticalBleed = 2.dp.toPx()
+                                        drawRect(
+                                            color = bgColor,
+                                            topLeft = Offset(0f, -verticalBleed),
+                                            size = Size(size.width, size.height + verticalBleed * 2)
+                                        )
+                                    }
+                                } else Modifier
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        LucideIconView(iconName = iconName, tint = Color(colorInt))
+                        LucideIconView(
+                            iconName = iconName,
+                            tint = Color(colorInt),
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+                        )
                     }
                 }
             }
