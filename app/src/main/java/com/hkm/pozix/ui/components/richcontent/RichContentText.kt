@@ -128,7 +128,7 @@ fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString
                 val hasBadgeBg = bgInt != null && bgInt != 0
                 val bgColor = if (hasBadgeBg) Color(bgInt!!) else Color.Transparent
 
-                val pHeight = if (hasBadgeBg) 1.45.em else 1.15.em
+                val pHeight = if (hasBadgeBg) 1.38.em else 1.15.em
                 val pAlign = if (hasBadgeBg) PlaceholderVerticalAlign.Center else PlaceholderVerticalAlign.TextCenter
 
                 id to InlineTextContent(
@@ -141,18 +141,7 @@ fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(
-                                if (hasBadgeBg) {
-                                    Modifier.drawBehind {
-                                        val verticalBleed = 2.dp.toPx()
-                                        drawRect(
-                                            color = bgColor,
-                                            topLeft = Offset(0f, -verticalBleed),
-                                            size = Size(size.width, size.height + verticalBleed * 2)
-                                        )
-                                    }
-                                } else Modifier
-                            ),
+                            .then(if (hasBadgeBg) Modifier.background(bgColor) else Modifier),
                         contentAlignment = Alignment.Center
                     ) {
                         LucideIconView(
