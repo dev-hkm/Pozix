@@ -25,7 +25,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import com.hkm.pozix.ui.components.BouncyContainer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.rememberModalBottomSheetState
+import com.hkm.pozix.ui.components.PozixModalBottomSheet
+import com.hkm.pozix.util.QuizJsonParser
+import com.hkm.pozix.data.model.QuizValidationResult
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -115,7 +122,9 @@ import com.hkm.pozix.viewmodel.SavedQuizSetsViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material3.ExperimentalMaterial3Api
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SavedQuizSetsScreen(
     onPlayQuiz: () -> Unit,
@@ -126,6 +135,7 @@ fun SavedQuizSetsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var gridMode by rememberSaveable { mutableStateOf(false) }
+    var optionsQuizSet by remember { mutableStateOf<SavedQuizSet?>(null) }
     val gridState = rememberLazyGridState()
     LaunchedEffect(uiState.quizSets.firstOrNull()?.id) {
         if (uiState.quizSets.isNotEmpty()) gridState.scrollToItem(0)
@@ -279,17 +289,33 @@ fun SavedQuizSetsScreen(
                             )
                         ) {
                             if (gridMode && uiState.expandedCardId != quizSet.id) {
-                                CompactQuizTile(quizSet) {
-                                    HapticUtil.selectionTick(context)
-                                    viewModel.toggleExpand(quizSet.id)
-                                }
+                                CompactQuizTile(
+                                    quiz = quizSet,
+                                    onClick = {
+                                        HapticUtil.selectionTick(context)
+                                        viewModel.toggleExpand(quizSet.id)
+                                    },
+                                    onLongClick = {
+                                        HapticUtil.selectionTick(context)
+                                        optionsQuizSet = quizSet
+                                    }
+                                )
                             } else {
+                                val lectureContent = remember(quizSet.jsonContent) {
+                                    (QuizJsonParser.parseAndValidate(quizSet.jsonContent) as? QuizValidationResult.Success)?.quiz?.lecture
+                                }
+                                val hasNotes = !lectureContent.isNullOrBlank()
+
                                 PremiumQuizCard(
                                     quizSet = quizSet,
                                     isExpanded = uiState.expandedCardId == quizSet.id,
                                     onToggleExpand = {
                                         HapticUtil.ultraLightTap(context)
                                         viewModel.toggleExpand(quizSet.id)
+                                    },
+                                    onLongClick = {
+                                        HapticUtil.selectionTick(context)
+                                        optionsQuizSet = quizSet
                                     },
                                     onPlay = {
                                         HapticUtil.lightTap(context)
@@ -305,14 +331,20 @@ fun SavedQuizSetsScreen(
                                         HapticUtil.lightTap(context)
                                         viewModel.showPreviewWarning(quizSet)
                                     },
-                                    onRename = {
-                                        HapticUtil.ultraLightTap(context)
-                                        viewModel.showRenameDialog(quizSet)
+                                    onNotes = {
+                                        if (!lectureContent.isNullOrBlank()) {
+                                            HapticUtil.lightTap(context)
+                                            onOpenLecture(quizSet.name, lectureContent)
+                                        } else {
+                                            HapticUtil.ultraLightTap(context)
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                R.string.lecture_empty,
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
                                     },
-                                    onDelete = {
-                                        HapticUtil.ultraLightTap(context)
-                                        viewModel.showDeleteDialog(quizSet)
-                                    },
+                                    hasNotes = hasNotes,
                                     onShare = { HapticUtil.lightTap(context); viewModel.shareQuizSet(quizSet) },
                                     isSharing = uiState.sharingSetId == quizSet.id,
                                     shareEnabled = uiState.sharingSetId == null
@@ -508,6 +540,125 @@ fun SavedQuizSetsScreen(
             )
         }
 
+        if (optionsQuizSet != null) {
+            val targetSet = optionsQuizSet!!
+            PozixModalBottomSheet(
+                onDismissRequest = { optionsQuizSet = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 28.dp)
+                        .navigationBarsPadding()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Quiz,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = targetSet.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = stringResource(R.string.saved_quiz_sets_question_count, targetSet.questionCount),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Surface(
+                        onClick = {
+                            val set = targetSet
+                            optionsQuizSet = null
+                            HapticUtil.ultraLightTap(context)
+                            viewModel.showRenameDialog(set)
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = stringResource(R.string.saved_quiz_sets_rename),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    Surface(
+                        onClick = {
+                            val set = targetSet
+                            optionsQuizSet = null
+                            HapticUtil.ultraLightTap(context)
+                            viewModel.showDeleteDialog(set)
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = stringResource(R.string.saved_quiz_sets_delete),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         AnimatedVisibility(
             visible = uiState.showPreview,
             enter = slideInVertically(
@@ -537,16 +688,18 @@ fun SavedQuizSetsScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PremiumQuizCard(
     quizSet: SavedQuizSet,
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
+    onLongClick: () -> Unit,
     onPlay: () -> Unit,
     onStartTest: () -> Unit,
     onPreview: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
+    onNotes: () -> Unit,
+    hasNotes: Boolean,
     onShare: () -> Unit,
     isSharing: Boolean,
     shareEnabled: Boolean
@@ -579,8 +732,9 @@ fun PremiumQuizCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(
+                    .combinedClickable(
                         onClick = onToggleExpand,
+                        onLongClick = onLongClick,
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
                     )
@@ -805,6 +959,13 @@ fun PremiumQuizCard(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             QuizCardAction(
+                                icon = Icons.AutoMirrored.Filled.MenuBook,
+                                label = stringResource(R.string.lecture_title),
+                                onClick = onNotes,
+                                accent = hasNotes,
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuizCardAction(
                                 icon = Icons.Default.Preview,
                                 label = stringResource(R.string.preview_button),
                                 onClick = onPreview,
@@ -820,19 +981,6 @@ fun PremiumQuizCard(
                                 onClick = onShare,
                                 enabled = shareEnabled,
                                 loading = isSharing,
-                                modifier = Modifier.weight(1f)
-                            )
-                            QuizCardAction(
-                                icon = Icons.Default.Edit,
-                                label = stringResource(R.string.saved_quiz_sets_rename),
-                                onClick = onRename,
-                                modifier = Modifier.weight(1f)
-                            )
-                            QuizCardAction(
-                                icon = Icons.Default.Delete,
-                                label = stringResource(R.string.saved_quiz_sets_delete),
-                                onClick = onDelete,
-                                destructive = true,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -851,12 +999,22 @@ private fun QuizCardAction(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     loading: Boolean = false,
-    destructive: Boolean = false
+    destructive: Boolean = false,
+    accent: Boolean = false
 ) {
-    val contentColor = if (destructive) {
-        MaterialTheme.colorScheme.error
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+    val contentColor = when {
+        destructive -> MaterialTheme.colorScheme.error
+        accent -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val containerColor = when {
+        destructive -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+        accent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    val borderColor = when {
+        accent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
     }
     Surface(
         modifier = modifier
@@ -864,8 +1022,8 @@ private fun QuizCardAction(
             .clip(RoundedCornerShape(16.dp))
             .clickable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(16.dp),
-        color = if (destructive) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1028,59 +1186,6 @@ fun QuizPreviewContent(
                                     ),
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                                 )
-                            }
-                        }
-
-                        if (!lecture.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(14.dp))
-                            Surface(
-                                onClick = {
-                                    HapticUtil.lightTap(context)
-                                    onOpenLecture?.invoke(title, lecture)
-                                },
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(42.dp)
-                                            .background(MaterialTheme.colorScheme.primary, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onPrimary,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = stringResource(R.string.lecture_title),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.lecture_subtitle),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
                             }
                         }
 

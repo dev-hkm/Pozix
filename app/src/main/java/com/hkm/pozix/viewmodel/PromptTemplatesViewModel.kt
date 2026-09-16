@@ -74,7 +74,7 @@ Schema:
 {
   "title": "Tiêu đề quiz",
   "description": "Mô tả tùy chọn",
-  "lecture": "Tóm tắt bài giảng lý thuyết / kiến thức cốt lõi trước khi làm bài (tùy chọn, hỗ trợ markdown, latex, badges, code block)",
+  "lecture": "Tóm tắt Notes / kiến thức cốt lõi trước khi làm bài (tùy chọn, hỗ trợ markdown, latex, badges, code block)",
   "language": "vi",
   "questions": [
     {
@@ -114,7 +114,7 @@ Yêu cầu:
 - Với môn Tin học / Lập trình: Dùng markdown code block (```python, ```cpp, ```java...) cho đoạn code và `code` cho mã inline.
 - TÍCH CỰC MINH HỌA BẰNG ĐA DẠNG LUCIDE ICONS VÀ PASTEL BADGES:
   * Khuyến khích sử dụng phong phú các Lucide icon phù hợp theo ngữ cảnh từng môn học/chủ đề (ví dụ: atom, flask-conical, dna cho Khoa học; function-square, sigma, divide cho Toán học; code-2, terminal, cpu cho Tin học; globe, landmark, scroll cho Xã hội; lightbulb, sparkles, rocket cho Đố vui).
-  * Sử dụng huy hiệu pastel `[color:icon:Nội dung]` và sơ đồ tư duy từng bước nối bằng mũi tên (`↓` hoặc `→`) trong phần giải thích (`explanation`) và bài giảng (`lecture`).
+  * Sử dụng huy hiệu pastel `[color:icon:Nội dung]` và sơ đồ tư duy từng bước nối bằng mũi tên (`↓` hoặc `→`) trong phần giải thích (`explanation`) và ghi chú Notes (`lecture`).
   * Sử dụng bảng Markdown cho so sánh, công thức và trích dẫn `> [color:icon:Tiêu đề]: ...` để làm nổi bật lưu ý quan trọng.
 - Tránh trùng lặp
 - Giữ cho nội dung chuẩn xác và có tính giáo dục
@@ -127,7 +127,7 @@ Schema:
 {
   "title": "Quiz title",
   "description": "Optional description",
-  "lecture": "Optional theoretical lecture / core study notes summarizing key concepts before testing (supports markdown, latex, badges, code block)",
+  "lecture": "Optional Notes summarizing core concepts & key formulas before testing (supports markdown, latex, badges, code block)",
   "language": "en",
   "questions": [
     {
@@ -166,8 +166,8 @@ Requirements:
   * In JSON, escape all backslashes as double backslashes: \\\\frac, \\\\sqrt, \\\\cdot.
 - For Computer Science: Use markdown code blocks (```python, ```cpp...) for multi-line code and `code` for inline code.
 - VISUAL ENRICHMENT WITH DIVERSE LUCIDE ICONS & PASTEL BADGES:
-  * Actively and vividly illustrate questions, lectures, and explanations using a rich variety of domain-specific Lucide icons (e.g. atom, flask-conical, dna for Science; function-square, sigma, divide for Math; code-2, terminal, cpu for CS; globe, landmark, scroll for Humanities; lightbulb, sparkles, rocket for Trivia).
-  * Use pastel badges `[color:icon:Label]` and step-by-step thinking flows with arrows (`↓` or `→`) in explanations and lectures.
+  * Actively and vividly illustrate questions, notes, and explanations using a rich variety of domain-specific Lucide icons (e.g. atom, flask-conical, dna for Science; function-square, sigma, divide for Math; code-2, terminal, cpu for CS; globe, landmark, scroll for Humanities; lightbulb, sparkles, rocket for Trivia).
+  * Use pastel badges `[color:icon:Label]` and step-by-step thinking flows with arrows (`↓` or `→`) in explanations and notes.
   * Use Markdown tables for comparisons and callouts `> [color:icon:Title]: ...` to emphasize key takeaways.
 - Avoid duplicates
 - Keep it educational and accurate
@@ -263,7 +263,7 @@ Schema:
 {
   "title": "School Knowledge Quiz",
   "description": "Test your academic knowledge",
-  "lecture": "Optional theoretical lecture / core study notes (supports tables, math, badges)",
+  "lecture": "Optional Notes summarizing core concepts (supports tables, math, badges)",
   "language": "en",
   "questions": [
     {
@@ -447,7 +447,7 @@ Schema:
 {
   "title": "Quiz Kiến thức Học đường",
   "description": "Kiểm tra kiến thức học thuật của bạn",
-  "lecture": "Tóm tắt bài giảng lý thuyết / kiến thức cốt lõi (hỗ trợ bảng biểu, công thức, huy hiệu)",
+  "lecture": "Tóm tắt Notes / kiến thức cốt lõi (hỗ trợ bảng biểu, công thức, huy hiệu)",
   "language": "vi",
   "questions": [
     {

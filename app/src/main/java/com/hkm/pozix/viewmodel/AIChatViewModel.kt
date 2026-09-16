@@ -107,7 +107,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         {
           "title": "Quiz Title",
           "description": "A brief description of the quiz",
-          "lecture": "Optional theoretical lecture / core study notes summarizing key concepts before testing",
+          "lecture": "Optional Notes summarizing key concepts and core formulas before testing",
           "questions": [
             {
               "type": "single_choice",
@@ -161,10 +161,10 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
            - ALWAYS wrap any programming code snippets, HTML, XML, JSON, SQL, Python, Java, C++, JavaScript, or scripts inside standard markdown code blocks with the language specifier (e.g. ```html ... ```, ```python ... ```, ```json ... ```) or inline backticks (`code`).
            - NEVER output raw unescaped HTML tags (such as <div>, <span>, <table>, <script>) directly in your conversational text unless wrapped in a markdown code block or formatted as standard Markdown tables (`| Column 1 | Column 2 |`).
         8. Visual Enrichment & Diverse Lucide Icons:
-           - Actively and vividly illustrate quizzes, lectures, step-by-step solutions, and conversational explanations using a rich variety of domain-specific Lucide icons and pastel badges.
+           - Actively and vividly illustrate quizzes, notes, step-by-step solutions, and conversational explanations using a rich variety of domain-specific Lucide icons and pastel badges.
            - Pastel Badges: Use `[color:icon:Label]` (18 supported colors: `blue`, `purple`, `green`, `red`, `amber`, `teal`, `indigo`, `cyan`, `orange`, `emerald`, `rose`, `violet`, `fuchsia`, `sky`, `lime`, `yellow`, `pink`, `gray`).
              Examples: `[blue:play-circle:Bắt đầu]`, `[teal:scan:Đọc dữ kiện]`, `[purple:brain:Phân tích]`, `[emerald:check-circle-2:Kết luận]`, `[amber:lightbulb:Ghi nhớ]`, `[rose:alert-triangle:Cạm bẫy]`, `[indigo:cpu:Thuật toán]`, `[cyan:atom:Cấu tạo]`.
-           - Step-by-Step Thinking Flows: Connect badges with arrows (`↓` or `→`) in explanations and lectures to visualize thought processes and multi-step derivations clearly.
+           - Step-by-Step Thinking Flows: Connect badges with arrows (`↓` or `→`) in explanations and notes to visualize thought processes and multi-step derivations clearly.
            - Callouts: Use markdown blockquotes with badges to highlight key takeaways or warnings: `> [amber:lightbulb:Lưu ý quan trọng]: ...` or `> [rose:flame:Sai lầm thường gặp]: ...`.
            - Markdown Tables & Checklists: Use standard Markdown tables for comparisons, properties, and formulas. Use `- [x]` / `- [ ]` for task checklists.
            - Pick diverse Lucide icons tailored to the subject:

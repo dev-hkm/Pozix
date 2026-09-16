@@ -13,8 +13,8 @@ CẤU TRÚC 3 DẠNG CÂU HỎI CHUẨN THPTQG (GDPT 2018):
    - Bắt buộc có 'correctAnswer': giá trị đáp án dưới dạng số hoặc chuỗi ngắn (ví dụ: "1.5", "8", "-3", "3/4", "Hà Nội").
    - Tùy chọn 'acceptedAnswers': mảng các cách viết tương đương hợp lệ (ví dụ: ["1.5", "1,5", "3/2"]).
 
-BÀI GIẢNG LÝ THUYẾT & TÓM TẮT TRỌNG TÂM ("lecture"):
-- Tùy chọn trường "lecture" ở cấp độ root của quiz để tóm tắt bài giảng trước khi làm bài thi.
+NOTES KIẾN THỨC CỐT LÕI ("lecture"):
+- Tùy chọn trường "lecture" ở cấp độ root của quiz để ghi chú Notes và công thức trọng tâm trước khi làm bài thi.
 - Hỗ trợ đầy đủ Markdown, LaTeX, nhãn Badges, Lucide Vector Icons, bảng Markdown Tables, Code blocks và sơ đồ Flow giải bài.
 
 HỆ THỐNG NHÃN PASTEL & LUCIDE VECTOR ICONS:
@@ -93,8 +93,8 @@ HÌNH ẢNH & ĐỒ HỌA TRONG CÂU HỎI ("media"):
    - Requires 'correctAnswer': concise number or short string (e.g. "1.5", "8", "-3", "3/4").
    - Optional 'acceptedAnswers': array of equivalent accepted representations (e.g. ["1.5", "1,5", "3/2"]).
 
-THEORETICAL STUDY NOTES ("lecture"):
-- Optional "lecture" field at quiz root to summarize theory, formulas, and concepts before taking the quiz.
+NOTES & CORE CONCEPTS ("lecture"):
+- Optional "lecture" field at quiz root to summarize notes, formulas, and concepts before taking the quiz.
 - Fully supports Markdown, LaTeX, Badges, Lucide Vector Icons, Markdown Tables, Code blocks, and Flow step diagrams.
 
 PASTEL BADGES & LUCIDE VECTOR ICONS:
@@ -163,9 +163,9 @@ MEDIA GRAPHICS IN QUESTIONS ("media"):
 
     val example = """{
   "title": "Bộ đề thi chuẩn THPTQG 3 Dạng",
-  "description": "Ví dụ mẫu tích hợp bài giảng lý thuyết, Lucide icons, bảng Markdown và công thức toán LaTeX",
+  "description": "Ví dụ mẫu tích hợp Notes, Lucide icons, bảng Markdown và công thức toán LaTeX",
   "language": "vi",
-  "lecture": "# Tóm tắt bài giảng & Phương pháp giải\n\n==pink:sparkles:Khái niệm cốt lõi== về đạo hàm và ứng dụng khảo sát hàm số:\n\n$$\\frac{d}{dx} x^n = n x^{n-1} \\quad (n \\in \\mathbb{R})$$\n\n### Bảng công thức đạo hàm cơ bản:\n\n| Dạng hàm | Đạo hàm ${'$'}f'(x)${'$'} | Điều kiện xác định |\n| :--- | :--- | :--- |\n| ${'$'}y = x^n${'$'} | ${'$'}y' = n x^{n-1}${'$'} | ${'$'}x > 0${'$'} nếu ${'$'}n \\notin \\mathbb{Z}${'$'} |\n| ${'$'}y = \\sqrt{x}${'$'} | ${'$'}y' = \\frac{1}{2\\sqrt{x}}${'$'} | ${'$'}x > 0${'$'} |\n| ${'$'}y = \\ln x${'$'} | ${'$'}y' = \\frac{1}{x}${'$'} | ${'$'}x > 0${'$'} |\n| ${'$'}y = e^x${'$'} | ${'$'}y' = e^x${'$'} | ${'$'}x \\in \\mathbb{R}${'$'} |\n\n### Quy trình 5 bước khảo sát hàm số:\n[blue:play-circle:Bắt đầu]\n↓\n[teal:scan:Đọc dữ kiện]\n↓\n[purple:brain:Tính đạo hàm f'(x)]\n↓\n[orange:calculator:Tìm nghiệm f'(x) = 0]\n↓\n[green:check-circle:Lập bảng biến thiên & Kết luận]\n\n> [amber:lightbulb:Ghi nhớ quan trọng]:\n> - Điểm ${'$'}x_0${'$'} là điểm cực trị khi và chỉ khi đạo hàm ${'$'}f'(x)${'$'} đổi dấu qua ${'$'}x_0${'$'}.\n> - Luôn tìm tập xác định trước khi tính toán.",
+  "lecture": "# Notes & Phương pháp giải\n\n==pink:sparkles:Khái niệm cốt lõi== về đạo hàm và ứng dụng khảo sát hàm số:\n\n$$\\frac{d}{dx} x^n = n x^{n-1} \\quad (n \\in \\mathbb{R})$$\n\n### Bảng công thức đạo hàm cơ bản:\n\n| Dạng hàm | Đạo hàm ${'$'}f'(x)${'$'} | Điều kiện xác định |\n| :--- | :--- | :--- |\n| ${'$'}y = x^n${'$'} | ${'$'}y' = n x^{n-1}${'$'} | ${'$'}x > 0${'$'} nếu ${'$'}n \\notin \\mathbb{Z}${'$'} |\n| ${'$'}y = \\sqrt{x}${'$'} | ${'$'}y' = \\frac{1}{2\\sqrt{x}}${'$'} | ${'$'}x > 0${'$'} |\n| ${'$'}y = \\ln x${'$'} | ${'$'}y' = \\frac{1}{x}${'$'} | ${'$'}x > 0${'$'} |\n| ${'$'}y = e^x${'$'} | ${'$'}y' = e^x${'$'} | ${'$'}x \\in \\mathbb{R}${'$'} |\n\n### Quy trình 5 bước khảo sát hàm số:\n[blue:play-circle:Bắt đầu]\n↓\n[teal:scan:Đọc dữ kiện]\n↓\n[purple:brain:Tính đạo hàm f'(x)]\n↓\n[orange:calculator:Tìm nghiệm f'(x) = 0]\n↓\n[green:check-circle:Lập bảng biến thiên & Kết luận]\n\n> [amber:lightbulb:Ghi nhớ quan trọng]:\n> - Điểm ${'$'}x_0${'$'} là điểm cực trị khi và chỉ khi đạo hàm ${'$'}f'(x)${'$'} đổi dấu qua ${'$'}x_0${'$'}.\n> - Luôn tìm tập xác định trước khi tính toán.",
   "questions": [
     {
       "type": "single_choice",

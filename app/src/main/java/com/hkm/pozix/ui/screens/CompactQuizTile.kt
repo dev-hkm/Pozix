@@ -26,15 +26,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
 import com.hkm.pozix.ui.theme.readableContentColorFor
 import com.hkm.pozix.R
 import com.hkm.pozix.data.model.SavedQuizSet
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun CompactQuizTile(
     quiz: SavedQuizSet,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -54,14 +60,29 @@ internal fun CompactQuizTile(
     )
 
     Surface(
-        onClick = onClick,
-        interactionSource = interactionSource,
         modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-            },
+            }
+            .clip(RoundedCornerShape(22.dp))
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        interactionSource = interactionSource,
+                        indication = LocalIndication.current,
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    )
+                } else {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = LocalIndication.current,
+                        onClick = onClick
+                    )
+                }
+            ),
         shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = if (isPressed) 1.dp else 2.dp,
