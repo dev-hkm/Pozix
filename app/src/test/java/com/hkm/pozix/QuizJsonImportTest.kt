@@ -81,4 +81,20 @@ class QuizJsonImportTest {
         val result = QuizJsonParser.parseAndValidate(json)
         assertTrue(result is QuizValidationResult.Error)
     }
+
+    @Test
+    fun trueFalseStringIsTrimmedAndCaseInsensitive() {
+        val result = QuizJsonParser.parseAndValidate(
+            """{"title":"Boolean","questions":[{"type":"true_false","question":"Valid?","correctAnswer":" TRUE "}]}"""
+        )
+        assertTrue(result is QuizValidationResult.Success)
+    }
+
+    @Test
+    fun duplicateChoiceOptionsFailValidation() {
+        val result = QuizJsonParser.parseAndValidate(
+            """{"title":"Duplicate","questions":[{"type":"single_choice","question":"Pick","options":["Same"," same "],"correctIndex":0}]}"""
+        )
+        assertTrue(result is QuizValidationResult.Error)
+    }
 }

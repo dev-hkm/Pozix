@@ -105,6 +105,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     val examState: StateFlow<ExamState> = _examState.asStateFlow()
 
     private var timerJob: Job? = null
+    private var textAnswerPersistJob: Job? = null
     private var questionStartTime: Long = 0L
     private val questionTimes = mutableMapOf<Int, Long>()
     private val sessionWriteMutex = Mutex()
@@ -216,7 +217,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
             val quizSetId = quizRepository.getQuizSetId().first()
                 ?: "exam_${System.currentTimeMillis()}"
-            val timeLimitMillis = config.timeLimitMinutes * 60 * 1000L
+            val timeLimitMillis = config.timeLimitMinutes.toLong() * 60L * 1000L
             val deadline = System.currentTimeMillis() + timeLimitMillis
 
             questionStartTime = System.currentTimeMillis()
@@ -245,6 +246,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
 
                 val newRemaining = (current.deadlineEpochMillis - System.currentTimeMillis()).coerceAtLeast(0L)
                 if (newRemaining <= 0) {
+                    _examState.value = current.copy(remainingMillis = 0L, isTimeWarning = true)
                     finishExam()
                     break
                 }
@@ -282,6 +284,8 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         val current = _examState.value as? ExamState.Playing ?: return
         val currentQuestion = current.questions[current.currentIndex]
         if (currentQuestion is Question.ShortAnswer) return
+        val optionCount = if (currentQuestion is Question.SingleChoice) currentQuestion.options.size else 2
+        if (answerIndex !in 0 until optionCount) return
         val newAnswers = current.answers.toMutableMap()
         newAnswers[current.currentIndex] = answerIndex
         val updated = current.copy(answers = newAnswers)
@@ -299,7 +303,14 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         }
         val updated = current.copy(textAnswers = updatedTextAnswers)
         _examState.value = updated
-        persist(updated)
+        // Persisting every IME keystroke rewrites the complete session blob and can
+        // cause visible typing lag on long exams. The latest state is still saved
+        // immediately by navigation, exit, and submit paths.
+        textAnswerPersistJob?.cancel()
+        textAnswerPersistJob = viewModelScope.launch {
+            delay(350)
+            persist(updated)
+        }
     }
 
     fun clearAnswer() {
@@ -349,12 +360,15 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
         val paused = current.copy(remainingMillis = remaining)
         val writeVersion = ++sessionWriteVersion
         viewModelScope.launch {
-            sessionWriteMutex.withLock {
+            val saved = sessionWriteMutex.withLock {
                 if (writeVersion == sessionWriteVersion) {
                     sessionRepository.save(paused.toSession(pausedByUser = true))
+                    true
+                } else {
+                    false
                 }
             }
-            onSaved()
+            if (saved) onSaved()
         }
     }
 
@@ -422,12 +436,16 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     private fun finishExam() {
         timerJob?.cancel()
         val current = _examState.value as? ExamState.Playing ?: return
+        val finalState = current.copy(
+            remainingMillis = (current.deadlineEpochMillis - System.currentTimeMillis())
+                .coerceIn(0L, current.timeLimitMillis)
+        )
         recordTimeForQuestion(current.currentIndex)
 
-        val answers = current.answers
-        val textAnswers = current.textAnswers
+        val answers = finalState.answers
+        val textAnswers = finalState.textAnswers
         var correctCount = 0
-        current.questions.forEachIndexed { index, question ->
+        finalState.questions.forEachIndexed { index, question ->
             val isCorrect = when (question) {
                 is Question.ShortAnswer -> {
                     val userText = textAnswers[index]
@@ -453,7 +471,7 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             if (isCorrect) correctCount++
         }
 
-        val total = current.questions.size
+        val total = finalState.questions.size
         val rawScore = if (total > 0) correctCount.toDouble() / total * 10.0 else 0.0
         val scoreOutOf10 = Math.round(rawScore * 10.0) / 10.0
 
@@ -476,11 +494,11 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             else -> "dark_red"
         }
 
-        val unansweredCount = current.questions.indices.count { it !in answers && textAnswers[it].isNullOrBlank() }
+        val unansweredCount = finalState.questions.indices.count { it !in answers && textAnswers[it].isNullOrBlank() }
 
         _examState.value = ExamState.Finished(
-            quizTitle = current.quizTitle,
-            questions = current.questions,
+            quizTitle = finalState.quizTitle,
+            questions = finalState.questions,
             answers = answers,
             textAnswers = textAnswers,
             correctCount = correctCount,
@@ -488,8 +506,8 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             scoreOutOf10 = scoreOutOf10,
             grade = grade,
             gradeColor = gradeColor,
-            timeUsedMillis = current.timeLimitMillis - current.remainingMillis,
-            timeLimitMillis = current.timeLimitMillis,
+            timeUsedMillis = finalState.timeLimitMillis - finalState.remainingMillis,
+            timeLimitMillis = finalState.timeLimitMillis,
             unansweredCount = unansweredCount,
             questionTimes = questionTimes.toMap()
         )
@@ -503,20 +521,20 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
             }
             val allAnsweredIndices = (answers.keys + textAnswers.keys).distinct()
             val progress = QuizProgress(
-                quizSetId = current.quizSetId,
-                currentQuestionIndex = current.currentIndex,
+                quizSetId = finalState.quizSetId,
+                currentQuestionIndex = finalState.currentIndex,
                 score = correctCount,
                 answeredQuestions = allAnsweredIndices,
-                elapsedTimeMillis = current.timeLimitMillis - current.remainingMillis,
+                elapsedTimeMillis = finalState.timeLimitMillis - finalState.remainingMillis,
                 totalQuestions = total,
                 isCompleted = true,
                 completedTimestamp = System.currentTimeMillis(),
                 selectedAnswers = answers,
                 userTextAnswers = textAnswers,
-                questionSnapshot = current.questions
+                questionSnapshot = finalState.questions
             )
-            progressRepository.saveProgressForQuiz(current.quizSetId, progress)
-            savedQuizRepository.updateLastUsedTimestamp(current.quizSetId)
+            progressRepository.saveProgressForQuiz(finalState.quizSetId, progress)
+            savedQuizRepository.updateLastUsedTimestamp(finalState.quizSetId)
         }
     }
 
@@ -559,5 +577,6 @@ class ExamViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        textAnswerPersistJob?.cancel()
     }
 }

@@ -113,7 +113,9 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -146,6 +148,9 @@ import com.hkm.pozix.util.findActivity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val DESKTOP_USER_AGENT =
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
@@ -188,6 +193,7 @@ fun HtmlMiniBrowserDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
     val isSystemDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
@@ -204,6 +210,9 @@ fun HtmlMiniBrowserDialog(
     var activeTab by remember { mutableIntStateOf(0) } // 0 = Live Browser, 1 = Source Code / Editor
     var showConsole by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableIntStateOf(0) }
+    // Changing this key disposes the dead AndroidView and creates a fresh
+    // renderer after Chromium reports that its render process is gone.
+    var webViewGeneration by remember { mutableIntStateOf(0) }
     var isReloading by remember { mutableStateOf(false) }
 
     // Live Web metrics
@@ -231,6 +240,12 @@ fun HtmlMiniBrowserDialog(
 
     // Console logs & filters
     val consoleLogs = remember { mutableStateListOf<ConsoleLogItem>() }
+    val appendConsoleLog: (ConsoleLogItem) -> Unit = { item ->
+        // A noisy page can log indefinitely; retain enough recent diagnostics
+        // without letting a preview consume unbounded Compose state.
+        while (consoleLogs.size >= 200) consoleLogs.removeAt(0)
+        consoleLogs.add(item)
+    }
     var filterLevel by remember { mutableStateOf<ConsoleMessage.MessageLevel?>(null) }
 
     // Native JS Dialog States
@@ -267,20 +282,24 @@ fun HtmlMiniBrowserDialog(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            try {
-                val content = context.contentResolver.openInputStream(it)?.use { stream ->
-                    stream.bufferedReader(Charsets.UTF_8).readText()
+            scope.launch {
+                try {
+                    val content = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(it)?.use { stream ->
+                            stream.readTextBounded(2 * 1024 * 1024)
+                        }
+                    }
+                    if (!content.isNullOrBlank()) {
+                        val name = getFileNameFromUri(context, it) ?: "Tập tin HTML"
+                        currentCode = content
+                        currentFileName = name
+                        refreshTrigger++
+                        HapticUtil.actionConfirm(context)
+                        Toast.makeText(context, "Đã mở: $name", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Không thể đọc file: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
-                if (!content.isNullOrBlank()) {
-                    val name = getFileNameFromUri(context, it) ?: "Tập tin HTML"
-                    currentCode = content
-                    currentFileName = name
-                    refreshTrigger++
-                    HapticUtil.actionConfirm(context)
-                    Toast.makeText(context, "Đã mở: $name", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "Không thể đọc file: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -289,14 +308,19 @@ fun HtmlMiniBrowserDialog(
         contract = ActivityResultContracts.CreateDocument("text/html")
     ) { uri: Uri? ->
         uri?.let {
-            try {
-                context.contentResolver.openOutputStream(it)?.use { stream ->
-                    stream.write(currentCode.toByteArray(Charsets.UTF_8))
+            scope.launch {
+                try {
+                    val snapshot = currentCode
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(it)?.use { stream ->
+                            stream.write(snapshot.toByteArray(Charsets.UTF_8))
+                        } ?: error("Unable to open destination")
+                    }
+                    HapticUtil.actionConfirm(context)
+                    Toast.makeText(context, "Đã lưu file HTML thành công!", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Lỗi khi lưu file: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
-                HapticUtil.actionConfirm(context)
-                Toast.makeText(context, "Đã lưu file HTML thành công!", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(context, "Lỗi khi lưu file: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -645,19 +669,17 @@ fun HtmlMiniBrowserDialog(
                             } else {
                                 isReloading = true
                                 refreshTrigger++
-                                webViewRef?.reload()
                                 HapticUtil.lightTap(context)
                             }
                         },
                         onHardRefresh = {
                             webViewRef?.clearCache(true)
                             refreshTrigger++
-                            webViewRef?.reload()
                             HapticUtil.actionConfirm(context)
                             Toast.makeText(context, "Hard Refresh: Đã làm mới & xóa sạch bộ nhớ đệm!", Toast.LENGTH_SHORT).show()
                         },
                         onOpenFile = {
-                            openFileLauncher.launch("*/*")
+                            openFileLauncher.launch("text/html")
                             HapticUtil.lightTap(context)
                         },
                         onExportFile = {
@@ -757,6 +779,7 @@ fun HtmlMiniBrowserDialog(
                                     ),
                                 contentAlignment = if (currentViewport.widthDp != null) Alignment.TopCenter else Alignment.Center
                             ) {
+                                key(webViewGeneration) {
                                 AndroidView(
                                     factory = { ctx ->
                                         WebView(ctx).apply {
@@ -789,7 +812,7 @@ fun HtmlMiniBrowserDialog(
                                                 @Suppress("DEPRECATION")
                                                 allowUniversalAccessFromFileURLs = false
                                                 cacheMode = WebSettings.LOAD_DEFAULT
-                                                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                                mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                                                 loadsImagesAutomatically = true
                                                 setSupportZoom(true)
                                                 builtInZoomControls = true
@@ -843,7 +866,7 @@ fun HtmlMiniBrowserDialog(
 
                                                 override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                                                     consoleMessage?.let {
-                                                        consoleLogs.add(
+                                                        appendConsoleLog(
                                                             ConsoleLogItem(
                                                                 level = it.messageLevel(),
                                                                 message = it.message().orEmpty(),
@@ -862,6 +885,7 @@ fun HtmlMiniBrowserDialog(
                                                 }
 
                                                 override fun onJsConfirm(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
+                                                    jsConfirmResult?.cancel()
                                                     jsConfirmMessage = message ?: ""
                                                     jsConfirmResult = result
                                                     return true
@@ -869,6 +893,7 @@ fun HtmlMiniBrowserDialog(
 
                                                 override fun onJsPrompt(view: WebView?, url: String?, message: String?, defaultValue: String?, result: JsPromptResult?): Boolean {
                                                     if (result != null) {
+                                                        jsPromptData?.result?.cancel()
                                                         promptInputText = defaultValue.orEmpty()
                                                         jsPromptData = JsPromptData(message.orEmpty(), defaultValue.orEmpty(), result)
                                                         return true
@@ -877,7 +902,7 @@ fun HtmlMiniBrowserDialog(
                                                 }
 
                                                 override fun onPermissionRequest(request: PermissionRequest?) {
-                                                    request?.grant(request.resources)
+                                                    request?.deny()
                                                 }
 
                                                 override fun onShowFileChooser(
@@ -889,7 +914,7 @@ fun HtmlMiniBrowserDialog(
                                                     fileChooserCallback = filePathCallback
                                                     return try {
                                                         val intent = fileChooserParams?.createIntent() ?: Intent(Intent.ACTION_GET_CONTENT).apply {
-                                                            type = "*/*"
+                                                            type = "text/html"
                                                         }
                                                         webViewFileChooserLauncher.launch(intent)
                                                         true
@@ -926,7 +951,7 @@ fun HtmlMiniBrowserDialog(
                                                     detail: android.webkit.RenderProcessGoneDetail?
                                                 ): Boolean {
                                                     val didCrash = detail?.didCrash() == true
-                                                    consoleLogs.add(
+                                                    appendConsoleLog(
                                                         ConsoleLogItem(
                                                             level = ConsoleMessage.MessageLevel.ERROR,
                                                             message = "Tiến trình Chromium bị dừng (${if (didCrash) "Sập GPU/WebGL" else "Hệ thống dừng"}). Đã bật cơ chế tự bảo vệ Pozix.",
@@ -940,6 +965,10 @@ fun HtmlMiniBrowserDialog(
                                                             it.destroy()
                                                         } catch (_: Exception) {}
                                                     }
+                                                    if (webViewRef === view) webViewRef = null
+                                                    isLoading = false
+                                                    pageProgress = 0
+                                                    webViewGeneration++
                                                     return true
                                                 }
 
@@ -953,7 +982,7 @@ fun HtmlMiniBrowserDialog(
                                                     val code = error?.errorCode ?: 0
                                                     val url = request?.url?.toString().orEmpty()
                                                     if (url.isNotEmpty() && !url.startsWith("data:")) {
-                                                        consoleLogs.add(
+                                                        appendConsoleLog(
                                                             ConsoleLogItem(
                                                                 level = ConsoleMessage.MessageLevel.ERROR,
                                                                 message = "Lỗi nạp CDN/mạng [$code]: $desc ($url)",
@@ -966,19 +995,20 @@ fun HtmlMiniBrowserDialog(
 
                                                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                                     val url = request?.url?.toString().orEmpty()
-                                                    return !url.startsWith("#") && !url.startsWith("javascript:")
+                                                    return shouldBlockBrowserNavigation(url)
                                                 }
 
                                                 @Suppress("DEPRECATION")
                                                 override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                                    val u = url.orEmpty()
-                                                    return !u.startsWith("#") && !u.startsWith("javascript:")
+                                                    return shouldBlockBrowserNavigation(url.orEmpty())
                                                 }
                                             }
                                         }
                                     },
                                     update = { webView ->
-                                        val loadKey = "$refreshTrigger:$canvasDark:${currentViewport.name}:$isDesktopUa:${currentCode.hashCode()}"
+                                        // Keep the actual source in the key; hashCode collisions can otherwise
+                                        // leave an older page rendered after editing.
+                                        val loadKey = "$refreshTrigger:$canvasDark:${currentViewport.name}:$isDesktopUa:$currentCode"
                                         if (webView.tag != loadKey) {
                                             webView.tag = loadKey
 
@@ -1003,6 +1033,7 @@ fun HtmlMiniBrowserDialog(
                                         Modifier.fillMaxSize()
                                     }
                                 )
+                                }
                             }
 
                             // 4.1 Edge Swipe Interception Strips
@@ -2411,4 +2442,22 @@ private fun getFileNameFromUri(context: Context, uri: Uri): String? {
         name = uri.path?.substringAfterLast('/')
     }
     return name
+}
+
+/** Allow normal browser navigation but never execute privileged/local schemes. */
+private fun shouldBlockBrowserNavigation(url: String): Boolean {
+    val scheme = url.substringBefore(':', "").lowercase()
+    return scheme !in setOf("http", "https", "about", "blob", "data")
+}
+
+private fun java.io.InputStream.readTextBounded(maxBytes: Int): String {
+    val output = java.io.ByteArrayOutputStream(minOf(maxBytes, 64 * 1024))
+    val buffer = ByteArray(16 * 1024)
+    while (true) {
+        val count = read(buffer)
+        if (count < 0) break
+        require(output.size() + count <= maxBytes) { "File is larger than 2 MB" }
+        output.write(buffer, 0, count)
+    }
+    return output.toString(Charsets.UTF_8.name())
 }

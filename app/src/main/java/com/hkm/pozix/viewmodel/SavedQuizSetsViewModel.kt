@@ -10,8 +10,10 @@ import com.hkm.pozix.data.model.QuizValidationResult
 import com.hkm.pozix.data.cloud.CloudBackupApi
 import com.hkm.pozix.data.repository.QuizProgressRepository
 import com.hkm.pozix.data.repository.QuizRepository
+import com.hkm.pozix.data.repository.ExamSessionRepository
 import com.hkm.pozix.data.repository.SavedQuizRepository
 import com.hkm.pozix.util.QuizJsonParser
+import com.hkm.pozix.util.QuizMediaBundleImporter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 
 data class SavedQuizSetsUiState(
     val quizSets: List<SavedQuizSet> = emptyList(),
@@ -46,6 +49,7 @@ class SavedQuizSetsViewModel(application: Application) : AndroidViewModel(applic
     private val savedQuizRepository = SavedQuizRepository(application)
     private val quizRepository = QuizRepository(application)
     private val progressRepository = QuizProgressRepository(application)
+    private val examSessionRepository = ExamSessionRepository(application)
     private val cloudApi = CloudBackupApi()
     
     private val _uiState = MutableStateFlow(SavedQuizSetsUiState())
@@ -144,12 +148,20 @@ class SavedQuizSetsViewModel(application: Application) : AndroidViewModel(applic
     }
     
     fun deleteQuizSet() {
+        val quizSet = _uiState.value.quizSetToDelete ?: return
+        hideDeleteDialog()
         viewModelScope.launch {
-            _uiState.value.quizSetToDelete?.let { quizSet ->
-                savedQuizRepository.deleteQuizSet(quizSet.id)
-                progressRepository.clearProgressForQuiz(quizSet.id)
-                hideDeleteDialog()
+            savedQuizRepository.deleteQuizSet(quizSet.id)
+            progressRepository.clearProgressForQuiz(quizSet.id)
+            if (quizRepository.getQuizSetId().first() == quizSet.id) {
+                quizRepository.clearQuiz()
             }
+            if (examSessionRepository.activeSession().first()?.quizSetId == quizSet.id) {
+                examSessionRepository.clear()
+            }
+            val remainingJson = savedQuizRepository.getSavedQuizSets().first().map { it.jsonContent }.toMutableList()
+            quizRepository.getQuizJson().first()?.let(remainingJson::add)
+            QuizMediaBundleImporter.cleanupUnusedBundles(getApplication(), remainingJson)
         }
     }
     

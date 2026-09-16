@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.hkm.pozix.data.model.AiProvider
+import com.hkm.pozix.util.SecretCipher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -24,22 +25,17 @@ class AiProviderRepository(private val context: Context) {
 
     fun getProviders(): Flow<List<AiProvider>> =
         context.aiProvidersDataStore.data.map { prefs ->
-            val raw = prefs[PROVIDERS_KEY].orEmpty()
-            if (raw.isBlank()) return@map emptyList()
-            try {
-                json.decodeFromString(ListSerializer(AiProvider.serializer()), raw)
-            } catch (_: Exception) {
-                emptyList()
-            }
+            decode(prefs[PROVIDERS_KEY].orEmpty())
         }
 
     fun getActiveProviderId(): Flow<String> =
         context.aiProvidersDataStore.data.map { prefs -> prefs[ACTIVE_ID_KEY].orEmpty() }
 
     suspend fun getActiveProvider(): AiProvider? {
-        val providers = getProviders().first()
+        val snapshot = context.aiProvidersDataStore.data.first()
+        val providers = decode(snapshot[PROVIDERS_KEY].orEmpty())
         if (providers.isEmpty()) return null
-        val activeId = getActiveProviderId().first()
+        val activeId = snapshot[ACTIVE_ID_KEY].orEmpty()
         return providers.firstOrNull { it.id == activeId } ?: providers.first()
     }
 
@@ -48,7 +44,7 @@ class AiProviderRepository(private val context: Context) {
             val current = decode(prefs[PROVIDERS_KEY].orEmpty()).toMutableList()
             val index = current.indexOfFirst { it.id == provider.id }
             if (index >= 0) current[index] = provider else current.add(provider)
-            prefs[PROVIDERS_KEY] = json.encodeToString(ListSerializer(AiProvider.serializer()), current)
+            prefs[PROVIDERS_KEY] = encode(current)
             if (setActive || prefs[ACTIVE_ID_KEY].isNullOrBlank()) {
                 prefs[ACTIVE_ID_KEY] = provider.id
             }
@@ -58,7 +54,7 @@ class AiProviderRepository(private val context: Context) {
     suspend fun deleteProvider(id: String) {
         context.aiProvidersDataStore.edit { prefs ->
             val current = decode(prefs[PROVIDERS_KEY].orEmpty()).filterNot { it.id == id }
-            prefs[PROVIDERS_KEY] = json.encodeToString(ListSerializer(AiProvider.serializer()), current)
+            prefs[PROVIDERS_KEY] = encode(current)
             if (prefs[ACTIVE_ID_KEY] == id) {
                 if (current.isNotEmpty()) prefs[ACTIVE_ID_KEY] = current.first().id
                 else prefs.remove(ACTIVE_ID_KEY)
@@ -86,9 +82,7 @@ class AiProviderRepository(private val context: Context) {
             modelId = "gemini-2.0-flash"
         )
         context.aiProvidersDataStore.edit { prefs ->
-            prefs[PROVIDERS_KEY] = json.encodeToString(
-                ListSerializer(AiProvider.serializer()), listOf(provider)
-            )
+            prefs[PROVIDERS_KEY] = encode(listOf(provider))
             prefs[ACTIVE_ID_KEY] = provider.id
         }
     }
@@ -96,9 +90,28 @@ class AiProviderRepository(private val context: Context) {
     private fun decode(raw: String): List<AiProvider> {
         if (raw.isBlank()) return emptyList()
         return try {
-            json.decodeFromString(ListSerializer(AiProvider.serializer()), raw)
+            json.decodeFromString(ListSerializer(AiProvider.serializer()), raw).map { provider ->
+                provider.copy(apiKey = runCatching { SecretCipher.decrypt(provider.apiKey) }.getOrDefault(""))
+            }
         } catch (_: Exception) {
             emptyList()
+        }
+    }
+
+    private fun encode(providers: List<AiProvider>): String = json.encodeToString(
+        ListSerializer(AiProvider.serializer()),
+        providers.map { provider -> provider.copy(apiKey = SecretCipher.encrypt(provider.apiKey)) }
+    )
+
+    suspend fun migrateLegacySecrets() {
+        context.aiProvidersDataStore.edit { prefs ->
+            val raw = prefs[PROVIDERS_KEY].orEmpty()
+            if (raw.isBlank()) return@edit
+            val stored = runCatching { json.decodeFromString(ListSerializer(AiProvider.serializer()), raw) }.getOrNull()
+                ?: return@edit
+            if (stored.any { it.apiKey.isNotBlank() && !SecretCipher.isEncrypted(it.apiKey) }) {
+                prefs[PROVIDERS_KEY] = encode(decode(raw))
+            }
         }
     }
 }

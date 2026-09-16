@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.hkm.pozix.util.SecretCipher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -103,22 +104,31 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setGeminiApiKey(apiKey: String) {
         context.settingsDataStore.edit { preferences ->
-            preferences[GEMINI_API_KEY_KEY] = apiKey
+            preferences[GEMINI_API_KEY_KEY] = SecretCipher.encrypt(apiKey)
         }
     }
 
     fun getGeminiApiKey(): Flow<String> {
         return context.settingsDataStore.data.map { preferences ->
-            preferences[GEMINI_API_KEY_KEY] ?: ""
+            runCatching { SecretCipher.decrypt(preferences[GEMINI_API_KEY_KEY].orEmpty()) }.getOrDefault("")
         }
     }
 
-    suspend fun setCloudBackupToken(token: String) = context.settingsDataStore.edit { it[CLOUD_BACKUP_TOKEN_KEY] = token }
-    fun getCloudBackupToken(): Flow<String> = context.settingsDataStore.data.map { it[CLOUD_BACKUP_TOKEN_KEY] ?: "" }
+    suspend fun setCloudBackupToken(token: String) = context.settingsDataStore.edit { it[CLOUD_BACKUP_TOKEN_KEY] = SecretCipher.encrypt(token) }
+    fun getCloudBackupToken(): Flow<String> = context.settingsDataStore.data.map {
+        runCatching { SecretCipher.decrypt(it[CLOUD_BACKUP_TOKEN_KEY].orEmpty()) }.getOrDefault("")
+    }
     suspend fun clearCloudBackupToken() = context.settingsDataStore.edit { it.remove(CLOUD_BACKUP_TOKEN_KEY) }
 
     suspend fun setCodeHighlight(enabled: Boolean) = context.settingsDataStore.edit { it[CODE_HIGHLIGHT_KEY] = enabled }
     fun getCodeHighlight(): Flow<Boolean> = context.settingsDataStore.data.map { it[CODE_HIGHLIGHT_KEY] ?: true }
+
+    suspend fun migrateLegacySecrets() = context.settingsDataStore.edit { preferences ->
+        listOf(GEMINI_API_KEY_KEY, CLOUD_BACKUP_TOKEN_KEY).forEach { key ->
+            val value = preferences[key].orEmpty()
+            if (value.isNotBlank() && !SecretCipher.isEncrypted(value)) preferences[key] = SecretCipher.encrypt(value)
+        }
+    }
 
     companion object {
         const val LOCALE_CACHE_NAME = "pozix_locale_cache"

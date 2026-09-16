@@ -43,6 +43,7 @@ import androidx.activity.SystemBarStyle
 class MainActivity : ComponentActivity() {
     
     private lateinit var settingsRepository: SettingsRepository
+    private var lastHandledIntentSignature: String? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,8 +69,8 @@ class MainActivity : ComponentActivity() {
         settingsRepository = SettingsRepository(applicationContext)
         
         lifecycleScope.launch {
-            val language = settingsRepository.getLanguage().first()
-            val font = settingsRepository.getFont().first()
+            val language = runCatching { settingsRepository.getLanguage().first() }.getOrDefault("en")
+            val font = runCatching { settingsRepository.getFont().first() }.getOrDefault("default")
             applyLocale(language)
             
             setContent {
@@ -144,12 +145,20 @@ class MainActivity : ComponentActivity() {
     private fun handleIncomingIntent(intent: Intent?) {
         if (intent == null) return
         val action = intent.action
+        val signature = listOf(
+            action,
+            intent.dataString,
+            intent.getStringExtra(Intent.EXTRA_TEXT),
+            intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.toString()
+        ).joinToString("|")
+        if (signature == lastHandledIntentSignature) return
+        lastHandledIntentSignature = signature
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 if (action == Intent.ACTION_SEND) {
                     if (intent.hasExtra(Intent.EXTRA_TEXT)) {
                         val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-                        if (!text.isNullOrBlank()) {
+                        if (text?.trimStart()?.startsWith("{") == true || text?.trimStart()?.startsWith("[") == true) {
                             SharedImportManager.pendingJson.value = text
                             return@launch
                         }
@@ -169,7 +178,9 @@ class MainActivity : ComponentActivity() {
                         readJsonFromUri(uri)
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (error: Exception) {
+                SharedImportManager.pendingError.value = error.message ?: "Unable to open the shared file"
+            }
         }
     }
 
@@ -186,7 +197,9 @@ class MainActivity : ComponentActivity() {
                     SharedImportManager.pendingJson.value = text
                 }
             }
-        } catch (_: Exception) {}
+        } catch (error: Exception) {
+            SharedImportManager.pendingError.value = error.message ?: "Unable to read the selected file"
+        }
     }
 
     private fun applyLocale(languageCode: String) {

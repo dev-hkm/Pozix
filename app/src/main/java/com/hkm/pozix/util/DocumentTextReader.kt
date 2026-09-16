@@ -7,21 +7,35 @@ import org.xmlpull.v1.XmlPullParserFactory
 
 object DocumentTextReader {
     private const val MAX_BYTES = 2 * 1024 * 1024
+    private const val MAX_DOCUMENT_FILE_BYTES = 20L * 1024 * 1024
     fun read(file: File, name: String, mime: String = ""): String? {
-        val signature = file.inputStream().use { input -> ByteArray(8).also { input.read(it) } }
+        require(file.length() <= MAX_DOCUMENT_FILE_BYTES) { "Document exceeds 20 MB" }
+        val signature = file.inputStream().use { input ->
+            ByteArray(8).also { bytes ->
+                var offset = 0
+                while (offset < bytes.size) {
+                    val count = input.read(bytes, offset, bytes.size - offset)
+                    if (count < 0) break
+                    offset += count
+                }
+            }
+        }
         if (signature.take(4).toByteArray().toString(Charsets.US_ASCII) == "%PDF") {
             return com.tom_roush.pdfbox.pdmodel.PDDocument.load(file).use { pdf ->
                 require(pdf.numberOfPages <= 300) { "PDF exceeds 300 pages" }
                 val output = object : java.io.Writer() {
                     val text = StringBuilder()
+                    var truncated = false
                     override fun write(chars: CharArray, offset: Int, length: Int) {
                         val remaining = MAX_BYTES - text.length
                         if (remaining > 0) text.append(chars, offset, minOf(length, remaining))
+                        if (length > remaining) truncated = true
                     }
                     override fun flush() {}
                     override fun close() {}
                 }
                 com.tom_roush.pdfbox.text.PDFTextStripper().writeText(pdf, output)
+                require(!output.truncated) { "Extracted PDF text exceeds 2 MB" }
                 output.text.toString().trim().takeIf { it.isNotBlank() }
             }
         }
@@ -108,9 +122,9 @@ object DocumentTextReader {
             val count = read(buffer)
             if (count < 0) break
             val remaining = MAX_BYTES - output.size()
-            if (remaining <= 0) break
+            require(remaining > 0) { "Document text exceeds 2 MB" }
             output.write(buffer, 0, minOf(count, remaining))
-            if (count > remaining) break
+            require(count <= remaining) { "Document text exceeds 2 MB" }
         }
         return output.toByteArray()
     }

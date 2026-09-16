@@ -9,6 +9,7 @@ import android.util.Base64
 import com.hkm.pozix.data.model.AttachmentType
 import com.hkm.pozix.data.model.ChatAttachment
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -49,11 +50,16 @@ object ChatAttachmentHelper {
 
                 // Copy stream to temp first to avoid multiple stream openings
                 val tempRaw = File(cacheDir, "raw_${UUID.randomUUID()}")
-                contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(tempRaw).use { output ->
-                        copyBounded(input, output)
-                    }
-                } ?: return@withContext null
+                try {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(tempRaw).use { output ->
+                            copyBounded(input, output)
+                        }
+                    } ?: return@withContext null
+                } catch (error: Exception) {
+                    tempRaw.delete()
+                    throw error
+                }
 
                 try {
                     // Decode bounds
@@ -76,12 +82,16 @@ object ChatAttachmentHelper {
                     val sampledBitmap = BitmapFactory.decodeFile(tempRaw.absolutePath, decodeOptions)
                     if (sampledBitmap == null) {
                         // Fallback: if decode failed, keep raw file as attachment
-                        tempRaw.renameTo(targetFile)
+                        val rawTarget = File(cacheDir, "img_${UUID.randomUUID()}.${extension.ifBlank { "jpg" }}")
+                        if (!tempRaw.renameTo(rawTarget)) {
+                            tempRaw.copyTo(rawTarget, overwrite = true)
+                            tempRaw.delete()
+                        }
                         return@withContext ChatAttachment(
                             name = fileName,
                             type = AttachmentType.IMAGE,
-                            localPath = targetFile.absolutePath,
-                            sizeBytes = targetFile.length()
+                            localPath = rawTarget.absolutePath,
+                            sizeBytes = rawTarget.length()
                         )
                     }
 
@@ -116,11 +126,16 @@ object ChatAttachmentHelper {
             } else {
                 // 2. Process as Document / Text / JSON File
                 val targetFile = File(cacheDir, "doc_${UUID.randomUUID()}")
-                contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(targetFile).use { output ->
-                        copyBounded(input, output)
-                    }
-                } ?: return@withContext null
+                try {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(targetFile).use { output ->
+                            copyBounded(input, output)
+                        }
+                    } ?: return@withContext null
+                } catch (error: Exception) {
+                    targetFile.delete()
+                    throw error
+                }
 
                 val size = targetFile.length()
                 com.tom_roush.pdfbox.android.PDFBoxResourceLoader.init(context.applicationContext)
@@ -141,6 +156,7 @@ object ChatAttachmentHelper {
                 )
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             e.printStackTrace()
             null
         }
@@ -155,7 +171,7 @@ object ChatAttachmentHelper {
             if (!file.exists() || !file.canRead()) return@withContext null
             val bytes = file.readBytes()
             val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-            "data:image/jpeg;base64,$base64"
+            "data:${imageMimeType(file.name)};base64,$base64"
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -179,6 +195,15 @@ object ChatAttachmentHelper {
             val file = File(path)
             if (file.exists()) file.delete()
         } catch (_: Exception) {}
+    }
+
+    private fun imageMimeType(fileName: String): String = when (fileName.substringAfterLast('.', "").lowercase()) {
+        "png" -> "image/png"
+        "webp" -> "image/webp"
+        "gif" -> "image/gif"
+        "bmp" -> "image/bmp"
+        "heic", "heif" -> "image/heic"
+        else -> "image/jpeg"
     }
 
     private fun queryFileName(context: Context, uri: Uri): String? {

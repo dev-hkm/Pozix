@@ -18,8 +18,8 @@ android {
         applicationId = "com.hkm.pozix"
         minSdk = 24
         targetSdk = 36
-        versionCode = 36
-        versionName = "1.8.11"
+        versionCode = 37
+        versionName = "1.8.12"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -107,6 +107,7 @@ dependencies {
     // upgrade the whole Compose graph unexpectedly.
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
+    implementation("io.coil-kt.coil3:coil-svg:3.3.0")
     
     testImplementation(libs.junit)
     testImplementation("net.sf.kxml:kxml2:2.3.0")

@@ -41,7 +41,7 @@ fun KaTeXMathView(latex: String, modifier: Modifier = Modifier,
         mutableFloatStateOf(katexHeightCache[measurementKey] ?: 48f)
     }
     var failed by remember(latex) { mutableStateOf(false) }
-    val color = String.format("#%06X", textColor.toArgb() and 0xFFFFFF)
+    val color = String.format(java.util.Locale.US, "#%06X", textColor.toArgb() and 0xFFFFFF)
     if (failed) {
         Text(LatexMathParser.parseToAnnotatedString(latex), modifier = modifier,
             color = textColor, fontSize = fontSizeSp.sp)

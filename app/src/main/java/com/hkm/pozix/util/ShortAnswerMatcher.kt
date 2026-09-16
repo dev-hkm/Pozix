@@ -33,8 +33,8 @@ object ShortAnswerMatcher {
         }
 
         // 2. Comma vs Period Normalization (e.g. "1,5" <-> "1.5", "-3,2" <-> "-3.2")
-        val normalizedUser = cleanUser.replace(',', '.')
-        val normalizedCandidates = candidates.map { it.replace(',', '.') }
+        val normalizedUser = normalizeNumericSeparators(cleanUser)
+        val normalizedCandidates = candidates.map(::normalizeNumericSeparators)
 
         if (normalizedCandidates.any { it.equals(normalizedUser, ignoreCase = true) }) {
             return true
@@ -45,8 +45,11 @@ object ShortAnswerMatcher {
         if (userNum != null) {
             for (cand in normalizedCandidates) {
                 val candNum = parseNumberOrFraction(cand)
-                if (candNum != null && abs(userNum - candNum) < 1e-6) {
-                    return true
+                if (candNum != null) {
+                    val scale = maxOf(1.0, abs(userNum), abs(candNum))
+                    if (abs(userNum - candNum) <= 1e-6 * scale) {
+                        return true
+                    }
                 }
             }
         }
@@ -71,5 +74,16 @@ object ShortAnswerMatcher {
             }
         }
         return null
+    }
+
+    private fun normalizeNumericSeparators(raw: String): String {
+        val value = raw.trim()
+        return when {
+            // Keep a three-digit grouping comma from becoming a decimal point:
+            // 1,000 must grade as one thousand, not one.
+            value.matches(Regex("[+-]?\\d{1,3}(,\\d{3})+(\\.\\d+)?")) -> value.replace(",", "")
+            value.matches(Regex("[+-]?\\d+,\\d+")) -> value.replace(',', '.')
+            else -> value
+        }
     }
 }

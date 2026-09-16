@@ -15,6 +15,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MarkdownEnhancementsTest {
+    @Test fun headerOnlyMarkdownTableIsRetained() {
+        val blocks = parseContentBlocks("| A | B |\n|---|---|")
+        val table = blocks.single() as ContentBlock.Table
+        assertEquals(listOf("A", "B"), table.headers)
+        assertTrue(table.rows.isEmpty())
+    }
+
     @Test fun screenshotCombinedEmphasisAndStrike() {
         val result = LatexMathParser.parseToAnnotatedString("~~Nội dung bị hủy~~ và ***Nội dung cực kỳ quan trọng***")
         assertEquals("Nội dung bị hủy và Nội dung cực kỳ quan trọng", result.text)
@@ -93,5 +100,17 @@ class MarkdownEnhancementsTest {
         assertFalse(bracketParsed.text.contains("✅"))
         val bracketAnnotations = bracketParsed.getStringAnnotations("androidx.compose.foundation.text.inlineContent", 0, bracketParsed.length)
         assertTrue(bracketAnnotations.any { it.item.startsWith("lucide:check:") })
+    }
+
+    @Test fun badgeWithLucideIconIncludesBackgroundColor() {
+        val parsed = LatexMathParser.parseToAnnotatedString("==yellow:lightbulb:Ý tưởng / Ghi nhớ==")
+        val inlineAnnotations = parsed.getStringAnnotations("androidx.compose.foundation.text.inlineContent", 0, parsed.length)
+        val iconAnnotation = inlineAnnotations.find { it.item.startsWith("lucide:lightbulb:") }
+        assertNotNull(iconAnnotation)
+        val parts = iconAnnotation!!.item.split(":")
+        // parts: ["lucide", iconName, textArgb, bgArgb]
+        assertEquals(4, parts.size)
+        assertNotNull(parts[3].toIntOrNull())
+        assertNotEquals(0, parts[3].toInt())
     }
 }

@@ -7,4 +7,5 @@ import kotlinx.coroutines.flow.MutableStateFlow
  */
 object SharedImportManager {
     val pendingJson = MutableStateFlow<String?>(null)
+    val pendingError = MutableStateFlow<String?>(null)
 }

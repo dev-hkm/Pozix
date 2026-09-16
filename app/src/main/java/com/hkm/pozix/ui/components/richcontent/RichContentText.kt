@@ -116,6 +116,12 @@ fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString
         else {
             annotations.associate { annotation ->
                 val id = annotation.item
+                val parts = id.split(":")
+                val iconName = parts.getOrElse(1) { "" }
+                val colorInt = parts.getOrNull(2)?.toIntOrNull() ?: android.graphics.Color.GRAY
+                val bgInt = parts.getOrNull(3)?.toIntOrNull()
+                val bgColor = if (bgInt != null && bgInt != 0) Color(bgInt) else Color.Transparent
+
                 id to InlineTextContent(
                     Placeholder(
                         width = 1.15.em,
@@ -123,10 +129,14 @@ fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString
                         placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter
                     )
                 ) {
-                    val parts = id.split(":")
-                    val iconName = parts.getOrElse(1) { "" }
-                    val colorInt = parts.getOrNull(2)?.toIntOrNull() ?: android.graphics.Color.GRAY
-                    LucideIconView(iconName = iconName, tint = Color(colorInt))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(if (bgColor != Color.Transparent) Modifier.background(bgColor) else Modifier),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        LucideIconView(iconName = iconName, tint = Color(colorInt))
+                    }
                 }
             }
         }
@@ -374,8 +384,8 @@ private fun parseMarkdownText(text: String): List<ContentBlock> {
                 }
                 lineIdx++
             }
-            if (headers.isNotEmpty() && rows.isNotEmpty()) {
-                val colCount = maxOf(headers.size, rows.maxOfOrNull { it.size } ?: 0)
+            if (headers.isNotEmpty()) {
+                val colCount = maxOf(headers.size, rows.maxOfOrNull { it.size } ?: headers.size)
                 val paddedHeaders = if (headers.size < colCount) {
                     headers + List(colCount - headers.size) { "" }
                 } else headers

@@ -8,19 +8,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-/** Durable, user-confirmed draft. Nothing is uploaded until Send is pressed in chat. */
+/** In-memory, user-confirmed draft. Nothing is uploaded until Send is pressed in chat. */
 object QuizAiFollowUp {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     val pending = MutableStateFlow<String?>(null)
-    fun restore(context: Context) {
-        if (pending.value == null) pending.value = context.getSharedPreferences("ai_review_draft", Context.MODE_PRIVATE).getString("text", null)
-    }
+    // A review draft is navigation state, not durable work. Restoring it after a
+    // cold start used to unexpectedly hijack the user into AI Chat.
+    fun restore(context: Context) = Unit
     fun queue(context: Context, text: String) {
-        context.getSharedPreferences("ai_review_draft", Context.MODE_PRIVATE).edit().putString("text", text).apply()
         pending.value = text
     }
     fun clear(context: Context) {
-        context.getSharedPreferences("ai_review_draft", Context.MODE_PRIVATE).edit().remove("text").apply()
         pending.value = null
     }
 

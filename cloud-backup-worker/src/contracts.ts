@@ -1,4 +1,5 @@
-export const MAX_BACKUP_PAYLOAD_BYTES = 8 * 1_048_576;
+// Version 3 backups can include the bounded (24 MiB) quiz-media bundle.
+export const MAX_BACKUP_PAYLOAD_BYTES = 40 * 1_048_576;
 export const MAX_SHARE_PAYLOAD_BYTES = 1_048_576;
 
 export type BackupPayload = { verifier: string; salt: string; ciphertext: string };
@@ -67,7 +68,8 @@ function isValidPozixQuiz(value: unknown): boolean {
       return false;
     }
     if (question.type === "true_false") {
-      return typeof question.correctAnswer === "boolean";
+      return typeof question.correctAnswer === "boolean" ||
+        (typeof question.correctAnswer === "string" && ["true", "false"].includes(question.correctAnswer.trim().toLowerCase()));
     }
     if (question.type === "single_choice") {
       if (!Array.isArray(question.options) || question.options.length < 2 || question.options.length > 6) {
@@ -76,9 +78,21 @@ function isValidPozixQuiz(value: unknown): boolean {
       if (!question.options.every(option => typeof option === "string" && option.trim().length > 0)) {
         return false;
       }
+      if (new Set(question.options.map(option => (option as string).trim().toLowerCase())).size !== question.options.length) {
+        return false;
+      }
       return Number.isInteger(question.correctIndex) &&
         (question.correctIndex as number) >= 0 &&
         (question.correctIndex as number) < question.options.length;
+    }
+    if (["short_answer", "shortAnswer", "fill_in", "text"].includes(question.type as string)) {
+      if (typeof question.correctAnswer !== "string" || question.correctAnswer.trim().length === 0) {
+        return false;
+      }
+      return question.acceptedAnswers === undefined ||
+        (Array.isArray(question.acceptedAnswers) && question.acceptedAnswers.every(
+          answer => typeof answer === "string" && answer.trim().length > 0
+        ));
     }
     return false;
   });

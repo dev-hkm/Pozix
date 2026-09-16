@@ -56,6 +56,7 @@ object OpenAiCompatClient {
     private const val MAX_CONTEXT_CHARS = 72_000
     private const val MAX_OLDER_MESSAGE_CHARS = 16_000
     private const val MAX_ATTACHMENT_CHARS = 32_000
+    private const val MAX_STREAM_EVENT_CHARS = 1_000_000
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -111,7 +112,7 @@ object OpenAiCompatClient {
                             put("text", messageText)
                         })
                     }
-                    for (path in msg.imagePaths) {
+                    for (path in msg.imagePaths.take(3)) {
                         val dataUrl = ChatImageStorage.fileToBase64DataUrl(path)
                         if (dataUrl != null) {
                             add(buildJsonObject {
@@ -129,7 +130,9 @@ object OpenAiCompatClient {
     }
 
     private fun boundHistory(history: List<ChatMessage>): List<ChatMessage> {
-        if (history.size <= MAX_CONTEXT_MESSAGES && history.sumOf { it.text.length } <= MAX_CONTEXT_CHARS) {
+        if (history.size <= MAX_CONTEXT_MESSAGES && history.mapIndexed { index, message ->
+                estimatedContextChars(message, index == history.lastIndex)
+            }.sum() <= MAX_CONTEXT_CHARS) {
             return history
         }
         val selected = ArrayDeque<ChatMessage>()
@@ -137,15 +140,24 @@ object OpenAiCompatClient {
         history.asReversed().forEachIndexed { reverseIndex, message ->
             if (selected.size >= MAX_CONTEXT_MESSAGES) return@forEachIndexed
             val isCurrent = reverseIndex == 0
-            val mustKeepSource = message.attachments.isNotEmpty() || message.youtubeSource != null ||
-                message.quizReviewJson != null
-            val estimated = message.text.length.coerceAtMost(MAX_OLDER_MESSAGE_CHARS)
-            if (isCurrent || mustKeepSource || selected.isEmpty() || chars + estimated <= MAX_CONTEXT_CHARS) {
+            val estimated = estimatedContextChars(message, isCurrent)
+            if (isCurrent || selected.isEmpty() || chars + estimated <= MAX_CONTEXT_CHARS) {
                 selected.addFirst(message)
                 chars += estimated
             }
         }
         return selected.toList()
+    }
+
+    private fun estimatedContextChars(message: ChatMessage, currentTurn: Boolean): Int {
+        val text = if (currentTurn) message.text.length else message.text.length.coerceAtMost(MAX_OLDER_MESSAGE_CHARS)
+        val documents = message.attachments.count { it.type == com.hkm.pozix.data.model.AttachmentType.DOCUMENT } * MAX_ATTACHMENT_CHARS
+        val quiz = message.quizJson?.length ?: 0
+        val review = message.quizReviewJson?.length ?: 0
+        // Transcript text is loaded lazily; reserve its bounded storage budget so it cannot
+        // silently push a request beyond the configured context cap.
+        val transcript = if (message.youtubeSource != null) MAX_ATTACHMENT_CHARS else 0
+        return text + documents + quiz + review + transcript
     }
 
     private fun contextText(text: String, currentTurn: Boolean): String {
@@ -212,9 +224,9 @@ object OpenAiCompatClient {
             }
 
             val body = response.body ?: throw IOException("Empty response body")
-            if (body.contentType()?.subtype?.contains("event-stream") != true) {
-                throw IOException("Provider did not return a realtime event stream")
-            }
+            // A number of otherwise OpenAI-compatible self-hosted providers omit
+            // the event-stream content type. Parse the framed response itself
+            // instead of rejecting a valid stream solely on that header.
             val source = body.source()
             var received = false
             var completed = false
@@ -248,6 +260,9 @@ object OpenAiCompatClient {
                 } else if (line.startsWith("data:")) {
                     if (event.isNotEmpty()) event.append('\n')
                     event.append(line.removePrefix("data:").removePrefix(" "))
+                    if (event.length > MAX_STREAM_EVENT_CHARS) {
+                        throw IOException("Provider sent an oversized stream event")
+                    }
                 }
             }
             if (!received) throw IOException("Provider returned an empty stream")

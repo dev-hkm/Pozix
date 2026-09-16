@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 
 data class LectureData(
     val title: String,
@@ -72,6 +73,7 @@ object LectureManager {
                     onReady()
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 // Fallback to direct navigation if pre-warm fails
                 _currentLecture.value = LectureData(title = title, content = content)
                 withContext(Dispatchers.Main) {

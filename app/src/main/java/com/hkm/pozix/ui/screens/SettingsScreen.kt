@@ -115,6 +115,7 @@ import com.hkm.pozix.ui.theme.getFontFamily
 import com.hkm.pozix.ui.components.BouncyContainer
 import com.hkm.pozix.ui.components.PozixModalBottomSheet
 import com.hkm.pozix.util.HapticUtil
+import com.hkm.pozix.util.QuizMediaBundleImporter
 import com.hkm.pozix.viewmodel.CloudNoticeType
 import com.hkm.pozix.viewmodel.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -178,7 +179,10 @@ fun SettingsScreen(
                     val jsonContent = withContext(Dispatchers.IO) {
                         val input = context.contentResolver.openInputStream(it)
                             ?: error("Unable to open selected file")
-                        input.bufferedReader(Charsets.UTF_8).use { reader -> reader.readText() }
+                        input.use { stream ->
+                            // Version 3 backups embed bounded local quiz media.
+                            QuizMediaBundleImporter.readBounded(stream, 40 * 1024 * 1024).toString(Charsets.UTF_8)
+                        }
                     }
                     viewModel.prepareRestore(jsonContent)
                     HapticUtil.selectionTick(context)
@@ -1130,7 +1134,13 @@ fun SettingsScreen(
             initial = provider,
             onDismiss = { editingProvider = null },
             onSave = { updated ->
-                viewModel.saveAiProvider(updated, setActive = true)
+                // Editing a non-active provider must not silently switch the
+                // chat model. Newly created providers remain the convenient
+                // exception and become active immediately.
+                viewModel.saveAiProvider(
+                    updated,
+                    setActive = uiState.aiProviders.none { it.id == provider.id }
+                )
                 HapticUtil.primaryAction(context)
                 editingProvider = null
                 showProviderList = false
@@ -1341,6 +1351,44 @@ fun SettingsScreen(
             }
         )
     }
+
+    if (uiState.showRestoreConfirm) {
+        AlertDialog(
+            onDismissRequest = viewModel::cancelRestore,
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_restore_confirm_title),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.settings_restore_confirm_message,
+                        uiState.restoreQuizSetCount,
+                        uiState.restoreProgressCount
+                    )
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        HapticUtil.warning(context)
+                        viewModel.confirmRestore(onLanguageChanged)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(stringResource(R.string.settings_restore_confirm), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::cancelRestore) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -1387,7 +1435,11 @@ fun AiProviderEditorSheet(
 
     var name by remember { mutableStateOf(initial.name) }
     var baseUrl by remember { mutableStateOf(initial.baseUrl) }
-    var apiKey by remember { mutableStateOf(initial.apiKey) }
+    // Never preload a persisted secret into a composable text field.  Besides
+    // exposing it when the visibility toggle is tapped, this would also leave
+    // it in Compose's saved UI state.  An empty field means "keep current key"
+    // for an existing provider.
+    var apiKey by remember { mutableStateOf("") }
     var modelId by remember { mutableStateOf(initial.modelId) }
     var keyVisible by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
@@ -1508,7 +1560,10 @@ fun AiProviderEditorSheet(
                     scope.launch {
                         modelsLoading = true
                         error = ""
-                        val result = onFetchModels(baseUrl, apiKey)
+                        val keyForRequest = apiKey.ifBlank {
+                            if (isNew) "" else initial.apiKey
+                        }
+                        val result = onFetchModels(baseUrl, keyForRequest)
                         modelsLoading = false
                         result.fold(
                             onSuccess = { list ->
@@ -1648,7 +1703,9 @@ fun AiProviderEditorSheet(
                             initial.copy(
                                 name = name.trim(),
                                 baseUrl = normalized,
-                                apiKey = apiKey.trim(),
+                                apiKey = apiKey.trim().ifBlank {
+                                    if (isNew) "" else initial.apiKey
+                                },
                                 modelId = modelId.trim(),
                                 reasoningEffort = finalReasoningEffort
                             )

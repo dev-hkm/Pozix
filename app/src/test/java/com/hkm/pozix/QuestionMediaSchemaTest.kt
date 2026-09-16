@@ -92,4 +92,24 @@ class QuestionMediaSchemaTest {
         val question = (result as QuizValidationResult.Success).parsedQuestions.single()
         assertTrue(question.media.isEmpty())
     }
+
+    @Test
+    fun bundledAssetReferencesKeepTheirBundleNamespace() {
+        val result = QuizJsonParser.parseAndValidate(
+            """{"title":"Bundle","questions":[{"type":"true_false","question":"Asset?","correctAnswer":true,"media":[{"type":"image","uri":"asset://bundle_123/diagram.png"}]}]}"""
+        )
+        assertTrue(result is QuizValidationResult.Success)
+        val question = (result as QuizValidationResult.Success).parsedQuestions.single()
+        assertEquals("asset://bundle_123/diagram.png", question.media.single().uri)
+    }
+
+    @Test
+    fun diagramCoordinatesUseTheDocumentedZeroToOneSpace() {
+        val result = QuizJsonParser.parseAndValidate(
+            """{"title":"Diagram","questions":[{"type":"true_false","question":"Point?","correctAnswer":true,"media":[{"type":"diagram","nodes":[{"id":"a","label":"A","x":0.2,"y":0.8}]}]}]}"""
+        )
+        val question = (result as QuizValidationResult.Success).parsedQuestions.single()
+        assertEquals(0.2f, question.media.single().nodes.single().x)
+        assertEquals(0.8f, question.media.single().nodes.single().y)
+    }
 }

@@ -20,16 +20,17 @@ object BackupCrypto {
     private const val IV_BYTES = 12
     private const val SALT_BYTES = 16
     private val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    private val secureRandom = SecureRandom()
 
     fun createToken(): String = buildString {
         append("hkm-")
-        repeat(36) { append(alphabet[SecureRandom().nextInt(alphabet.length)]) }
+        repeat(36) { append(alphabet[secureRandom.nextInt(alphabet.length)]) }
     }
 
     fun encrypt(plainText: String, password: String, existingSalt: String? = null): EncryptedBackup {
         require(password.isNotBlank()) { "Password is required" }
-        val salt = existingSalt?.let(::decode) ?: ByteArray(SALT_BYTES).also(SecureRandom()::nextBytes)
-        val iv = ByteArray(IV_BYTES).also(SecureRandom()::nextBytes)
+        val salt = existingSalt?.let(::decode) ?: ByteArray(SALT_BYTES).also(secureRandom::nextBytes)
+        val iv = ByteArray(IV_BYTES).also(secureRandom::nextBytes)
         val key = deriveKey(password, salt)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
             init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))

@@ -409,7 +409,7 @@ object LatexMathParser {
                                     withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
                                         append("\u2005")
                                         if (iconName != null) {
-                                            val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
+                                            val iconId = "lucide:${iconName}:${colors.text.toArgb()}:${colors.background.toArgb()}"
                                             pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                             append("\uFFFC")
                                             pop()
@@ -428,7 +428,7 @@ object LatexMathParser {
                                     val colors = getBadgeColors(inferredColor, isDark)
                                     withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
                                         append("\u2005")
-                                        val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
+                                        val iconId = "lucide:${iconName}:${colors.text.toArgb()}:${colors.background.toArgb()}"
                                         pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                         append("\uFFFC")
                                         pop()
@@ -479,7 +479,7 @@ object LatexMathParser {
                                     withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
                                         append("\u2005")
                                         if (iconName != null) {
-                                            val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
+                                            val iconId = "lucide:${iconName}:${colors.text.toArgb()}:${colors.background.toArgb()}"
                                             pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                             append("\uFFFC")
                                             pop()
@@ -498,7 +498,7 @@ object LatexMathParser {
                                     val colors = getBadgeColors(inferredColor, isDark)
                                     withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
                                         append("\u2005")
-                                        val iconId = "lucide:${iconName}:${colors.text.toArgb()}"
+                                        val iconId = "lucide:${iconName}:${colors.text.toArgb()}:${colors.background.toArgb()}"
                                         pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                         append("\uFFFC")
                                         pop()
@@ -538,7 +538,7 @@ object LatexMathParser {
                         withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
                             append("\u2005")
                             if (finalIcon != null) {
-                                val iconId = "lucide:${finalIcon}:${colors.text.toArgb()}"
+                                val iconId = "lucide:${finalIcon}:${colors.text.toArgb()}:${colors.background.toArgb()}"
                                 pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
                                 append("\uFFFC")
                                 pop()
@@ -758,7 +758,8 @@ object LatexMathParser {
     /**
      * Recursively parse and format all fraction macros: \dfrac, \frac, \tfrac, \cfrac
      */
-    fun parseFractions(input: String): String {
+    fun parseFractions(input: String, depth: Int = 0): String {
+        if (depth >= 16) return input
         var text = input
         val fracRegex = Regex("""\\(?:dfrac|frac|tfrac|cfrac)""")
         var match = fracRegex.find(text)
@@ -787,8 +788,8 @@ object LatexMathParser {
             val fracEnd = denResult.second
 
             // Format numerator and denominator recursively
-            val formattedNum = parseFractions(numStr).trim()
-            val formattedDen = parseFractions(denStr).trim()
+            val formattedNum = parseFractions(numStr, depth + 1).trim()
+            val formattedDen = parseFractions(denStr, depth + 1).trim()
 
             val formattedFrac = formatFraction(formattedNum, formattedDen)
             text = text.substring(0, fracStart) + formattedFrac + text.substring(fracEnd)
@@ -853,7 +854,8 @@ object LatexMathParser {
     /**
      * Recursively parse and format roots: \sqrt[n]{x} or \sqrt{x}
      */
-    fun parseRoots(input: String): String {
+    fun parseRoots(input: String, depth: Int = 0): String {
+        if (depth >= 16) return input
         var text = input
         val sqrtRegex = Regex("""\\sqrt""")
         var match = sqrtRegex.find(text)
@@ -875,7 +877,7 @@ object LatexMathParser {
             }
 
             val argResult = extractArgument(text, cursor) ?: break
-            val inner = parseRoots(argResult.first).trim()
+            val inner = parseRoots(argResult.first, depth + 1).trim()
             val end = argResult.second
 
             val rootSymbol = when (rootIndex) {

@@ -16,6 +16,7 @@ import com.hkm.pozix.data.repository.QuizRepository
 import com.hkm.pozix.data.repository.SavedQuizRepository
 import com.hkm.pozix.data.repository.SettingsRepository
 import com.hkm.pozix.util.QuizJsonParser
+import com.hkm.pozix.util.QuizMediaBundleImporter
 import com.hkm.pozix.data.model.QuizValidationResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +52,7 @@ data class SettingsUiState(
     val backupStatus: String = "",
     val showRestoreConfirm: Boolean = false,
     val pendingRestoreJson: String = "",
+    val pendingCloudToken: String = "",
     val restoreQuizSetCount: Int = 0,
     val restoreProgressCount: Int = 0,
     val cloudToken: String = "",
@@ -83,6 +85,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun loadSettings() {
+        viewModelScope.launch {
+            repository.migrateLegacySecrets()
+            aiProviderRepository.migrateLegacySecrets()
+        }
         viewModelScope.launch {
             repository.getThemeMode().collect { value ->
                 _uiState.value = _uiState.value.copy(themeMode = value)
@@ -205,12 +211,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     suspend fun exportBackup(): String = withContext(Dispatchers.IO) {
         val state = _uiState.value
+        val quizSets = savedQuizRepository.getSavedQuizSets().first()
+        val currentQuizJson = quizRepository.getQuizJson().first()
         val backup = BackupData(
-            version = 2,
+            version = 3,
             exportedAt = System.currentTimeMillis(),
-            quizSets = savedQuizRepository.getSavedQuizSets().first(),
+            quizSets = quizSets,
             progress = progressRepository.getAllProgress().first().values.toList(),
-            currentQuizJson = quizRepository.getQuizJson().first(),
+            currentQuizJson = currentQuizJson,
             currentQuizSetId = quizRepository.getQuizSetId().first(),
             preferences = BackupPreferences(
                 language = state.language,
@@ -219,12 +227,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 shuffleAnswers = state.shuffleAnswers,
                 showExplanation = state.showExplanation
             ),
-            activeExamSession = examSessionRepository.activeSession().first()
+            activeExamSession = examSessionRepository.activeSession().first(),
+            mediaAssets = QuizMediaBundleImporter.exportReferencedAssets(
+                getApplication(),
+                quizSets.map { it.jsonContent } + listOfNotNull(currentQuizJson)
+            )
         )
         json.encodeToString(backup)
     }
 
     fun backupToCloud(password: String) {
+        if (_uiState.value.cloudBusy) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cloudBusy = true, cloudNotice = null)
             try {
@@ -265,6 +278,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun restoreFromCloud(tokenInput: String, password: String) {
+        if (_uiState.value.cloudBusy) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cloudBusy = true, cloudNotice = null)
             try {
@@ -284,9 +298,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     BackupCrypto.decrypt(encrypted, password)
                 }
                 val backup = decodeAndValidateBackup(restoredJson)
-                repository.setCloudBackupToken(token)
-                showPreparedRestore(backup, restoredJson)
-                _uiState.value = _uiState.value.copy(cloudToken = token)
+                showPreparedRestore(backup, restoredJson, token)
             } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     cloudNotice = CloudNotice(
@@ -332,39 +344,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun confirmRestore(onComplete: () -> Unit) {
         val jsonString = _uiState.value.pendingRestoreJson
+        val restoredCloudToken = _uiState.value.pendingCloudToken
         viewModelScope.launch {
+            var beforeRestore: String? = null
             try {
                 val backup = decodeAndValidateBackup(jsonString)
+                beforeRestore = exportBackup()
                 withContext(Dispatchers.IO) {
-                    savedQuizRepository.replaceQuizSets(backup.quizSets)
-                    progressRepository.replaceAllProgress(backup.progress)
-                    if (backup.version >= 2) {
-                        if (backup.currentQuizJson != null) {
-                            quizRepository.saveQuizJson(
-                                backup.currentQuizJson,
-                                backup.currentQuizSetId.orEmpty()
-                            )
-                        } else {
-                            quizRepository.clearQuiz()
-                        }
-                        backup.preferences?.let { preferences ->
-                            repository.setLanguage(preferences.language)
-                            repository.setFont(preferences.font)
-                            repository.setShuffleQuestions(preferences.shuffleQuestions)
-                            repository.setShuffleAnswers(preferences.shuffleAnswers)
-                            repository.setShowExplanation(preferences.showExplanation)
-                        }
-                        if (backup.activeExamSession != null) {
-                            examSessionRepository.save(backup.activeExamSession)
-                        } else {
-                            examSessionRepository.clear()
-                        }
+                    applyBackup(backup)
+                    restoredCloudToken.takeIf { it.isNotBlank() }?.let {
+                        repository.setCloudBackupToken(it)
                     }
                 }
 
                 _uiState.value = _uiState.value.copy(
                     showRestoreConfirm = false,
                     pendingRestoreJson = "",
+                    pendingCloudToken = "",
+                    cloudToken = restoredCloudToken.ifBlank { _uiState.value.cloudToken },
                     backupStatus = "success:restore:${backup.quizSets.size}",
                     cloudNotice = CloudNotice(
                         type = CloudNoticeType.SUCCESS,
@@ -373,9 +370,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 )
                 onComplete()
             } catch (_: Exception) {
+                beforeRestore?.let { snapshot ->
+                    runCatching { withContext(Dispatchers.IO) { applyBackup(decodeAndValidateBackup(snapshot)) } }
+                }
                 _uiState.value = _uiState.value.copy(
                     showRestoreConfirm = false,
                     pendingRestoreJson = "",
+                    pendingCloudToken = "",
                     backupStatus = "error:restore",
                     cloudNotice = CloudNotice(
                         type = CloudNoticeType.ERROR,
@@ -390,6 +391,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.value = _uiState.value.copy(
             showRestoreConfirm = false,
             pendingRestoreJson = "",
+            pendingCloudToken = "",
             restoreQuizSetCount = 0,
             restoreProgressCount = 0
         )
@@ -408,7 +410,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private suspend fun decodeAndValidateBackup(jsonString: String): BackupData =
         withContext(Dispatchers.Default) {
             val backup = json.decodeFromString<BackupData>(jsonString)
-            require(backup.version in 1..2) { "Unsupported backup version" }
+            require(backup.version in 1..3) { "Unsupported backup version" }
             require(backup.quizSets.map { it.id }.distinct().size == backup.quizSets.size) {
                 "Duplicate quiz set IDs"
             }
@@ -430,14 +432,58 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 require(session.questions.isNotEmpty()) { "Invalid exam session" }
                 require(session.currentIndex in session.questions.indices) { "Invalid exam position" }
                 require(session.timeLimitMillis > 0L) { "Invalid exam duration" }
+                require(session.remainingMillis in 0L..session.timeLimitMillis) { "Invalid exam remaining time" }
+                require(session.deadlineEpochMillis >= 0L) { "Invalid exam deadline" }
+                require(session.answers.keys.all { it in session.questions.indices }) { "Invalid exam answers" }
+                require(session.textAnswers.keys.all { it in session.questions.indices }) { "Invalid exam text answers" }
+                require(session.questionTimes.keys.all { it in session.questions.indices } &&
+                    session.questionTimes.values.all { it >= 0L }) { "Invalid exam question times" }
+                require(session.flaggedQuestions.all { it in session.questions.indices }) { "Invalid flagged exam question" }
+                session.answers.forEach { (index, answer) ->
+                    val question = session.questions[index]
+                    val optionCount = when (question) {
+                        is com.hkm.pozix.data.model.Question.SingleChoice -> question.options.size
+                        is com.hkm.pozix.data.model.Question.TrueFalse -> 2
+                        is com.hkm.pozix.data.model.Question.ShortAnswer -> 0
+                    }
+                    require(answer in 0 until optionCount) { "Invalid exam answer option" }
+                }
+            }
+            if (backup.version >= 3) {
+                QuizMediaBundleImporter.validateBackupAssets(backup.mediaAssets)
             }
             backup
         }
 
-    private fun showPreparedRestore(backup: BackupData, jsonString: String) {
+    private suspend fun applyBackup(backup: BackupData) {
+        savedQuizRepository.replaceQuizSets(backup.quizSets)
+        progressRepository.replaceAllProgress(backup.progress)
+        if (backup.version < 2) return
+        if (backup.currentQuizJson != null) {
+            quizRepository.saveQuizJson(backup.currentQuizJson, backup.currentQuizSetId.orEmpty())
+        } else quizRepository.clearQuiz()
+        backup.preferences?.let { preferences ->
+            repository.setLanguage(preferences.language)
+            repository.setFont(preferences.font)
+            repository.setShuffleQuestions(preferences.shuffleQuestions)
+            repository.setShuffleAnswers(preferences.shuffleAnswers)
+            repository.setShowExplanation(preferences.showExplanation)
+        }
+        backup.activeExamSession?.let { session ->
+            examSessionRepository.save(session)
+        } ?: examSessionRepository.clear()
+        QuizMediaBundleImporter.restoreAssets(getApplication(), backup.mediaAssets)
+        QuizMediaBundleImporter.cleanupUnusedBundles(
+            getApplication(),
+            backup.quizSets.map { it.jsonContent } + listOfNotNull(backup.currentQuizJson)
+        )
+    }
+
+    private fun showPreparedRestore(backup: BackupData, jsonString: String, cloudToken: String = "") {
         _uiState.value = _uiState.value.copy(
             showRestoreConfirm = true,
             pendingRestoreJson = jsonString,
+            pendingCloudToken = cloudToken,
             restoreQuizSetCount = backup.quizSets.size,
             restoreProgressCount = backup.progress.size,
             backupStatus = "",

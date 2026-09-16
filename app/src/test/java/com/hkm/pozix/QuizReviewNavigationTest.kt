@@ -35,6 +35,10 @@ class QuizReviewNavigationTest {
         assertEquals(state, QuizReviewNavigation.show(state, -1, true))
         assertEquals(state, QuizReviewNavigation.show(state, 3, true))
     }
+    @Test fun previousQuestionMayBeUnanswered() {
+        val onSecond = state.copy(currentQuestionIndex = 1)
+        assertEquals(0, QuizReviewNavigation.show(onSecond, 0, true).currentQuestionIndex)
+    }
     @Test fun snapshotKeepsShuffledOrderAndAnswersAfterResume() {
         val progress = QuizProgress("id", 2, 1, listOf(0, 1), 1000L, 3,
             selectedAnswers = state.selectedAnswers, questionSnapshot = questions)

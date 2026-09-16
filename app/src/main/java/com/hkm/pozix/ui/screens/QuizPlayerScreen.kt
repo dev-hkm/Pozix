@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -461,13 +462,14 @@ fun PlayingContent(
                         }
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
+                        .imePadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     BottomActionStack(
                         isLastQuestion = state.currentQuestionIndex == state.questions.size - 1,
                         onNext = onNext,
                         canNext = state.isAnswered,
-                        canPrevious = (state.currentQuestionIndex - 1 in state.selectedAnswers) || (state.currentQuestionIndex - 1 in state.userTextAnswers),
+                        canPrevious = state.currentQuestionIndex > 0,
                         onPrevious = onPrevious
                     )
                 }
@@ -989,8 +991,7 @@ fun AnswerCard(
         CardSize.LARGE -> 20.dp
     }
 
-    val shouldShowExplanation = showResult && showExplanation && explanation?.isNotBlank() == true &&
-            isCorrect == true
+    val shouldShowExplanation = showResult && showExplanation && explanation?.isNotBlank() == true
 
     val renderedBackground = bgColor.copy(alpha = alpha).compositeOver(MaterialTheme.colorScheme.background)
     val readableTextColor = readableContentColorFor(renderedBackground, txtColor)

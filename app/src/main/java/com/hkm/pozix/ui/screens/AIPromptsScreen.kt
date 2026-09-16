@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 
@@ -28,8 +29,8 @@ fun AIPromptsScreen(
     onPlayQuiz: () -> Unit,
     onOpenLecture: () -> Unit = {}
 ) {
-    var selectedTab by remember { mutableIntStateOf(initialTab) }
-    var pendingPrompt by remember { mutableStateOf<String?>(null) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(initialTab) }
+    var pendingPrompt by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Intercept back button when in Prompt Templates (tab 1) to return to AI Chat (tab 0)
     BackHandler(enabled = selectedTab != 0) {
@@ -62,6 +63,7 @@ fun AIPromptsScreen(
                 onPlayQuiz = onPlayQuiz,
                 onOpenLecture = onOpenLecture,
                 initialPrompt = pendingPrompt,
+                onInitialPromptConsumed = { pendingPrompt = null },
                 showBackButton = true,
                 onOpenTemplates = { selectedTab = 1 }
             )

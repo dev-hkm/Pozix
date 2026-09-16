@@ -16,8 +16,7 @@ object AiQuizOutput {
 
         val negative = Regex(
             "(?i)(không\\s+(?:cần|tạo|soạn)|đừng\\s+(?:tạo|soạn)|" +
-                "do not|don't|no new quiz|review|giải thích|giảng|dạy|" +
-                "phân tích|tóm tắt|giải bài|solve|explain|teach|summarize|" +
+                "do not|don't|no new quiz|" +
                 "cho tôi biết|tell me|how many|bao nhiêu|giới hạn|limit|" +
                 "có thể.*(?:không|được)|can I|could I|is it possible)"
         )

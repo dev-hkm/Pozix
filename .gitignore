@@ -27,3 +27,6 @@ release-signing.jks
 .codex/
 .codex*
 Gemini_3_8_Flash_Toan_Bo_Loi_Codebase_Pozix.md
+0*.md
+HANDOFF_*.md
+*Audit*.md

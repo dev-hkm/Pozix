@@ -51,6 +51,9 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.ImageLoader
+import coil3.request.ImageRequest
+import coil3.svg.SvgDecoder
 import com.hkm.pozix.data.model.DiagramEdge
 import com.hkm.pozix.data.model.DiagramLabel
 import com.hkm.pozix.data.model.DiagramNode
@@ -143,8 +146,17 @@ private fun QuestionImage(
     shape: RoundedCornerShape
 ) {
     val context = LocalContext.current
+    val imageLoader = remember(context) {
+        ImageLoader.Builder(context)
+            .components { add(SvgDecoder.Factory()) }
+            .build()
+    }
     val imageModel = remember(context, media.effectiveUri) {
-        resolveImageModel(context, media.effectiveUri)
+        resolveImageModel(context, media.effectiveUri)?.let { source ->
+            ImageRequest.Builder(context)
+                .data(source)
+                .build()
+        }
     }
     var loadFailed by remember(imageModel) { mutableStateOf(false) }
     val ratio = (media.aspectRatio ?: 1.55f).coerceIn(0.75f, 2.4f)
@@ -159,6 +171,7 @@ private fun QuestionImage(
     ) {
         AsyncImage(
             model = imageModel,
+            imageLoader = imageLoader,
             contentDescription = media.altText?.takeIf { it.isNotBlank() },
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Fit,
@@ -184,10 +197,12 @@ private fun resolveImageModel(context: Context, uri: String?): Any? {
     if (!value.startsWith("asset://", ignoreCase = true)) return value
 
     val assetId = value.substringAfter("asset://")
-    if (!assetId.matches(Regex("[A-Za-z0-9._-]{1,128}"))) return null
+    if (!assetId.matches(Regex("(?:[A-Za-z0-9._-]{1,64}/)?[A-Za-z0-9._-]{1,128}"))) return null
     val root = File(context.filesDir, "quiz_media").canonicalFile
     val candidate = File(root, assetId).canonicalFile
-    return candidate.takeIf { it.parentFile == root && it.isFile }
+    return candidate.takeIf {
+        (it.parentFile == root || it.parentFile?.parentFile == root) && it.isFile
+    }
 }
 
 @Composable

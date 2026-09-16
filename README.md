@@ -57,8 +57,8 @@ So I built **Pozix**: a lightweight, distraction-free study tool where you simpl
 - **BouncyContainer overscroll**: Custom logarithmic resistance and spring rebound physics (`NestedScrollConnection`) when dragging to the edges of lists and bottom sheets.
 - **14 curated typography styles**: Switch between System Default, EB Garamond, Space Mono, Comic Relief, Ubuntu, Libertinus Serif, Alata, Aleo, Changa, Tenor Sans, and more.
 
-### 🔒 100% Offline-First & Private
-- All quiz sets, bookmarks, and test history are stored locally in an encrypted Room SQLite database on your device.
+### 🔒 Offline-First & Private
+- Quiz sets, progress, and chat history stay on-device in Jetpack DataStore. Saved API keys and cloud-backup tokens are encrypted with an Android Keystore key before persistence.
 - No mandatory telemetry, no analytics, no third-party tracking.
 - Optional cloud backup via Cloudflare Workers & D1 if you want multi-device sync.
 
@@ -88,11 +88,7 @@ Pozix supports single-choice and true/false question types. Here is a minimal JS
     {
       "type": "true_false",
       "question": "Photosynthesis converts light energy into chemical energy stored in glucose.",
-      "options": [
-        "True",
-        "False"
-      ],
-      "correctIndex": 0,
+      "correctAnswer": true,
       "explanation": "Photosynthesis produces glucose and oxygen from carbon dioxide and water using sunlight."
     }
   ]
@@ -108,7 +104,7 @@ Built simply and cleanly with modern Android architecture:
 - **Language**: Kotlin 2.0
 - **UI Toolkit**: Jetpack Compose + Material 3 (Edge-to-Edge window insets)
 - **Architecture**: MVVM with Unidirectional Data Flow (UDF) & StateFlow
-- **Database**: Room Database (SQLite) with atomic operations
+- **Persistence**: Jetpack DataStore Preferences (large content is bounded before import)
 - **Settings**: Jetpack DataStore Preferences
 - **Math Engine**: KaTeX & Markdown rich content parser
 - **Networking**: OkHttp3 with streaming SSE support
@@ -120,9 +116,9 @@ Built simply and cleanly with modern Android architecture:
 
 Download the signed release APK directly from the [Releases](https://github.com/dev-hkm/Pozix/releases) page:
 
-👉 **[Download Latest APK (v1.7.1)](https://github.com/dev-hkm/Pozix/releases/latest)**
+👉 **[Download Latest APK (v1.8.11)](https://github.com/dev-hkm/Pozix/releases/latest)**
 
-*Compatible with Android 8.0 (API 26) through Android 15 (API 35).*
+*Compatible with Android 7.0 (API 24) and newer.*
 
 ---
 

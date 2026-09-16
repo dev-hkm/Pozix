@@ -61,6 +61,9 @@ object QuizJsonParser {
                                 return QuizValidationResult.Error("Question $questionNumber: option ${optIndex + 1} is empty")
                             }
                         }
+                        if (options.map { it.trim().lowercase() }.distinct().size != options.size) {
+                            return QuizValidationResult.Error("Question $questionNumber: options must be distinct")
+                        }
                         
                         // Validate correctIndex
                         val correctIndex = rawQuestion.correctIndex
@@ -88,7 +91,10 @@ object QuizJsonParser {
                         // Validate correctAnswer
                         val boolAnswer = try {
                             rawQuestion.correctAnswer?.jsonPrimitive?.booleanOrNull
-                                ?: rawQuestion.correctAnswer?.jsonPrimitive?.content?.toBooleanStrictOrNull()
+                                ?: rawQuestion.correctAnswer?.jsonPrimitive?.content
+                                    ?.trim()
+                                    ?.lowercase()
+                                    ?.toBooleanStrictOrNull()
                         } catch (_: Exception) {
                             null
                         }

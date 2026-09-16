@@ -65,7 +65,7 @@ class YoutubeTranscriptClient(
                 if (!response.isSuccessful) throw parseError(response.code, raw)
                 val payload = runCatching { json.decodeFromString<GatewayResponse>(raw) }
                     .getOrElse { throw YoutubeTranscriptException("INVALID_RESPONSE", "Transcript service returned invalid data") }
-                if (payload.videoId != link.videoId) {
+                if (payload.videoId != null && payload.videoId != link.videoId) {
                     throw YoutubeTranscriptException("INVALID_RESPONSE", "Transcript service returned the wrong video")
                 }
                 val segments = payload.segments.mapIndexedNotNull { index, item ->

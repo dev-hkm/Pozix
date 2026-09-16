@@ -170,6 +170,7 @@ fun ImportScreen(
     var showLinkImport by remember { mutableStateOf(false) }
 
     val pendingExternalJson by SharedImportManager.pendingJson.collectAsState()
+    val pendingExternalError by SharedImportManager.pendingError.collectAsState()
     LaunchedEffect(pendingExternalJson) {
         val json = pendingExternalJson
         if (!json.isNullOrBlank()) {
@@ -178,6 +179,12 @@ fun ImportScreen(
             coroutineScope.launch {
                 scrollState.animateScrollTo(scrollState.maxValue)
             }
+        }
+    }
+    LaunchedEffect(pendingExternalError) {
+        pendingExternalError?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            SharedImportManager.pendingError.value = null
         }
     }
 

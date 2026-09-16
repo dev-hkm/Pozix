@@ -56,10 +56,10 @@ fun PozixApp(
     }
 
     val pendingExternalJson by SharedImportManager.pendingJson.collectAsState()
-    LaunchedEffect(pendingExternalJson) {
-        if (!pendingExternalJson.isNullOrBlank()) {
+    val pendingExternalError by SharedImportManager.pendingError.collectAsState()
+    LaunchedEffect(pendingExternalJson, pendingExternalError) {
+        if (!pendingExternalJson.isNullOrBlank() || !pendingExternalError.isNullOrBlank()) {
             navController.navigate(Screen.Import.route) {
-                popUpTo(Screen.Library.route) { inclusive = false }
                 launchSingleTop = true
             }
         }

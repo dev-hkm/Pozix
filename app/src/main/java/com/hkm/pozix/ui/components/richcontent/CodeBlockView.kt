@@ -534,7 +534,7 @@ private fun HtmlLivePreview(
                         @Suppress("DEPRECATION")
                         allowUniversalAccessFromFileURLs = false
                         cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
-                        mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                        mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         loadsImagesAutomatically = true
                         useWideViewPort = true
                         loadWithOverviewMode = true
@@ -545,6 +545,8 @@ private fun HtmlLivePreview(
                         override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean = true
 
                         override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
+                            if (webViewRef === view) webViewRef = null
+                            view?.let { (it.parent as? android.view.ViewGroup)?.removeView(it); it.destroy() }
                             return true
                         }
 

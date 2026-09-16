@@ -73,6 +73,7 @@ sealed class ImportStatus {
 class AIChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private val providerRepository = AiProviderRepository(application)
+    private var attachmentOperations = 0
     private val savedQuizRepository = SavedQuizRepository(application)
     private val quizRepository = QuizRepository(application)
     private val historyRepository = AiChatHistoryRepository(application)
@@ -88,6 +89,10 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
 
     private var currentGenerationJob: Job? = null
     private var generationVersion = 0L
+    private companion object {
+        const val MAX_PENDING_ATTACHMENTS = 10
+        const val MAX_PENDING_ATTACHMENT_BYTES = 25L * 1024L * 1024L
+    }
     private var pendingSnapshot: (() -> List<ChatMessage>)? = null
 
     private val systemInstruction = """
@@ -221,6 +226,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
 
     fun startNewChat(newId: String = UUID.randomUUID().toString()) {
         cancelGeneration()
+        clearPendingAttachments()
         chatSelection.edit().putString("session_id", newId).apply()
         _uiState.value = _uiState.value.copy(
             currentSessionId = newId,
@@ -235,6 +241,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         cancelGeneration()
         val session = _uiState.value.sessions.find { it.id == sessionId }
         if (session != null) {
+            clearPendingAttachments()
             chatSelection.edit().putString("session_id", session.id).apply()
             _uiState.value = _uiState.value.copy(
                 currentSessionId = session.id,
@@ -271,34 +278,59 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
     fun attachMultipleUris(uris: List<Uri>, isExplicitImage: Boolean = false) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isAttaching = true)
-            val newAttachments = mutableListOf<ChatAttachment>()
-            for (uri in uris) {
-                val attachment = ChatAttachmentHelper.processUri(getApplication(), uri, isExplicitImage)
-                if (attachment != null) {
-                    newAttachments.add(attachment)
-                } else {
-                    _uiState.value = _uiState.value.copy(importStatus = ImportStatus.Error(getApplication<Application>().getString(R.string.ai_document_unreadable)))
+            val targetSessionId = _uiState.value.currentSessionId
+            beginAttachmentOperation()
+            try {
+                val newAttachments = mutableListOf<ChatAttachment>()
+                val availableSlots = (MAX_PENDING_ATTACHMENTS - _uiState.value.pendingAttachments.size).coerceAtLeast(0)
+                if (uris.size > availableSlots) {
+                    _uiState.value = _uiState.value.copy(importStatus = ImportStatus.Error(getApplication<Application>().getString(R.string.ai_attachment_limit_count)))
                 }
+                var totalBytes = _uiState.value.pendingAttachments.sumOf { it.sizeBytes }
+                for (uri in uris.take(availableSlots)) {
+                    val attachment = ChatAttachmentHelper.processUri(getApplication(), uri, isExplicitImage)
+                    if (attachment != null && totalBytes + attachment.sizeBytes <= MAX_PENDING_ATTACHMENT_BYTES) {
+                        newAttachments.add(attachment)
+                        totalBytes += attachment.sizeBytes
+                    } else if (attachment != null) {
+                        ChatAttachmentHelper.deleteAttachment(attachment.localPath)
+                        _uiState.value = _uiState.value.copy(importStatus = ImportStatus.Error(getApplication<Application>().getString(R.string.ai_attachment_limit_size)))
+                    } else {
+                        _uiState.value = _uiState.value.copy(importStatus = ImportStatus.Error(getApplication<Application>().getString(R.string.ai_document_unreadable)))
+                    }
+                }
+                if (_uiState.value.currentSessionId == targetSessionId) {
+                    _uiState.value = _uiState.value.copy(
+                        pendingAttachments = _uiState.value.pendingAttachments + newAttachments
+                    )
+                } else {
+                    newAttachments.forEach { ChatAttachmentHelper.deleteAttachment(it.localPath) }
+                }
+            } finally {
+                _uiState.value = _uiState.value.copy(isAttaching = endAttachmentOperation())
             }
-            _uiState.value = _uiState.value.copy(
-                pendingAttachments = _uiState.value.pendingAttachments + newAttachments,
-                isAttaching = false
-            )
         }
     }
 
     fun attachUri(uri: Uri, isExplicitImage: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isAttaching = true)
-            val attachment = ChatAttachmentHelper.processUri(getApplication(), uri, isExplicitImage)
-            _uiState.value = if (attachment != null) {
-                _uiState.value.copy(
-                    pendingAttachments = _uiState.value.pendingAttachments + attachment,
-                    isAttaching = false
-                )
-            } else {
-                _uiState.value.copy(isAttaching = false, importStatus = ImportStatus.Error(getApplication<Application>().getString(R.string.ai_document_unreadable)))
+            val targetSessionId = _uiState.value.currentSessionId
+            beginAttachmentOperation()
+            try {
+                val attachment = ChatAttachmentHelper.processUri(getApplication(), uri, isExplicitImage)
+                val canAdd = attachment != null &&
+                    _uiState.value.pendingAttachments.size < MAX_PENDING_ATTACHMENTS &&
+                    _uiState.value.pendingAttachments.sumOf { it.sizeBytes } + attachment.sizeBytes <= MAX_PENDING_ATTACHMENT_BYTES
+                _uiState.value = if (canAdd && _uiState.value.currentSessionId == targetSessionId) {
+                    _uiState.value.copy(pendingAttachments = _uiState.value.pendingAttachments + attachment!!)
+                } else if (attachment != null) {
+                    ChatAttachmentHelper.deleteAttachment(attachment.localPath)
+                    _uiState.value.copy(importStatus = ImportStatus.Error(getApplication<Application>().getString(R.string.ai_attachment_limit_size)))
+                } else {
+                    _uiState.value.copy(importStatus = ImportStatus.Error(getApplication<Application>().getString(R.string.ai_document_unreadable)))
+                }
+            } finally {
+                _uiState.value = _uiState.value.copy(isAttaching = endAttachmentOperation())
             }
         }
     }
@@ -309,6 +341,16 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.value = _uiState.value.copy(
             pendingAttachments = _uiState.value.pendingAttachments.filter { it.id != attachmentId }
         )
+    }
+
+    private fun beginAttachmentOperation() {
+        attachmentOperations++
+        _uiState.value = _uiState.value.copy(isAttaching = true)
+    }
+
+    private fun endAttachmentOperation(): Boolean {
+        attachmentOperations = (attachmentOperations - 1).coerceAtLeast(0)
+        return attachmentOperations > 0
     }
 
     fun clearPendingAttachments() {
@@ -473,7 +515,7 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 // Only an explicitly enabled quiz tool may hide JSON transport. A
                 // normal answer that happens to mention a schema must remain visible.
-                val generatingQuiz = (AiQuizOutput.looksLikeQuizArtifact(answer) ||
+                val generatingQuiz = expectsQuiz && (AiQuizOutput.looksLikeQuizArtifact(answer) ||
                     Regex("\\\"title\\\"\\s*:").containsMatchIn(answer))
                 val displayAnswer = AiQuizOutput.visibleWhileStreaming(answer, generatingQuiz)
                 return ChatMessage(role = "model", text = displayAnswer, reasoning = reasoning,
@@ -504,7 +546,9 @@ class AIChatViewModel(application: Application) : AndroidViewModel(application) 
                         preferredYoutubeLanguages()
                     ).getOrElse { error -> throw error }
                     val sourceReference = runCatching {
-                        YoutubeTranscriptStore.save(app, sourceTranscript!!)
+                        withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            YoutubeTranscriptStore.save(app, sourceTranscript!!)
+                        }
                     }.getOrElse {
                         throw YoutubeTranscriptException(
                             "TRANSCRIPT_STORAGE_ERROR",

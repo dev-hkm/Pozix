@@ -9,6 +9,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import coil3.compose.AsyncImage
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -123,6 +124,7 @@ fun AIChatScreen(
     onOpenLecture: (() -> Unit)? = null,
     viewModel: AIChatViewModel = viewModel(),
     initialPrompt: String? = null,
+    onInitialPromptConsumed: () -> Unit = {},
     showBackButton: Boolean = true,
     onOpenTemplates: (() -> Unit)? = null
 ) {
@@ -130,7 +132,7 @@ fun AIChatScreen(
     val renderEntries = com.hkm.pozix.ui.components.richcontent.rememberChatEntries(uiState.messages, uiState.isLoading)
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val listState = rememberLazyListState()
+    val listState = remember(uiState.currentSessionId) { androidx.compose.foundation.lazy.LazyListState() }
     val scope = rememberCoroutineScope()
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
@@ -152,6 +154,7 @@ fun AIChatScreen(
     LaunchedEffect(initialPrompt) {
         if (!initialPrompt.isNullOrBlank()) {
             textInput = initialPrompt
+            onInitialPromptConsumed()
         }
     }
 
@@ -216,6 +219,10 @@ fun AIChatScreen(
     val lastMessageTextLength = uiState.messages.lastOrNull()?.text?.length ?: 0
     val lastMessageReasoningLength = uiState.messages.lastOrNull()?.reasoning?.length ?: 0
     var userScrolledUp by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.currentSessionId) {
+        userScrolledUp = false
+        listState.scrollToItem(0)
+    }
 
     // Accurately detect whether the user is genuinely at the bottom edge of the last item
     val isScrolledToBottom by remember {
@@ -818,23 +825,14 @@ fun DeepSeekStyleFloatingInputCard(
                                         .clip(RoundedCornerShape(14.dp))
                                         .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
                                 ) {
-                                    val bitmap = remember(item.localPath) {
-                                        try {
-                                            BitmapFactory.decodeFile(item.localPath)?.asImageBitmap()
-                                        } catch (_: Exception) {
-                                            null
-                                        }
-                                    }
-                                    if (bitmap != null) {
-                                        Image(
-                                            bitmap = bitmap,
-                                            contentDescription = item.name,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clickable { onPreviewImage(item.localPath) },
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    }
+                                    AsyncImage(
+                                        model = File(item.localPath),
+                                        contentDescription = item.name,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clickable { onPreviewImage(item.localPath) },
+                                        contentScale = ContentScale.Crop
+                                    )
                                     Surface(
                                         onClick = { onRemoveAttachment(item.id) },
                                         shape = CircleShape,
@@ -2469,14 +2467,6 @@ fun FullImagePreviewDialog(
     filePath: String,
     onDismiss: () -> Unit
 ) {
-    val bitmap = remember(filePath) {
-        try {
-            BitmapFactory.decodeFile(filePath)?.asImageBitmap()
-        } catch (_: Exception) {
-            null
-        }
-    }
-
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(22.dp),
@@ -2488,23 +2478,15 @@ fun FullImagePreviewDialog(
                 modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (bitmap != null) {
-                    Image(
-                        bitmap = bitmap,
-                        contentDescription = stringResource(R.string.ai_chat_view_image),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 440.dp)
-                            .clip(RoundedCornerShape(16.dp)),
-                        contentScale = ContentScale.Fit
-                    )
-                } else {
-                    Text(
-                        text = stringResource(R.string.ai_chat_cannot_load_image),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                AsyncImage(
+                    model = File(filePath),
+                    contentDescription = stringResource(R.string.ai_chat_view_image),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 440.dp)
+                        .clip(RoundedCornerShape(16.dp)),
+                    contentScale = ContentScale.Fit
+                )
                 Spacer(modifier = Modifier.height(14.dp))
                 Button(
                     onClick = onDismiss,

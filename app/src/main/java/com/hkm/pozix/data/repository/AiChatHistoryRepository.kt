@@ -11,6 +11,8 @@ import com.hkm.pozix.data.model.ChatMessage
 import com.hkm.pozix.data.model.ChatSession
 import com.hkm.pozix.R
 import com.hkm.pozix.util.ChatImageStorage
+import com.hkm.pozix.util.ChatAttachmentHelper
+import com.hkm.pozix.util.YoutubeTranscriptStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOn
@@ -118,8 +120,17 @@ class AiChatHistoryRepository(private val context: Context) {
                 msg.imagePaths.forEach { path ->
                     ChatImageStorage.deleteImage(path)
                 }
+                msg.attachments.forEach { attachment ->
+                    ChatAttachmentHelper.deleteAttachment(attachment.localPath)
+                }
             }
             list.removeAll { it.id == sessionId }
+            val stillReferencedTranscripts = list.flatMap { session ->
+                session.messages.mapNotNull { it.youtubeSource?.transcriptPath }
+            }.toSet()
+            target?.messages?.mapNotNull { it.youtubeSource }?.forEach { source ->
+                if (source.transcriptPath !in stillReferencedTranscripts) YoutubeTranscriptStore.delete(source)
+            }
             preferences[SESSIONS_KEY] = json.encodeToString(list)
         }
     }
@@ -132,6 +143,10 @@ class AiChatHistoryRepository(private val context: Context) {
                     msg.imagePaths.forEach { path ->
                         ChatImageStorage.deleteImage(path)
                     }
+                    msg.attachments.forEach { attachment ->
+                        ChatAttachmentHelper.deleteAttachment(attachment.localPath)
+                    }
+                    msg.youtubeSource?.let(YoutubeTranscriptStore::delete)
                 }
             }
             preferences.remove(SESSIONS_KEY)

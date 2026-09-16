@@ -82,7 +82,10 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
             } else {
                 raw
             }
-            _uiState.value = _uiState.value.copy(jsonText = formatted)
+            _uiState.value = _uiState.value.copy(
+                jsonText = formatted,
+                validationState = ValidationState.Idle
+            )
             true
         } catch (_: Exception) {
             false
@@ -184,8 +187,8 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
         try {
             val imported = cloudApi.loadShare(_uiState.value.shareLink).getOrThrow()
             updateJsonText(imported)
-            validateJson()
-            _uiState.value = when (_uiState.value.validationState) {
+            validateJson { validationState ->
+                _uiState.value = when (validationState) {
                 is ValidationState.Success -> _uiState.value.copy(
                     shareStatus = getApplication<Application>().getString(R.string.import_shared_success),
                     shareStatusIsError = false
@@ -195,6 +198,7 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
                     shareStatusIsError = true
                 )
                 else -> _uiState.value
+                }
             }
         } catch (error: Exception) {
             val context = getApplication<Application>()
@@ -215,7 +219,7 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
     
-    fun validateJson() {
+    fun validateJson(onValidated: ((ValidationState) -> Unit)? = null) {
         val jsonText = _uiState.value.jsonText
         if (jsonText.isBlank()) {
             _uiState.value = _uiState.value.copy(
@@ -223,14 +227,16 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
                     getApplication<Application>().getString(R.string.import_empty_json)
                 )
             )
+            onValidated?.invoke(_uiState.value.validationState)
             return
         }
         
         _uiState.value = _uiState.value.copy(validationState = ValidationState.Validating)
         
-        val result = QuizJsonParser.parseAndValidate(jsonText)
-        
-        _uiState.value = when (result) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.Default) { QuizJsonParser.parseAndValidate(jsonText) }
+            if (_uiState.value.jsonText != jsonText) return@launch
+            _uiState.value = when (result) {
             is QuizValidationResult.Success -> {
                 _uiState.value.copy(
                     validationState = ValidationState.Success(result),
@@ -240,6 +246,8 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
             is QuizValidationResult.Error -> {
                 _uiState.value.copy(validationState = ValidationState.Error(result.message))
             }
+            }
+            onValidated?.invoke(_uiState.value.validationState)
         }
     }
     
@@ -256,6 +264,7 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
     }
     
     fun saveAndLoadQuiz(onSuccess: () -> Unit) {
+        if (_uiState.value.isLoading) return
         val validationState = _uiState.value.validationState
         if (validationState !is ValidationState.Success) {
             return
@@ -285,6 +294,8 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
                 
                 hideSaveDialog()
                 onSuccess()
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(fileError = "Could not save quiz")
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
@@ -292,6 +303,7 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
     }
     
     fun saveOnlyQuiz(onSuccess: () -> Unit) {
+        if (_uiState.value.isLoading) return
         val validationState = _uiState.value.validationState
         if (validationState !is ValidationState.Success) {
             return
@@ -316,6 +328,8 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
                 
                 hideSaveDialog()
                 onSuccess()
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(fileError = "Could not save quiz")
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
@@ -323,6 +337,7 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
     }
     
     fun loadQuizWithoutSaving(onSuccess: () -> Unit) {
+        if (_uiState.value.isLoading) return
         val validationState = _uiState.value.validationState
         if (validationState !is ValidationState.Success) {
             return
@@ -336,6 +351,8 @@ class ImportViewModel(application: Application) : AndroidViewModel(application) 
                 val tempQuizSetId = "temp_${UUID.randomUUID()}"
                 quizRepository.saveQuizJson(_uiState.value.jsonText, tempQuizSetId)
                 onSuccess()
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(fileError = "Could not load quiz")
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }

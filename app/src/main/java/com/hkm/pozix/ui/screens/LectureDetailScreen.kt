@@ -49,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -91,6 +92,10 @@ fun LectureDetailScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val lectureData by LectureManager.currentLecture.collectAsState()
+
+    DisposableEffect(Unit) {
+        onDispose { LectureManager.clear() }
+    }
 
     BackHandler {
         onBack()

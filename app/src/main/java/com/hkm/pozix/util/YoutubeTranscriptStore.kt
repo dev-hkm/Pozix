@@ -5,7 +5,7 @@ import com.hkm.pozix.data.model.YoutubeSourceReference
 import com.hkm.pozix.data.model.YoutubeTranscript
 import java.io.File
 import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
+import java.util.UUID
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -21,13 +21,20 @@ object YoutubeTranscriptStore {
 
     fun save(context: Context, transcript: YoutubeTranscript): YoutubeSourceReference {
         val directory = File(context.filesDir, DIRECTORY).apply { mkdirs() }
-        val filename = sha256("${transcript.videoId}|${transcript.language}") + ".json"
+        // A source reference belongs to one chat turn.  Reusing a deterministic
+        // filename lets a later fetch overwrite history that is still referenced
+        // by an older session.
+        val filename = "${UUID.randomUUID()}.json"
         val target = File(directory, filename)
         val temporary = File(directory, "$filename.tmp")
-        temporary.writeText(json.encodeToString(transcript), StandardCharsets.UTF_8)
-        check(temporary.length() <= MAX_BYTES) { "Transcript is too large to store safely" }
-        check(temporary.renameTo(target) || temporary.copyTo(target, overwrite = true).let { temporary.delete(); true }) {
-            "Could not persist transcript"
+        try {
+            temporary.writeText(json.encodeToString(transcript), StandardCharsets.UTF_8)
+            check(temporary.length() <= MAX_BYTES) { "Transcript is too large to store safely" }
+            check(temporary.renameTo(target) || temporary.copyTo(target, overwrite = true).let { temporary.delete(); true }) {
+                "Could not persist transcript"
+            }
+        } finally {
+            temporary.delete()
         }
         return YoutubeSourceReference(
             videoId = transcript.videoId,
@@ -79,11 +86,5 @@ segments:
 $body
 [/POZIX_YOUTUBE_SOURCE]
 """.trimIndent()
-    }
-
-    private fun sha256(value: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(value.toByteArray(StandardCharsets.UTF_8))
-        return digest.joinToString("") { byte -> "%02x".format(byte) }
     }
 }

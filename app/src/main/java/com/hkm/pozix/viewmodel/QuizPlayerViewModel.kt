@@ -40,6 +40,7 @@ sealed class QuizState {
         val currentTextAnswer: String? = null
     ) : QuizState()
     data class Finished(
+        val quizSetId: String,
         val quizTitle: String,
         val score: Int,
         val totalQuestions: Int,
@@ -69,7 +70,6 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
     
     init {
         loadQuiz()
-        startTimer()
     }
     
     private fun startTimer() {
@@ -81,6 +81,8 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                 if (currentState is QuizState.Playing) {
                     val elapsed = System.currentTimeMillis() - startTimeMillis
                     _quizState.value = currentState.copy(elapsedTimeMillis = elapsed)
+                } else {
+                    break
                 }
             }
         }
@@ -170,6 +172,9 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                     )
                 }
                 savedQuizRepository.updateLastUsedTimestamp(quizSetId)
+                // loadQuiz is asynchronous. Starting this before the Playing
+                // state exists can make the timer exit permanently on Loading.
+                startTimer()
             } else {
                 _quizState.value = QuizState.Error
             }
@@ -225,7 +230,7 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
             isAnswered = true,
             isCorrect = isCorrect,
             score = if (isCorrect) currentState.score + 1 else currentState.score,
-            showExplanation = showExplanationSetting && currentQuestion.explanation != null,
+            showExplanation = showExplanationSetting && !currentQuestion.explanation.isNullOrBlank(),
             answeredQuestions = updatedAnsweredQuestions,
             selectedAnswers = currentState.selectedAnswers + (currentState.currentQuestionIndex to answerIndex)
         )
@@ -291,6 +296,7 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
             }
             
             _quizState.value = QuizState.Finished(
+                quizSetId = currentState.quizSetId,
                 quizTitle = currentState.quizTitle,
                 score = currentState.score,
                 totalQuestions = currentState.questions.size,
@@ -311,11 +317,9 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
             if (currentState is QuizState.Playing) {
                 progressRepository.clearProgressForQuiz(currentState.quizSetId)
             } else if (currentState is QuizState.Finished) {
-                val quizSetId = quizRepository.getQuizSetId().first() ?: "temp_quiz_${System.currentTimeMillis()}"
-                progressRepository.clearProgressForQuiz(quizSetId)
+                progressRepository.clearProgressForQuiz(currentState.quizSetId)
             }
             loadQuiz()
-            startTimer()
         }
     }
 
@@ -327,17 +331,36 @@ class QuizPlayerViewModel(application: Application) : AndroidViewModel(applicati
                 onComplete()
             }
         } else {
-            saveProgress()
-            onComplete()
+            viewModelScope.launch {
+                saveProgressImmediately(currentState)
+                onComplete()
+            }
         }
     }
 
     fun previousQuestion() {
         val state = _quizState.value as? QuizState.Playing ?: return
         val previous = state.currentQuestionIndex - 1
-        if (previous !in state.selectedAnswers && previous !in state.userTextAnswers) return
+        if (previous !in state.questions.indices) return
         _quizState.value = QuizReviewNavigation.show(state, previous, showExplanationSetting)
         saveProgress()
+    }
+
+    private suspend fun saveProgressImmediately(currentState: QuizState.Playing) {
+        val progress = QuizProgress(
+            quizSetId = currentState.quizSetId,
+            currentQuestionIndex = currentState.currentQuestionIndex,
+            score = currentState.score,
+            answeredQuestions = currentState.answeredQuestions,
+            elapsedTimeMillis = currentState.elapsedTimeMillis,
+            totalQuestions = currentState.questions.size,
+            isCompleted = false,
+            selectedAnswers = currentState.selectedAnswers,
+            userTextAnswers = currentState.userTextAnswers,
+            questionSnapshot = currentState.questions
+        )
+        progressRepository.saveProgressForQuiz(currentState.quizSetId, progress)
+        savedQuizRepository.updateLastUsedTimestamp(currentState.quizSetId)
     }
     
     override fun onCleared() {

@@ -32,6 +32,8 @@ class AiQuizOutputTest {
         assertFalse(AiQuizOutput.requested("Review my completed quiz. Do not create a new quiz; explain my mistakes."))
         assertTrue(AiQuizOutput.requested("Tạo cho tôi 200 câu hỏi Python"))
         assertTrue(AiQuizOutput.requested("tôi muốn học Python cơ bản, tạo cho tôi 1 khoá, tầm 15 câu trước đi"))
+        assertTrue(AiQuizOutput.requested("Tạo quiz để review các lỗi tôi vừa làm"))
+        assertTrue(AiQuizOutput.requested("Giải thích ngắn rồi tạo cho tôi 10 câu hỏi"))
         assertFalse(AiQuizOutput.requested("đừng tạo quiz"))
         assertFalse(AiQuizOutput.requested("Xin chào"))
         assertFalse(AiQuizOutput.requested("Giải thích câu hỏi trong quiz này"))

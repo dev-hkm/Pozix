@@ -441,7 +441,9 @@ fun ExamPlayingContent(
 ) {
     val context = LocalContext.current
     val totalQuestions = state.questions.size
-    val answeredCount = state.answers.size
+    val answeredCount = state.questions.indices.count {
+        it in state.answers || !state.textAnswers[it].isNullOrBlank()
+    }
     val currentOnNext by rememberUpdatedState(onNext)
     val currentOnPrevious by rememberUpdatedState(onPrevious)
     val questionScroll = rememberScrollState()
@@ -950,13 +952,17 @@ fun ExamPlayingContent(
 
         if (state.showResumeConfirm) {
             AlertDialog(
-                onDismissRequest = {},
+                // Back must not trap the user behind a resume decision. Treat it
+                // as the safe pause-and-exit path so the session remains resumable.
+                onDismissRequest = onSaveAndExit,
                 title = { Text(stringResource(R.string.exam_resume_title)) },
                 text = {
                     Text(
                         stringResource(
                             R.string.exam_resume_message,
-                            state.answers.size
+                            state.questions.indices.count { index ->
+                                index in state.answers || !state.textAnswers[index].isNullOrBlank()
+                            }
                         )
                     )
                 },
@@ -982,7 +988,7 @@ fun ExamPlayingContent(
 fun ExamTimerBar(remainingMillis: Long, totalMillis: Long, isWarning: Boolean) {
     val minutes = (remainingMillis / 1000) / 60
     val seconds = (remainingMillis / 1000) % 60
-    val timeText = String.format("%02d:%02d", minutes, seconds)
+    val timeText = String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds)
     val progress = (remainingMillis.toFloat() / totalMillis.coerceAtLeast(1)).coerceIn(0f, 1f)
 
     val infiniteTransition = rememberInfiniteTransition(label = "timerPulse")

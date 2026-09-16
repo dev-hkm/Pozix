@@ -25,6 +25,38 @@ describe("cloud backup contracts", () => {
     expect(validateSharePayload({ quizJson: "x".repeat(MAX_SHARE_PAYLOAD_BYTES + 1) }).ok).toBe(false);
   });
 
+  it("accepts short-answer questions that the Android client can import", () => {
+    expect(validateSharePayload({
+      quizJson: JSON.stringify({
+        title: "Short answer",
+        questions: [{
+          type: "short_answer",
+          question: "2 + 2 = ?",
+          correctAnswer: "4",
+          acceptedAnswers: ["bốn"]
+        }]
+      })
+    }).ok).toBe(true);
+  });
+
+  it("matches Android parser aliases and boolean normalization", () => {
+    expect(validateSharePayload({
+      quizJson: JSON.stringify({
+        title: "Aliases",
+        questions: [
+          { type: "true_false", question: "Ready?", correctAnswer: " TRUE " },
+          { type: "fill_in", question: "Answer", correctAnswer: "ok" }
+        ]
+      })
+    }).ok).toBe(true);
+    expect(validateSharePayload({
+      quizJson: JSON.stringify({
+        title: "Duplicate options",
+        questions: [{ type: "single_choice", question: "Pick", options: ["Same", " same "], correctIndex: 0 }]
+      })
+    }).ok).toBe(false);
+  });
+
   it("requires a bounded verifier, salt, and ciphertext for backups", () => {
     const valid = {
       verifier: "v".repeat(43),

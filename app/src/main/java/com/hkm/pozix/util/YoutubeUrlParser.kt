@@ -1,6 +1,6 @@
 package com.hkm.pozix.util
 
-import android.net.Uri
+import java.net.URI
 
 /** Parses one supported YouTube video URL without accepting playlists or channels as sources. */
 object YoutubeUrlParser {
@@ -31,7 +31,7 @@ object YoutubeUrlParser {
     fun containsYoutubeHost(text: String): Boolean {
         return urlPattern.findAll(text).any { candidate ->
             runCatching {
-                val host = Uri.parse(candidate.value).host?.lowercase()
+                val host = URI(candidate.value).host?.lowercase()
                 host != null && host in supportedHosts
             }
                 .getOrDefault(false)
@@ -40,17 +40,18 @@ object YoutubeUrlParser {
 
     fun parse(rawUrl: String): Link? {
         val cleanUrl = rawUrl.trim().trimEnd('.', ',', '!', '?', ';', ':', ')', ']', '}')
-        val uri = runCatching { Uri.parse(cleanUrl) }.getOrNull() ?: return null
+        val uri = runCatching { URI(cleanUrl) }.getOrNull() ?: return null
         if (!uri.scheme.equals("https", true) && !uri.scheme.equals("http", true)) return null
         val host = uri.host?.lowercase() ?: return null
         if (host !in supportedHosts) return null
 
-        val firstPathSegment = uri.pathSegments.firstOrNull()?.lowercase()
+        val pathSegments = uri.path.orEmpty().trim('/').split('/').filter { it.isNotBlank() }
+        val firstPathSegment = pathSegments.firstOrNull()?.lowercase()
         val id = when {
-            host == "youtu.be" -> uri.pathSegments.firstOrNull()
-            uri.path.equals("/watch", true) -> uri.getQueryParameter("v")
-            firstPathSegment != null && firstPathSegment in setOf("shorts", "live", "embed") ->
-                uri.pathSegments.getOrNull(1)
+            host == "youtu.be" -> pathSegments.firstOrNull()
+            uri.path?.trimEnd('/').equals("/watch", true) -> queryParameter(uri.rawQuery, "v")
+            firstPathSegment != null && firstPathSegment in setOf("shorts", "live", "embed", "v") ->
+                pathSegments.getOrNull(1)
             else -> null
         }?.trim()
 
@@ -67,4 +68,9 @@ object YoutubeUrlParser {
             .replace(Regex("\\s{2,}"), " ")
             .trim()
     }
+
+    private fun queryParameter(query: String?, key: String): String? = query
+        ?.split('&')
+        ?.firstOrNull { it.substringBefore('=') == key }
+        ?.substringAfter('=', "")
 }

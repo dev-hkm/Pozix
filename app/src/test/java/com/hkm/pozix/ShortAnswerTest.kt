@@ -32,6 +32,11 @@ class ShortAnswerTest {
         assertTrue(ShortAnswerMatcher.isMatch("1/2", "0.5"))
         assertTrue(ShortAnswerMatcher.isMatch("3/4", "0.75"))
         assertTrue(ShortAnswerMatcher.isMatch("0.5", "1/2"))
+
+        // A comma followed by three digits is a thousands separator, not a decimal mark.
+        assertTrue(ShortAnswerMatcher.isMatch("1,000", "1000"))
+        assertFalse(ShortAnswerMatcher.isMatch("1,000", "1"))
+        assertTrue(ShortAnswerMatcher.isMatch("1000000.5", "1000000.5000005"))
     }
 
     @Test

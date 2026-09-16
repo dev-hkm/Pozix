@@ -117,6 +117,13 @@ class LatexMathParserTest {
     }
 
     @Test
+    fun deeplyNestedMathDoesNotOverflowTheParserStack() {
+        var nested = "x"
+        repeat(100) { nested = "\\frac{$nested}{2}" }
+        assertTrue(LatexMathParser.formatMathString(nested).isNotBlank())
+    }
+
+    @Test
     fun testSuperscriptsAndSubscripts() {
         val exp = LatexMathParser.formatMathString("x^2 + y^2 = z^2")
         assertEquals("x² + y² = z²", exp)

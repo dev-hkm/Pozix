@@ -22,13 +22,13 @@ const shareId = () => crypto.randomUUID().replaceAll("-", "");
 const rateLimited = async (request: Request, env: Env) => {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   const pathname = new URL(request.url).pathname;
-  const group = pathname.startsWith("/v1/shares") ? "shares" : "backups";
+  const group = pathname.startsWith("/v1/youtube/") ? "youtube" : pathname.startsWith("/v1/shares") ? "shares" : "backups";
   const bucket = Math.floor(Date.now() / 60_000);
   const key = `${ip}:${group}:${bucket}`;
   const row = await env.POZIX_BACKUPS.prepare(
     "INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count"
   ).bind(key,(bucket+2)*60_000).first<{count:number}>();
-  return (row?.count || 0) > 60;
+  return (row?.count || 0) > (group === "youtube" ? 10 : 60);
 };
 const cleanupRateLimits = (env: Env) =>
   env.POZIX_BACKUPS.prepare("DELETE FROM rate_limits WHERE expires_at < ?").bind(Date.now()).run();

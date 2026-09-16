@@ -132,8 +132,8 @@ object QuestionMediaSanitizer {
         .toList()
 
     private fun normalizeCoordinate(value: Float): Float? {
-        if (!value.isFinite() || value < -1f || value > 1f) return null
-        return ((value + 1f) / 2f).coerceIn(0f, 1f)
+        if (!value.isFinite() || value !in 0f..1f) return null
+        return value
     }
 
     private fun normalizeGeometryPreset(value: String?): String? {
@@ -155,7 +155,9 @@ object QuestionMediaSanitizer {
         value.startsWith("https://", ignoreCase = true) -> value.length <= 2048
         value.startsWith("http://", ignoreCase = true) -> value.length <= 2048
         value.startsWith("asset://", ignoreCase = true) -> {
-            value.removePrefix("asset://").matches(Regex("[A-Za-z0-9._-]{1,128}"))
+            value.removePrefix("asset://").matches(
+                Regex("(?:[A-Za-z0-9._-]{1,64}/)?[A-Za-z0-9._-]{1,128}")
+            )
         }
         else -> false
     }
