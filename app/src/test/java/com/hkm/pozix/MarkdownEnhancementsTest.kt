@@ -111,6 +111,11 @@ class MarkdownEnhancementsTest {
         // parts: ["lucide", iconName, textArgb, bgArgb]
         assertEquals(4, parts.size)
         assertNotNull(parts[3].toIntOrNull())
-        assertNotEquals(0, parts[3].toInt())
+        // Icon itself is clean and transparent (0) so no protrusion or gap around icon
+        assertEquals(0, parts[3].toInt())
+        // Highlight background is applied to the text via badge_bg annotation
+        val badgeBgAnnotations = parsed.getStringAnnotations("badge_bg", 0, parsed.length)
+        assertTrue(badgeBgAnnotations.isNotEmpty())
+        assertNotEquals(0, badgeBgAnnotations.first().item.toInt())
     }
 }

@@ -45,6 +45,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextOverflow
 
 /**
  * Represents a parsed segment of rich educational STEM content.
@@ -124,24 +130,16 @@ fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString
                 val parts = id.split(":")
                 val iconName = parts.getOrElse(1) { "" }
                 val colorInt = parts.getOrNull(2)?.toIntOrNull() ?: android.graphics.Color.GRAY
-                val bgInt = parts.getOrNull(3)?.toIntOrNull()
-                val hasBadgeBg = bgInt != null && bgInt != 0
-                val bgColor = if (hasBadgeBg) Color(bgInt!!) else Color.Transparent
-
-                val pHeight = if (hasBadgeBg) 1.38.em else 1.15.em
-                val pAlign = if (hasBadgeBg) PlaceholderVerticalAlign.Center else PlaceholderVerticalAlign.TextCenter
 
                 id to InlineTextContent(
                     Placeholder(
                         width = 1.15.em,
-                        height = pHeight,
-                        placeholderVerticalAlign = pAlign
+                        height = 1.15.em,
+                        placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter
                     )
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(if (hasBadgeBg) Modifier.background(bgColor) else Modifier),
+                        modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         LucideIconView(
@@ -154,6 +152,100 @@ fun rememberInlineContentFor(annotated: androidx.compose.ui.text.AnnotatedString
             }
         }
     }
+}
+
+/**
+ * Enhanced Text composable for Pozix rich educational content.
+ * Intelligently renders badges and highlights with rounded corners (drawRoundRect)
+ * behind the text, completely eliminating font metric seams or rectangular sharp corners.
+ */
+@Composable
+fun RichStyledText(
+    text: androidx.compose.ui.text.AnnotatedString,
+    inlineContent: Map<String, InlineTextContent>,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    fontSize: TextUnit = TextUnit.Unspecified,
+    fontWeight: FontWeight? = null,
+    lineHeight: TextUnit = TextUnit.Unspecified,
+    style: TextStyle = MaterialTheme.typography.bodyLarge,
+    textAlign: TextAlign? = null,
+    overflow: TextOverflow = TextOverflow.Clip,
+    softWrap: Boolean = true,
+    maxLines: Int = Int.MAX_VALUE
+) {
+    var layoutResult by remember(text) { mutableStateOf<TextLayoutResult?>(null) }
+    val badgeAnnotations = remember(text) {
+        text.getStringAnnotations("badge_bg", 0, text.length)
+    }
+
+    val badgeDrawModifier = if (badgeAnnotations.isNotEmpty()) {
+        Modifier.drawBehind {
+            val layout = layoutResult ?: return@drawBehind
+            val cornerRadius = CornerRadius(5.dp.toPx(), 5.dp.toPx())
+
+            for (annotation in badgeAnnotations) {
+                val colorInt = annotation.item.toIntOrNull() ?: continue
+                val bgColor = Color(colorInt)
+                val start = annotation.start.coerceIn(0, text.length)
+                val end = annotation.end.coerceIn(0, text.length)
+                if (start >= end || text.isEmpty()) continue
+
+                val safeStart = start.coerceIn(0, text.length - 1)
+                val safeEnd = (end - 1).coerceIn(0, text.length - 1)
+                val startLine = layout.getLineForOffset(safeStart)
+                val endLine = layout.getLineForOffset(safeEnd)
+
+                for (line in startLine..endLine) {
+                    val lineStartOffset = layout.getLineStart(line)
+                    val lineEndOffset = layout.getLineEnd(line)
+
+                    val spanStart = maxOf(start, lineStartOffset)
+                    val spanEnd = minOf(end, lineEndOffset)
+                    if (spanStart >= spanEnd) continue
+
+                    val left = layout.getHorizontalPosition(spanStart, usePrimaryDirection = true)
+                    val right = layout.getHorizontalPosition(spanEnd, usePrimaryDirection = true)
+                    val lineTop = layout.getLineTop(line)
+                    val lineBottom = layout.getLineBottom(line)
+                    val lineH = lineBottom - lineTop
+
+                    // Center the rounded pill vertically on the line
+                    val verticalMargin = (lineH * 0.08f).coerceIn(1.dp.toPx(), 2.5.dp.toPx())
+                    val rectTop = lineTop + verticalMargin
+                    val rectBottom = lineBottom - verticalMargin
+
+                    val rectLeft = minOf(left, right) - 1.5.dp.toPx()
+                    val rectRight = maxOf(left, right) + 1.5.dp.toPx()
+
+                    if (rectRight > rectLeft && rectBottom > rectTop) {
+                        drawRoundRect(
+                            color = bgColor,
+                            topLeft = Offset(rectLeft, rectTop),
+                            size = Size(rectRight - rectLeft, rectBottom - rectTop),
+                            cornerRadius = cornerRadius
+                        )
+                    }
+                }
+            }
+        }
+    } else Modifier
+
+    Text(
+        text = text,
+        inlineContent = inlineContent,
+        modifier = modifier.then(badgeDrawModifier),
+        color = color,
+        fontSize = fontSize,
+        fontWeight = fontWeight,
+        lineHeight = lineHeight,
+        style = style,
+        textAlign = textAlign,
+        overflow = overflow,
+        softWrap = softWrap,
+        maxLines = maxLines,
+        onTextLayout = { layoutResult = it }
+    )
 }
 
 sealed interface ContentBlock {
@@ -203,7 +295,7 @@ fun RichContentText(
         // Fast path for answer options (A, B, C, D)
         val annotated = rememberStyledInline(text)
         val inlineContent = rememberInlineContentFor(annotated)
-        Text(
+        RichStyledText(
             text = annotated,
             inlineContent = inlineContent,
             modifier = modifier,
@@ -242,7 +334,7 @@ fun RichContentText(
                     }
                     val annotated = rememberStyledInline(block.text)
                     val inlineContent = rememberInlineContentFor(annotated)
-                    Text(
+                    RichStyledText(
                         text = annotated,
                         inlineContent = inlineContent,
                         color = accentColor,
@@ -267,7 +359,7 @@ fun RichContentText(
                             modifier = Modifier.padding(end = 8.dp)
                         )
                         val inlineContent = rememberInlineContentFor(annotated)
-                        Text(
+                        RichStyledText(
                             text = annotated,
                             inlineContent = inlineContent,
                             color = textColor,
@@ -282,7 +374,7 @@ fun RichContentText(
                 is ContentBlock.Paragraph -> {
                     val annotated = rememberStyledInline(block.text)
                     val inlineContent = rememberInlineContentFor(annotated)
-                    Text(
+                    RichStyledText(
                         text = annotated,
                         inlineContent = inlineContent,
                         color = textColor,
@@ -722,7 +814,7 @@ fun MarkdownTableView(
                                     .width(width)
                                     .padding(horizontal = 10.dp, vertical = 2.dp)
                             ) {
-                                Text(
+                                RichStyledText(
                                     text = annotated,
                                     inlineContent = inlineContent,
                                     color = headerTextColor,
@@ -772,7 +864,7 @@ fun MarkdownTableView(
                                         .width(width)
                                         .padding(horizontal = 10.dp, vertical = 2.dp)
                                 ) {
-                                    Text(
+                                    RichStyledText(
                                         text = annotated,
                                         inlineContent = inlineContent,
                                         color = rowTextColor,

@@ -47,6 +47,16 @@ object LatexMathParser {
      */
     fun extractIconAndText(raw: String): Pair<String?, String> {
         val trimmed = raw.trim()
+        if (trimmed.startsWith(":")) {
+            val secondColon = trimmed.indexOf(':', 1)
+            if (secondColon in 2..30) {
+                val candidate = trimmed.substring(1, secondColon).trim()
+                val normalized = LucideIconMap.normalizeIconName(candidate)
+                if (LucideIconMap.isValidIcon(normalized)) {
+                    return normalized to trimmed.substring(secondColon + 1).trim()
+                }
+            }
+        }
         val nextColon = trimmed.indexOfAny(charArrayOf(':', '|'))
         if (nextColon in 1..30) {
             val candidate = trimmed.substring(0, nextColon).trim()
@@ -406,18 +416,19 @@ object LatexMathParser {
                                     val rawBadgeText = rawContent.substring(colonIdx + 1).trim()
                                     val (iconName, badgeText) = extractIconAndText(rawBadgeText)
                                     val colors = getBadgeColors(potentialColor, isDark)
-                                    withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
-                                        append("\u2005")
-                                        if (iconName != null) {
-                                            val iconId = "lucide:${iconName}:${colors.text.toArgb()}:${colors.background.toArgb()}"
-                                            pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
-                                            append("\uFFFC")
-                                            pop()
-                                            append("\u00A0")
-                                        }
-                                        append(parseToAnnotatedString(badgeText, colors.background, colors.text))
-                                        append("\u2005")
+                                    if (iconName != null) {
+                                        val iconId = "lucide:${iconName}:${colors.text.toArgb()}:0"
+                                        pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                                        append("\uFFFC")
+                                        pop()
+                                        append(" ")
                                     }
+                                    val badgeId = "${colors.background.toArgb()}"
+                                    pushStringAnnotation("badge_bg", badgeId)
+                                    withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.SemiBold, background = Color.Transparent)) {
+                                        append(parseToAnnotatedString(badgeText, colors.background, colors.text))
+                                    }
+                                    pop()
                                     i = end + 2
                                     continue
                                 } else if (LucideIconMap.isValidIcon(firstToken) || firstToken.startsWith("icon=") || firstToken.startsWith("lucide:")) {
@@ -426,16 +437,17 @@ object LatexMathParser {
                                     val inferredColor = LucideIconMap.resolveDefaultColor(iconName)
                                     val badgeText = rawContent.substring(colonIdx + 1).trim()
                                     val colors = getBadgeColors(inferredColor, isDark)
-                                    withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
-                                        append("\u2005")
-                                        val iconId = "lucide:${iconName}:${colors.text.toArgb()}:${colors.background.toArgb()}"
-                                        pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
-                                        append("\uFFFC")
-                                        pop()
-                                        append("\u00A0")
+                                    val iconId = "lucide:${iconName}:${colors.text.toArgb()}:0"
+                                    pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                                    append("\uFFFC")
+                                    pop()
+                                    append(" ")
+                                    val badgeId = "${colors.background.toArgb()}"
+                                    pushStringAnnotation("badge_bg", badgeId)
+                                    withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.SemiBold, background = Color.Transparent)) {
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
-                                        append("\u2005")
                                     }
+                                    pop()
                                     i = end + 2
                                     continue
                                 }
@@ -443,9 +455,12 @@ object LatexMathParser {
                             val defaultColors = getBadgeColors("yellow", isDark)
                             val bg = if (codeBgColor != Color(0x1F808080)) codeBgColor else defaultColors.background
                             val fg = if (codeTextColor != Color.Unspecified) codeTextColor else defaultColors.text
-                            withStyle(SpanStyle(background = bg, color = fg, fontWeight = FontWeight.SemiBold)) {
+                            val badgeId = "${bg.toArgb()}"
+                            pushStringAnnotation("badge_bg", badgeId)
+                            withStyle(SpanStyle(color = fg, fontWeight = FontWeight.SemiBold, background = Color.Transparent)) {
                                 append(parseToAnnotatedString(rawContent, bg, fg))
                             }
+                            pop()
                             i = end + 2
                             continue
                         }
@@ -476,18 +491,19 @@ object LatexMathParser {
                                     val rawBadgeText = bracketContent.substring(colonIdx + 1).trim()
                                     val (iconName, badgeText) = extractIconAndText(rawBadgeText)
                                     val colors = getBadgeColors(potentialColor, isDark)
-                                    withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
-                                        append("\u2005")
-                                        if (iconName != null) {
-                                            val iconId = "lucide:${iconName}:${colors.text.toArgb()}:${colors.background.toArgb()}"
-                                            pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
-                                            append("\uFFFC")
-                                            pop()
-                                            append("\u00A0")
-                                        }
-                                        append(parseToAnnotatedString(badgeText, colors.background, colors.text))
-                                        append("\u2005")
+                                    if (iconName != null) {
+                                        val iconId = "lucide:${iconName}:${colors.text.toArgb()}:0"
+                                        pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                                        append("\uFFFC")
+                                        pop()
+                                        append(" ")
                                     }
+                                    val badgeId = "${colors.background.toArgb()}"
+                                    pushStringAnnotation("badge_bg", badgeId)
+                                    withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.SemiBold, background = Color.Transparent)) {
+                                        append(parseToAnnotatedString(badgeText, colors.background, colors.text))
+                                    }
+                                    pop()
                                     i = closeBracket + 1
                                     continue
                                 } else if (LucideIconMap.isValidIcon(firstToken) || firstToken.startsWith("icon=") || firstToken.startsWith("lucide:")) {
@@ -496,16 +512,17 @@ object LatexMathParser {
                                     val inferredColor = LucideIconMap.resolveDefaultColor(iconName)
                                     val badgeText = bracketContent.substring(colonIdx + 1).trim()
                                     val colors = getBadgeColors(inferredColor, isDark)
-                                    withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
-                                        append("\u2005")
-                                        val iconId = "lucide:${iconName}:${colors.text.toArgb()}:${colors.background.toArgb()}"
-                                        pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
-                                        append("\uFFFC")
-                                        pop()
-                                        append("\u00A0")
+                                    val iconId = "lucide:${iconName}:${colors.text.toArgb()}:0"
+                                    pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                                    append("\uFFFC")
+                                    pop()
+                                    append(" ")
+                                    val badgeId = "${colors.background.toArgb()}"
+                                    pushStringAnnotation("badge_bg", badgeId)
+                                    withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.SemiBold, background = Color.Transparent)) {
                                         append(parseToAnnotatedString(badgeText, colors.background, colors.text))
-                                        append("\u2005")
                                     }
+                                    pop()
                                     i = closeBracket + 1
                                     continue
                                 }
@@ -535,20 +552,43 @@ object LatexMathParser {
                         val finalIcon = attrIcon ?: extractedIcon
 
                         val colors = getBadgeColors(colorName, isDark)
-                        withStyle(SpanStyle(background = colors.background, color = colors.text, fontWeight = FontWeight.SemiBold)) {
-                            append("\u2005")
-                            if (finalIcon != null) {
-                                val iconId = "lucide:${finalIcon}:${colors.text.toArgb()}:${colors.background.toArgb()}"
-                                pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
-                                append("\uFFFC")
-                                pop()
-                                append("\u00A0")
-                            }
-                            append(parseToAnnotatedString(markContent, colors.background, colors.text))
-                            append("\u2005")
+                        if (finalIcon != null) {
+                            val iconId = "lucide:${finalIcon}:${colors.text.toArgb()}:0"
+                            pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                            append("\uFFFC")
+                            pop()
+                            append(" ")
                         }
+                        val badgeId = "${colors.background.toArgb()}"
+                        pushStringAnnotation("badge_bg", badgeId)
+                        withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.SemiBold, background = Color.Transparent)) {
+                            append(parseToAnnotatedString(markContent, colors.background, colors.text))
+                        }
+                        pop()
                         i = closeIdx + endTag.length
                         continue
+                    }
+                }
+
+                // Check for standalone Lucide icon shortcode :icon_name: (e.g. :ambulance:, :scale:, :check:)
+                if (cleanText[i] == ':') {
+                    val closeColon = cleanText.indexOf(':', i + 1)
+                    if (closeColon in (i + 2)..(i + 35) &&
+                        !cleanText.substring(i + 1, closeColon).contains(' ') &&
+                        !cleanText.substring(i + 1, closeColon).contains('\n')
+                    ) {
+                        val candidate = cleanText.substring(i + 1, closeColon)
+                        val normalized = LucideIconMap.normalizeIconName(candidate)
+                        if (LucideIconMap.isValidIcon(normalized)) {
+                            val inferredColor = LucideIconMap.resolveDefaultColor(normalized)
+                            val colors = getBadgeColors(inferredColor, isDark)
+                            val iconId = "lucide:${normalized}:${colors.text.toArgb()}:0"
+                            pushStringAnnotation("androidx.compose.foundation.text.inlineContent", iconId)
+                            append("\uFFFC")
+                            pop()
+                            i = closeColon + 1
+                            continue
+                        }
                     }
                 }
 
