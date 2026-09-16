@@ -128,9 +128,10 @@ import com.hkm.pozix.viewmodel.ValidationState
 import com.hkm.pozix.ui.theme.readableContentColorFor
 import kotlinx.coroutines.launch
 
-private const val SAMPLE_STEM_JSON = """{
+private val SAMPLE_STEM_JSON = """{
   "title": "Toán & KHTN Mẫu",
-  "description": "Đề trắc nghiệm mẫu có công thức LaTeX và Code",
+  "description": "Đề trắc nghiệm mẫu có công thức LaTeX, Lucide Badges và Trả lời ngắn",
+  "lecture": "### [indigo:book-open:Tổng quan kiến thức]\n> [blue:info:Ghi nhớ]: Công thức đạo hàm và nghiệm phương trình bậc hai.\n\n| Đại lượng | Ký hiệu | Công thức |\n| :--- | :--- | :--- |\n| Đạo hàm tích | ${'$'}(uv)'${'$'} | ${'$'}u'v + uv'${'$'} |\n| Biệt thức bậc 2 | ${'$'}\\Delta${'$'} | ${'$'}b^2 - 4ac${'$'} |",
   "language": "vi",
   "questions": [
     {
@@ -143,13 +144,20 @@ private const val SAMPLE_STEM_JSON = """{
         "${'$'}f'(x) = \\ln x${'$'}"
       ],
       "correctIndex": 0,
-      "explanation": "Áp dụng công thức đạo hàm tích ${'$'}(uv)' = u'v + uv'${'$'}: ${'$'}f'(x) = 1 \\cdot \\ln x + x \\cdot \\frac{1}{x} = \\ln x + 1${'$'}."
+      "explanation": "[blue:play-circle:Bắt đầu] \n↓\n [teal:scan:Đạo hàm tích]: ${'$'}(uv)' = u'v + uv'${'$'} \n↓\n [emerald:check-circle-2:Kết luận]: ${'$'}f'(x) = 1 \\cdot \\ln x + x \\cdot \\frac{1}{x} = \\ln x + 1${'$'}."
     },
     {
       "type": "true_false",
       "question": "Phương trình bậc hai ${'$'}ax^2 + bx + c = 0${'$'} (${'$'}a \\neq 0${'$'}) có nghiệm khi biệt thức ${'$'}\\Delta = b^2 - 4ac \\ge 0${'$'}.",
       "correctAnswer": true,
-      "explanation": "Khi ${'$'}\\Delta \\ge 0${'$'}, phương trình luôn có ít nhất một nghiệm thực."
+      "explanation": "> [amber:lightbulb:Phân tích]: Khi ${'$'}\\Delta \\ge 0${'$'}, phương trình luôn có ít nhất một nghiệm thực (${'$'}\\Delta > 0${'$'} có 2 nghiệm phân biệt, ${'$'}\\Delta = 0${'$'} có nghiệm kép)."
+    },
+    {
+      "type": "short_answer",
+      "question": "Tính tích phân ${'$'}I = \\int_{0}^{1} 2x \\, dx${'$'}.",
+      "correctAnswer": "1",
+      "acceptedAnswers": ["1", "1.0", "1,0"],
+      "explanation": "[purple:brain:Nguyên hàm]: ${'$'}\\int 2x \\, dx = x^2${'$'} \n↓\n [emerald:check-circle-2:Thế cận]: ${'$'}I = 1^2 - 0^2 = 1${'$'}."
     }
   ]
 }"""

@@ -451,10 +451,12 @@ $jsonSchemaExample
 SCHEMA RULES:
 $formattingGuide
 
-1. "type": must be "single_choice" or "true_false".
+1. "type": must be "single_choice", "true_false", or "short_answer".
 2. "single_choice": must have 2-6 "options", and "correctIndex" (0-indexed integer).
 3. "true_false": must have "correctAnswer" (boolean: true or false).
-4. "explanation": optional clear, educational rationale for why the answer is correct.
+4. "short_answer": must have "correctAnswer" (concise string) and "acceptedAnswers" (array of valid string representations).
+5. "explanation": optional clear, educational rationale for why the answer is correct.
+6. Highly encourage using diverse Lucide icons, pastel badges [color:icon:Label], step-by-step thinking flows (↓ or →), markdown tables, and LaTeX math (${'$'}...${'$'} or ${'$'}${'$'}...${'$'}${'$'}) to make quizzes visually rich and stimulating.
 
 Please ask me what topic, target difficulty, and question count I would like, or generate the quiz directly if I specify the topic!"""
 

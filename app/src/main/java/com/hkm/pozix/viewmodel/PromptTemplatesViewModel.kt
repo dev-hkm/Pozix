@@ -112,6 +112,10 @@ Yêu cầu:
   * Ký hiệu toán học: \\cdot (nhân), \\sqrt{x} (căn), \\int_{a}^{b} (tích phân), \\lim_{x \\to 0} (giới hạn), \\ln x, \\sin x, x^2, x_1.
   * Trong chuỗi JSON, ký tự gạch chéo ngược phải escape thành 2 gạch: \\\\frac, \\\\sqrt, \\\\cdot.
 - Với môn Tin học / Lập trình: Dùng markdown code block (```python, ```cpp, ```java...) cho đoạn code và `code` cho mã inline.
+- TÍCH CỰC MINH HỌA BẰNG ĐA DẠNG LUCIDE ICONS VÀ PASTEL BADGES:
+  * Khuyến khích sử dụng phong phú các Lucide icon phù hợp theo ngữ cảnh từng môn học/chủ đề (ví dụ: atom, flask-conical, dna cho Khoa học; function-square, sigma, divide cho Toán học; code-2, terminal, cpu cho Tin học; globe, landmark, scroll cho Xã hội; lightbulb, sparkles, rocket cho Đố vui).
+  * Sử dụng huy hiệu pastel `[color:icon:Nội dung]` và sơ đồ tư duy từng bước nối bằng mũi tên (`↓` hoặc `→`) trong phần giải thích (`explanation`) và bài giảng (`lecture`).
+  * Sử dụng bảng Markdown cho so sánh, công thức và trích dẫn `> [color:icon:Tiêu đề]: ...` để làm nổi bật lưu ý quan trọng.
 - Tránh trùng lặp
 - Giữ cho nội dung chuẩn xác và có tính giáo dục
             """.trimIndent() + "\n\n" + com.hkm.pozix.util.RichContentContract.guidance("vi")
@@ -161,6 +165,10 @@ Requirements:
   * Symbols: \\cdot (dot), \\sqrt{x} (root), \\int_{a}^{b} (integral), \\lim_{x \\to 0} (limit), \\ln x, \\sin x, x^2, x_1.
   * In JSON, escape all backslashes as double backslashes: \\\\frac, \\\\sqrt, \\\\cdot.
 - For Computer Science: Use markdown code blocks (```python, ```cpp...) for multi-line code and `code` for inline code.
+- VISUAL ENRICHMENT WITH DIVERSE LUCIDE ICONS & PASTEL BADGES:
+  * Actively and vividly illustrate questions, lectures, and explanations using a rich variety of domain-specific Lucide icons (e.g. atom, flask-conical, dna for Science; function-square, sigma, divide for Math; code-2, terminal, cpu for CS; globe, landmark, scroll for Humanities; lightbulb, sparkles, rocket for Trivia).
+  * Use pastel badges `[color:icon:Label]` and step-by-step thinking flows with arrows (`↓` or `→`) in explanations and lectures.
+  * Use Markdown tables for comparisons and callouts `> [color:icon:Title]: ...` to emphasize key takeaways.
 - Avoid duplicates
 - Keep it educational and accurate
             """.trimIndent() + "\n\n" + com.hkm.pozix.util.RichContentContract.guidance("en")
@@ -212,6 +220,7 @@ Requirements:
 - single_choice must have 2-6 options
 - correctIndex must be valid (0-based)
 - Questions should be clear and answerable
+- Vividly illustrate questions and explanations with diverse Lucide icons and pastel badges [color:icon:Label] (e.g. [cyan:globe:Geography], [purple:landmark:History], [teal:atom:Science], [amber:lightbulb:Trivia])
                 """.trimIndent()
             ),
             PromptItem(
@@ -241,7 +250,7 @@ Requirements:
 - Use mostly single_choice type
 - Options should be 3-4 per question
 - Include clever riddles, lateral thinking, and logic puzzles
-- Provide clear explanations
+- Provide clear explanations with creative Lucide icons and pastel badges [color:icon:Label] (e.g. [purple:brain:Riddle], [amber:lightbulb:Clue], [emerald:key:Solution], [blue:puzzle:Logic]) and step-by-step thinking flows
                 """.trimIndent()
             ),
             PromptItem(
@@ -254,6 +263,7 @@ Schema:
 {
   "title": "School Knowledge Quiz",
   "description": "Test your academic knowledge",
+  "lecture": "Optional theoretical lecture / core study notes (supports tables, math, badges)",
   "language": "en",
   "questions": [
     {
@@ -268,6 +278,13 @@ Schema:
       "question": "Question text",
       "correctAnswer": true,
       "explanation": "Optional explanation"
+    },
+    {
+      "type": "short_answer",
+      "question": "Short answer question text",
+      "correctAnswer": "1.5",
+      "acceptedAnswers": ["1.5", "3/2"],
+      "explanation": "Optional explanation"
     }
   ]
 }
@@ -275,9 +292,10 @@ Schema:
 Requirements:
 - Generate 15 questions
 - Cover math, science, literature, history
-- Mix single_choice and true_false types
+- Mix single_choice, true_false, and short_answer types
 - Suitable for high school level
-- Provide helpful explanations
+- For Math/Science: use LaTeX math (${'$'}...${'$'} or ${'$'}${'$'}...${'$'}${'$'}) and Markdown tables
+- Highly encourage using diverse, subject-relevant Lucide icons (e.g. atom, flask-conical, dna, function-square, book-open, landmark) and pastel badges with step-by-step thinking flows (↓ or →) to make explanations engaging and clear
                 """.trimIndent()
             ),
             PromptItem(
@@ -314,6 +332,7 @@ Requirements:
 - Mix single_choice and true_false types
 - Keep it light and entertaining
 - Vary option counts (2-5 options)
+- Highly encourage using lively Lucide icons and pastel badges (e.g. [rose:flame:Fun Fact], [amber:zap:Did you know?], [purple:party-popper:Celebration], [teal:smile:Trivia]) to keep explanations playful and visually exciting
                 """.trimIndent()
             ),
             PromptItem(
@@ -342,7 +361,7 @@ Requirements:
 - Use ONLY true_false type
 - Cover various interesting facts
 - Make some tricky but fair
-- Provide clear explanations
+- Provide clear explanations with Lucide icons and pastel badges (e.g. [emerald:check-circle:True Fact], [rose:x-circle:Myth Busted], [amber:search:Evidence]) to make explanations thorough and compelling
                 """.trimIndent()
             )
         )
@@ -385,6 +404,7 @@ Yêu cầu:
 - single_choice phải có 2-6 lựa chọn
 - correctIndex phải hợp lệ (bắt đầu từ 0)
 - Câu hỏi phải rõ ràng và có thể trả lời được
+- Tích cực sử dụng đa dạng các Lucide icon và huy hiệu pastel [color:icon:Nội dung] (như [cyan:globe:Địa lý], [purple:landmark:Lịch sử], [teal:atom:Khoa học], [amber:lightbulb:Khám phá]) để minh họa câu hỏi và lời giải thích thật sinh động, trực quan
                 """.trimIndent()
             ),
             PromptItem(
@@ -414,7 +434,7 @@ Yêu cầu:
 - Chủ yếu sử dụng loại single_choice
 - Mỗi câu nên có 3-4 lựa chọn
 - Bao gồm câu đố thông minh, tư duy ngang và câu đố logic
-- Cung cấp giải thích rõ ràng
+- Cung cấp giải thích rõ ràng kèm các Lucide icon gợi mở và huy hiệu pastel (như [purple:brain:Câu đố], [amber:lightbulb:Manh mối], [emerald:key:Lời giải], [blue:puzzle:Tư duy logic]) cùng sơ đồ suy luận từng bước (↓ hoặc →)
                 """.trimIndent()
             ),
             PromptItem(
@@ -427,6 +447,7 @@ Schema:
 {
   "title": "Quiz Kiến thức Học đường",
   "description": "Kiểm tra kiến thức học thuật của bạn",
+  "lecture": "Tóm tắt bài giảng lý thuyết / kiến thức cốt lõi (hỗ trợ bảng biểu, công thức, huy hiệu)",
   "language": "vi",
   "questions": [
     {
@@ -441,6 +462,13 @@ Schema:
       "question": "Nội dung câu hỏi",
       "correctAnswer": true,
       "explanation": "Giải thích tùy chọn"
+    },
+    {
+      "type": "short_answer",
+      "question": "Nội dung câu hỏi trắc nghiệm trả lời ngắn (điền số/từ)",
+      "correctAnswer": "kết quả",
+      "acceptedAnswers": ["kết quả", "cách viết khác"],
+      "explanation": "Giải thích tùy chọn"
     }
   ]
 }
@@ -448,9 +476,10 @@ Schema:
 Yêu cầu:
 - Tạo 15 câu hỏi
 - Bao gồm toán, khoa học, văn học, lịch sử
-- Kết hợp cả hai loại single_choice và true_false
+- Kết hợp cả 3 dạng chuẩn đề THPT: single_choice, true_false, và short_answer
 - Phù hợp với trình độ trung học phổ thông
-- Cung cấp giải thích hữu ích
+- Với Toán, Lý, Hóa: bắt buộc dùng công thức LaTeX (${'$'}...${'$'} hoặc ${'$'}${'$'}...${'$'}${'$'}) và bảng Markdown
+- Tích cực sử dụng đa dạng các Lucide icon chuyên môn (như atom, flask-conical, dna, function-square, book-open, landmark) và huy hiệu pastel kèm chuỗi tư duy từng bước (↓ hoặc →) để minh họa lời giải rõ ràng, dễ hiểu
                 """.trimIndent()
             ),
             PromptItem(
@@ -487,6 +516,7 @@ Yêu cầu:
 - Kết hợp cả hai loại single_choice và true_false
 - Giữ cho nội dung nhẹ nhàng và giải trí
 - Thay đổi số lượng lựa chọn (2-5 lựa chọn)
+- Tích cực sử dụng các Lucide icon vui nhộn và huy hiệu pastel (như [rose:flame:Thú vị], [amber:zap:Bạn có biết?], [purple:party-popper:Chúc mừng], [teal:smile:Bật mí]) để tạo sự lôi cuốn, hứng khởi khi học
                 """.trimIndent()
             ),
             PromptItem(
@@ -515,7 +545,7 @@ Yêu cầu:
 - CHỈ sử dụng loại true_false
 - Bao gồm nhiều sự thật thú vị
 - Làm cho một số câu khó nhưng công bằng
-- Cung cấp giải thích rõ ràng
+- Cung cấp giải thích rõ ràng kèm các Lucide icon và huy hiệu pastel (như [emerald:check-circle:Sự thật], [rose:x-circle:Hiểu lầm phổ biến], [amber:search:Bằng chứng]) để giải thích cặn kẽ và cuốn hút
                 """.trimIndent()
             )
         )
