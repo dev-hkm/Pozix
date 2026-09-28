@@ -86,6 +86,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadSettings() {
         viewModelScope.launch {
+            aiProviderRepository.ensureBuiltInProviders()
             repository.migrateLegacySecrets()
             aiProviderRepository.migrateLegacySecrets()
         }

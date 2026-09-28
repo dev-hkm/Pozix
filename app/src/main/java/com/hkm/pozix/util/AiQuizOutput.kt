@@ -1,6 +1,8 @@
 package com.hkm.pozix.util
 
 import com.hkm.pozix.data.model.QuizValidationResult
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 
 object AiQuizOutput {
     data class Artifact(val json: String, val displayText: String)
@@ -90,7 +92,11 @@ object AiQuizOutput {
                     depth--
                     if (depth == 0) {
                         val json = text.substring(start, i + 1)
-                        if (QuizJsonParser.parseAndValidate(json) is QuizValidationResult.Success) {
+                        val withinQuestionLimit = runCatching {
+                            kotlinx.serialization.json.Json.parseToJsonElement(json).jsonObject["questions"]
+                                ?.jsonArray?.size in 1..15
+                        }.getOrDefault(false)
+                        if (withinQuestionLimit && QuizJsonParser.parseAndValidate(json) is QuizValidationResult.Success) {
                             var before = text.substring(0, start)
                             var after = text.substring(i + 1)
                             before = before.replace(Regex("```(?:json)?\\s*$", RegexOption.IGNORE_CASE), "")

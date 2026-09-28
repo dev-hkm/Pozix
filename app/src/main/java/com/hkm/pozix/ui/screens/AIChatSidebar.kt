@@ -227,6 +227,11 @@ internal fun ChatProviderManager(onDismiss: () -> Unit) {
     // Same repository, editor, model discovery and custom settings as Settings.
     val settings: SettingsViewModel = viewModel()
     val state by settings.uiState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val developerUnlocked = remember {
+        context.getSharedPreferences(com.hkm.pozix.data.repository.PozixAiAccountRepository.DEV_UNLOCK_PREFS, android.content.Context.MODE_PRIVATE)
+            .getBoolean(com.hkm.pozix.data.repository.PozixAiAccountRepository.DEV_UNLOCKED, false)
+    }
     var editing by remember { mutableStateOf<AiProvider?>(null) }
     var deleting by remember { mutableStateOf<AiProvider?>(null) }
     if (editing == null) {
@@ -241,7 +246,7 @@ internal fun ChatProviderManager(onDismiss: () -> Unit) {
                     if (state.aiProviders.isEmpty()) item {
                         Text(stringResource(R.string.ai_provider_no_providers), modifier = Modifier.padding(vertical = 20.dp))
                     }
-                    items(state.aiProviders, key = { it.id }) { provider ->
+                    items(state.aiProviders.filter { developerUnlocked || it.id.startsWith("builtin-") }, key = { it.id }) { provider ->
                         val active = state.activeProviderId == provider.id
                         Surface(onClick = { settings.setActiveAiProvider(provider.id) },
                             shape = RoundedCornerShape(20.dp),
@@ -254,17 +259,19 @@ internal fun ChatProviderManager(onDismiss: () -> Unit) {
                                     Text(provider.modelId, style = MaterialTheme.typography.labelSmall,
                                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
-                                IconButton(onClick = { editing = provider }) {
-                                    Icon(Icons.Default.Edit, stringResource(R.string.ai_provider_edit))
-                                }
-                                IconButton(onClick = { deleting = provider }) {
-                                    Icon(Icons.Default.DeleteOutline, stringResource(R.string.ai_provider_delete))
+                                if (developerUnlocked && !provider.id.startsWith("builtin-")) {
+                                    IconButton(onClick = { editing = provider }) {
+                                        Icon(Icons.Default.Edit, stringResource(R.string.ai_provider_edit))
+                                    }
+                                    IconButton(onClick = { deleting = provider }) {
+                                        Icon(Icons.Default.DeleteOutline, stringResource(R.string.ai_provider_delete))
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                FilledTonalButton(onClick = {
+                if (developerUnlocked) FilledTonalButton(onClick = {
                     editing = AiProvider(name = "", baseUrl = "", apiKey = "", modelId = "")
                 }, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
                     Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp))

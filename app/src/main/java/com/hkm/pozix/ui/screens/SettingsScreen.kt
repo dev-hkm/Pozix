@@ -139,6 +139,14 @@ fun SettingsScreen(
     var deleteProviderTarget by remember { mutableStateOf<AiProvider?>(null) }
     var cloudAction by remember { mutableStateOf<String?>(null) } // "backup" or "restore"
     var showForgetTokenConfirm by remember { mutableStateOf(false) }
+    var developerUnlocked by remember { mutableStateOf(context.getSharedPreferences(
+        com.hkm.pozix.data.repository.PozixAiAccountRepository.DEV_UNLOCK_PREFS, Context.MODE_PRIVATE
+    ).getBoolean(com.hkm.pozix.data.repository.PozixAiAccountRepository.DEV_UNLOCKED, false)) }
+    var settingsTitleTaps by remember { mutableStateOf(0) }
+    var lastSettingsTitleTap by remember { mutableStateOf(0L) }
+    var showDeveloperPassword by remember { mutableStateOf(false) }
+    var developerPassword by remember { mutableStateOf("") }
+    var developerPasswordError by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -210,7 +218,16 @@ fun SettingsScreen(
                     text = stringResource(R.string.settings_title),
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.clickable {
+                        val now = android.os.SystemClock.elapsedRealtime()
+                        settingsTitleTaps = if (now - lastSettingsTitleTap > 2_000L) 1 else settingsTitleTaps + 1
+                        lastSettingsTitleTap = now
+                        if (settingsTitleTaps >= 9) {
+                            settingsTitleTaps = 0
+                            if (!developerUnlocked) showDeveloperPassword = true
+                        }
+                    }
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -494,7 +511,22 @@ fun SettingsScreen(
             }
         }
 
-        item(key = "ai_assistant") {
+        item(key = "ai_builtin") {
+            SettingsCard(title = "Pozix AI") {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Choose a built-in model", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    com.hkm.pozix.data.repository.PozixAiAccountRepository.builtInProviders.forEach { provider ->
+                        val selected = uiState.activeProviderId == provider.id
+                        OutlinedButton(onClick = { viewModel.setActiveAiProvider(provider.id) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                            Text((if (selected) "✓  " else "") + provider.name, maxLines = 1)
+                        }
+                    }
+                    PozixAiAccountCard()
+                }
+            }
+        }
+
+        if (developerUnlocked) item(key = "ai_assistant") {
             SettingsCard(title = stringResource(R.string.settings_ai_section)) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                     Text(
@@ -814,6 +846,36 @@ fun SettingsScreen(
             }
         }
     }
+
+    if (showDeveloperPassword) AlertDialog(
+        onDismissRequest = { showDeveloperPassword = false; developerPassword = ""; developerPasswordError = false },
+        title = { Text("Developer options") },
+        text = {
+            Column {
+                Text("Enter developer password to unlock advanced settings.")
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = developerPassword,
+                    onValueChange = { developerPassword = it; developerPasswordError = false },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    isError = developerPasswordError
+                )
+                if (developerPasswordError) Text("Incorrect password", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        confirmButton = { TextButton(onClick = {
+            if (developerPassword == "sonli2026") {
+                developerUnlocked = true
+                context.getSharedPreferences(com.hkm.pozix.data.repository.PozixAiAccountRepository.DEV_UNLOCK_PREFS, Context.MODE_PRIVATE)
+                    .edit().putBoolean(com.hkm.pozix.data.repository.PozixAiAccountRepository.DEV_UNLOCKED, true).apply()
+                showDeveloperPassword = false
+                developerPassword = ""
+            } else developerPasswordError = true
+        }) { Text("Unlock") } },
+        dismissButton = { TextButton(onClick = { showDeveloperPassword = false; developerPassword = "" }) { Text(stringResource(R.string.cancel)) } }
+    )
 
     if (showLanguageSheet) {
         PozixModalBottomSheet(

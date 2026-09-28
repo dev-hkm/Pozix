@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pozix-ai-gateway",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "ratelimits": [
+    { "name": "AUTH_LIMITER", "namespace_id": "17392811", "simple": { "limit": 8, "period": 60 } },
+    { "name": "AI_LIMITER", "namespace_id": "17392812", "simple": { "limit": 30, "period": 60 } }
+  ],
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "pozix-ai-accounts",
+    "database_id": "9e9ce2e1-af21-4f2c-8347-817f72d018a8",
+    "migrations_dir": "migrations"
+  }]
+}

@@ -23,6 +23,23 @@ class AiProviderRepository(private val context: Context) {
     private val PROVIDERS_KEY = stringPreferencesKey("providers_json")
     private val ACTIVE_ID_KEY = stringPreferencesKey("active_provider_id")
 
+    suspend fun ensureBuiltInProviders() {
+        context.aiProvidersDataStore.edit { prefs ->
+            val current = decode(prefs[PROVIDERS_KEY].orEmpty()).toMutableList()
+            com.hkm.pozix.data.repository.PozixAiAccountRepository.builtInProviders.forEach { builtin ->
+                if (current.none { it.id == builtin.id }) current.add(0, builtin)
+            }
+            prefs[PROVIDERS_KEY] = encode(current)
+            val active = prefs[ACTIVE_ID_KEY]
+            val developerUnlocked = context.getSharedPreferences(
+                PozixAiAccountRepository.DEV_UNLOCK_PREFS, Context.MODE_PRIVATE
+            ).getBoolean(PozixAiAccountRepository.DEV_UNLOCKED, false)
+            if (active.isNullOrBlank() || current.none { it.id == active } || (!developerUnlocked && !active.startsWith("builtin-"))) {
+                prefs[ACTIVE_ID_KEY] = "builtin-openai"
+            }
+        }
+    }
+
     fun getProviders(): Flow<List<AiProvider>> =
         context.aiProvidersDataStore.data.map { prefs ->
             decode(prefs[PROVIDERS_KEY].orEmpty())

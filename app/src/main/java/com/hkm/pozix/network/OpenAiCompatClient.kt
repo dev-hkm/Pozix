@@ -176,6 +176,7 @@ object OpenAiCompatClient {
         history: List<ChatMessage>,
         systemInstructionText: String? = null,
         reasoningEffort: String? = null,
+        generationId: String? = null,
         httpClient: OkHttpClient = client
     ): Flow<StreamChunk> = flow {
         val root = AiProvider.normalizeBaseUrl(baseUrl)
@@ -205,6 +206,7 @@ object OpenAiCompatClient {
             .header("Accept", "text/event-stream")
             .apply {
                 if (apiKey.isNotBlank()) header("Authorization", "Bearer $apiKey")
+                if (!generationId.isNullOrBlank()) header("X-Pozix-Generation-Id", generationId)
             }
             .build()
 
@@ -288,7 +290,8 @@ object OpenAiCompatClient {
         model: String,
         history: List<ChatMessage>,
         systemInstructionText: String? = null,
-        reasoningEffort: String? = null
+        reasoningEffort: String? = null,
+        generationId: String? = null
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val root = AiProvider.normalizeBaseUrl(baseUrl)
@@ -317,6 +320,7 @@ object OpenAiCompatClient {
                 .post(bodyJson.toRequestBody(mediaType))
                 .apply {
                     if (apiKey.isNotBlank()) header("Authorization", "Bearer $apiKey")
+                    if (!generationId.isNullOrBlank()) header("X-Pozix-Generation-Id", generationId)
                 }
                 .build()
 

@@ -19,5 +19,6 @@ data class ChatMessage(
     /** Compact reference to an app-private timestamped YouTube transcript. */
     val youtubeSource: YoutubeSourceReference? = null,
     /** Transport/storage failures are rendered outside rich text so they can never corrupt Markdown/LaTeX. */
-    val errorNotice: String? = null
+    val errorNotice: String? = null,
+    val generatedBy: String? = null
 )
