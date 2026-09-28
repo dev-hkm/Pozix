@@ -1,3 +1,6 @@
+import { registrationFailure } from "./registrationFailure";
+import { PASSWORD_HASH_ITERATIONS } from "./passwordHashPolicy";
+
 const providers = {
   generalcompute: { upstream: "https://api.generalcompute.com/v1/chat/completions", model: "minimax-m2.7", secret: "GENERALCOMPUTE_API_KEY" },
   openai: { upstream: "https://api.openai.com/v1/chat/completions", model: "gpt-6-luna", secret: "OPENAI_API_KEY" },
@@ -23,7 +26,7 @@ async function digest(value: string) {
 }
 async function passwordHash(password: string, salt: Uint8Array) {
   const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const result = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: Uint8Array.from(salt).buffer, iterations: 310_000 }, material, 256);
+  const result = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: Uint8Array.from(salt).buffer, iterations: PASSWORD_HASH_ITERATIONS }, material, 256);
   return encode(new Uint8Array(result));
 }
 function localDate() {
@@ -57,11 +60,18 @@ async function authRoute(request: Request, env: Env, path: string) {
     }
     const salt = random(16);
     const id = crypto.randomUUID();
+    let hash: string;
+    try {
+      hash = await passwordHash(password, salt);
+    } catch {
+      return json({ error: { message: "Account security setup failed. Please try again." }, code: "password_hash_failed" }, 503);
+    }
     try {
       await env.DB.prepare("INSERT INTO users(id,display_name,username,password_salt,password_hash,created_at) VALUES(?,?,?,?,?,?)")
-        .bind(id, name, username, encode(salt), await passwordHash(password, salt), now()).run();
-    } catch {
-      return json({ error: { message: "Username is unavailable." } }, 409);
+        .bind(id, name, username, encode(salt), hash, now()).run();
+    } catch (error) {
+      const failure = registrationFailure(error);
+      return json({ error: { message: failure.message }, code: failure.code }, failure.status);
     }
     return json({ token: await issueSession(env, id), displayName: name, username });
   }

@@ -3,10 +3,11 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "scripts": { "deploy": "wrangler deploy", "typecheck": "tsc --noEmit" },
+  "scripts": { "deploy": "wrangler deploy", "typecheck": "tsc --noEmit", "test": "vitest run" },
   "devDependencies": {
     "typescript": "^5.8.3",
     "@types/node": "^22.0.0",
+    "vitest": "^3.2.4",
     "wrangler": "^4.25.0"
   }
 }

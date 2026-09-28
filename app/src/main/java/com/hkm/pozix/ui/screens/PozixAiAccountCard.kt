@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -24,6 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.hkm.pozix.data.repository.PozixAiAccount
 import com.hkm.pozix.data.repository.PozixAiAccountRepository
@@ -53,6 +58,7 @@ internal fun PozixAiAccountCard() {
     var displayName by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf("") }
     LaunchedEffect(repository) { account = runCatching { repository.current() }.getOrNull() }
 
@@ -81,20 +87,48 @@ internal fun PozixAiAccountCard() {
                 Text("Create an account or sign in to use the built-in AI providers.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (showForm) {
                     Spacer(Modifier.height(8.dp))
-                    if (creating) OutlinedTextField(displayName, { displayName = it }, label = { Text("Display name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(username, { username = it }, label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(password, { password = it }, label = { Text("Password (10+ characters)") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth())
+                    if (creating) OutlinedTextField(displayName, { displayName = it }, label = { Text("Display name") }, singleLine = true, enabled = !loading, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(username, { username = it }, label = { Text("Username") }, singleLine = true, enabled = !loading, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password (10+ characters)") },
+                        singleLine = true,
+                        enabled = !loading,
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        trailingIcon = {
+                            IconButton(enabled = !loading, onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (passwordVisible) "Hide password" else "Show password")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     if (notice.isNotBlank()) Text(notice, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(enabled = !loading, onClick = {
                             loading = true; notice = ""
                             scope.launch {
-                                try { account = if (creating) repository.register(displayName, username, password) else repository.login(username, password); showForm = false; password = "" }
-                                catch (e: Exception) { notice = e.message ?: "Unable to sign in." }
-                                loading = false
+                                try {
+                                    account = if (creating) repository.register(displayName.trim(), username.trim(), password)
+                                    else repository.login(username.trim(), password)
+                                    showForm = false
+                                    password = ""
+                                    passwordVisible = false
+                                } catch (e: Exception) {
+                                    notice = e.message ?: "Unable to sign in."
+                                } finally {
+                                    loading = false
+                                }
                             }
-                        }) { if (loading) CircularProgressIndicator(Modifier.height(18.dp), strokeWidth = 2.dp) else Text(if (creating) "Create account" else "Sign in") }
-                        TextButton(onClick = { creating = !creating; notice = "" }) { Text(if (creating) "I have an account" else "Create account") }
+                        }) {
+                            if (loading) {
+                                CircularProgressIndicator(Modifier.size(18.dp).padding(end = 2.dp), strokeWidth = 2.dp)
+                                Text("Please wait…")
+                            } else Text(if (creating) "Create account" else "Sign in")
+                        }
+                        TextButton(enabled = !loading, onClick = { creating = !creating; notice = "" }) { Text(if (creating) "I have an account" else "Create account") }
                     }
                 } else {
                     Button(onClick = { showForm = true; creating = false }) { Text("Sign in") }
