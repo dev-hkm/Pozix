@@ -68,7 +68,7 @@ internal fun PozixAiAccountCard() {
                 Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Column {
                     Text("Pozix AI account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("3 quiz generations per day · up to 15 questions each", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("20 AI responses + 3 quizzes daily · up to 15 questions per quiz", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Spacer(Modifier.height(10.dp))

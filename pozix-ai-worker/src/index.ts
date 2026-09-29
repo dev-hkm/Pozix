@@ -1,17 +1,18 @@
 import { registrationFailure } from "./registrationFailure";
 import { PASSWORD_HASH_ITERATIONS } from "./passwordHashPolicy";
+import { DAILY_CHAT_TURN_LIMIT, DAILY_QUIZ_COMPLETION_LIMIT, DAILY_QUIZ_GENERATION_LIMIT, MAX_COMPLETION_TOKENS, MAX_REQUEST_BODY_BYTES, isValidRequestId } from "./usagePolicy";
 
 const providers = {
-  generalcompute: { upstream: "https://api.generalcompute.com/v1/chat/completions", model: "minimax-m2.7", secret: "GENERALCOMPUTE_API_KEY" },
-  openai: { upstream: "https://api.openai.com/v1/chat/completions", model: "gpt-6-luna", secret: "OPENAI_API_KEY" },
-  openrouter: { upstream: "https://openrouter.ai/api/v1/chat/completions", model: "z-ai/glm-5.3-flash", secret: "OPENROUTER_API_KEY" },
+  generalcompute: { upstream: "https://api.generalcompute.com/v1/chat/completions", model: "minimax-m2.7", secret: "GENERALCOMPUTE_API_KEY", tokenLimitField: "max_tokens" },
+  openai: { upstream: "https://api.openai.com/v1/chat/completions", model: "gpt-6-luna", secret: "OPENAI_API_KEY", tokenLimitField: "max_completion_tokens" },
+  openrouter: { upstream: "https://openrouter.ai/api/v1/chat/completions", model: "z-ai/glm-5.3-flash", secret: "OPENROUTER_API_KEY", tokenLimitField: "max_completion_tokens" },
 } as const;
 type Provider = keyof typeof providers;
 
 const cors = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
-  "access-control-allow-headers": "authorization,content-type,x-pozix-generation-id",
+  "access-control-allow-headers": "authorization,content-type,x-pozix-generation-id,x-pozix-request-id",
   "access-control-max-age": "86400",
 };
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
@@ -132,33 +133,60 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (!match) return json({ error: { message: "Not found" } }, 404);
   const provider = match[1] as Provider;
   const config = providers[provider];
-  const key = (env as unknown as Record<string, unknown>)[config.secret];
-  if (typeof key !== "string" || !key) return json({ error: { message: `${config.secret} is not configured on the Worker.` }, code: "provider_unconfigured" }, 503);
+  const declaredLength = Number(request.headers.get("content-length") ?? 0);
+  if (declaredLength > MAX_REQUEST_BODY_BYTES) return json({ error: { message: "Chat request is too large." } }, 413);
   const input = await request.json().catch(() => null) as Record<string, unknown> | null;
-  if (!input || !Array.isArray(input.messages) || input.messages.length > 40 || JSON.stringify(input).length > 900_000) {
+  if (!input || !Array.isArray(input.messages) || input.messages.length > 40 || new TextEncoder().encode(JSON.stringify(input)).length > MAX_REQUEST_BODY_BYTES) {
     return json({ error: { message: "Invalid or oversized chat request." } }, 400);
   }
   const wantsQuiz = request.headers.has("x-pozix-generation-id");
-  const requestId = request.headers.get("x-pozix-generation-id")?.slice(0, 80) ?? "";
+  const generationId = request.headers.get("x-pozix-generation-id");
+  const requestId = request.headers.get("x-pozix-request-id");
+  if (!isValidRequestId(requestId)) return json({ error: { message: "Missing or invalid AI request ID." } }, 400);
+  if (wantsQuiz && (!generationId || !/^[a-zA-Z0-9-]{8,80}$/.test(generationId))) return json({ error: { message: "Invalid generation ID." } }, 400);
+  const key = (env as unknown as Record<string, unknown>)[config.secret];
+  if (typeof key !== "string" || !key) return json({ error: { message: `${config.secret} is not configured on the Worker.` }, code: "provider_unconfigured" }, 503);
+  const usageDate = localDate();
+  try {
+    await env.DB.prepare("INSERT OR IGNORE INTO ai_request_usage(user_id,usage_date,request_id,request_type,created_at) VALUES(?,?,?,?,?)")
+      .bind(user.id, usageDate, requestId, wantsQuiz ? "quiz" : "chat", now()).run();
+    const existing = await env.DB.prepare("SELECT request_type FROM ai_request_usage WHERE user_id=? AND usage_date=? AND request_id=?")
+      .bind(user.id, usageDate, requestId).first<{ request_type: string }>();
+    if (existing) return json({ error: { message: "AI request ID has already been used." }, code: "duplicate_request" }, 409);
+  } catch {
+    const requestType = wantsQuiz ? "quiz" : "chat";
+    const usageCount = await env.DB.prepare("SELECT COUNT(*) AS count FROM ai_request_usage WHERE user_id=? AND usage_date=? AND request_type=?")
+      .bind(user.id, usageDate, requestType).first<{ count: number }>().catch(() => null);
+    const limit = wantsQuiz ? DAILY_QUIZ_COMPLETION_LIMIT : DAILY_CHAT_TURN_LIMIT;
+    if ((usageCount?.count ?? 0) >= limit) {
+      const message = wantsQuiz
+        ? `Daily AI completion safety limit reached (${limit} quiz completions).`
+        : `Daily limit reached: ${limit} AI chat requests.`;
+      return json({ error: { message }, code: "daily_quota_exceeded" }, 429);
+    }
+    return json({ error: { message: "Unable to reserve daily AI quota. Please retry." } }, 503);
+  }
   if (wantsQuiz) {
-    if (!/^[a-zA-Z0-9-]{8,80}$/.test(requestId)) return json({ error: { message: "Invalid generation ID." } }, 400);
     try {
       const result = await env.DB.prepare("INSERT OR IGNORE INTO quiz_usage(user_id,usage_date,generation_id,created_at) VALUES(?,?,?,?)")
-        .bind(user.id, localDate(), requestId, now()).run();
+        .bind(user.id, usageDate, generationId!, now()).run();
       if (result.meta.changes === 0) {
         const existing = await env.DB.prepare("SELECT 1 FROM quiz_usage WHERE user_id=? AND usage_date=? AND generation_id=?")
-          .bind(user.id, localDate(), requestId).first();
-        if (!existing) return json({ error: { message: "Daily limit reached: 3 quiz generations per day." }, code: "daily_quota_exceeded" }, 429);
+          .bind(user.id, usageDate, generationId!).first();
+        if (!existing) return json({ error: { message: `Daily limit reached: ${DAILY_QUIZ_GENERATION_LIMIT} quiz generations per day.` }, code: "daily_quota_exceeded" }, 429);
       }
     } catch {
-      const count = await env.DB.prepare("SELECT COUNT(*) AS count FROM quiz_usage WHERE user_id=? AND usage_date=?").bind(user.id, localDate()).first<{ count: number }>();
-      const existing = await env.DB.prepare("SELECT 1 FROM quiz_usage WHERE user_id=? AND usage_date=? AND generation_id=?").bind(user.id, localDate(), requestId).first();
-      if ((count?.count ?? 0) >= 3 && !existing) return json({ error: { message: "Daily limit reached: 3 quiz generations per day." }, code: "daily_quota_exceeded" }, 429);
+      const count = await env.DB.prepare("SELECT COUNT(*) AS count FROM quiz_usage WHERE user_id=? AND usage_date=?").bind(user.id, usageDate).first<{ count: number }>();
+      const existing = await env.DB.prepare("SELECT 1 FROM quiz_usage WHERE user_id=? AND usage_date=? AND generation_id=?").bind(user.id, usageDate, generationId!).first();
+      if ((count?.count ?? 0) >= DAILY_QUIZ_GENERATION_LIMIT && !existing) return json({ error: { message: `Daily limit reached: ${DAILY_QUIZ_GENERATION_LIMIT} quiz generations per day.` }, code: "daily_quota_exceeded" }, 429);
       return json({ error: { message: "Unable to reserve quiz quota. Please retry." } }, 503);
     }
   }
   input.model = config.model;
   input.stream = true;
+  delete input.max_tokens;
+  delete input.max_completion_tokens;
+  input[config.tokenLimitField] = MAX_COMPLETION_TOKENS;
   const upstream = await fetch(config.upstream, {
     method: "POST", headers: { "authorization": `Bearer ${key}`, "content-type": "application/json", "accept": "text/event-stream" },
     body: JSON.stringify(input), signal: AbortSignal.timeout(125_000),

@@ -177,6 +177,7 @@ object OpenAiCompatClient {
         systemInstructionText: String? = null,
         reasoningEffort: String? = null,
         generationId: String? = null,
+        requestId: String? = null,
         httpClient: OkHttpClient = client
     ): Flow<StreamChunk> = flow {
         val root = AiProvider.normalizeBaseUrl(baseUrl)
@@ -207,6 +208,7 @@ object OpenAiCompatClient {
             .apply {
                 if (apiKey.isNotBlank()) header("Authorization", "Bearer $apiKey")
                 if (!generationId.isNullOrBlank()) header("X-Pozix-Generation-Id", generationId)
+                if (!requestId.isNullOrBlank()) header("X-Pozix-Request-Id", requestId)
             }
             .build()
 
@@ -291,7 +293,8 @@ object OpenAiCompatClient {
         history: List<ChatMessage>,
         systemInstructionText: String? = null,
         reasoningEffort: String? = null,
-        generationId: String? = null
+        generationId: String? = null,
+        requestId: String? = null
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val root = AiProvider.normalizeBaseUrl(baseUrl)
@@ -321,6 +324,7 @@ object OpenAiCompatClient {
                 .apply {
                     if (apiKey.isNotBlank()) header("Authorization", "Bearer $apiKey")
                     if (!generationId.isNullOrBlank()) header("X-Pozix-Generation-Id", generationId)
+                    if (!requestId.isNullOrBlank()) header("X-Pozix-Request-Id", requestId)
                 }
                 .build()
 
