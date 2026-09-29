@@ -148,11 +148,9 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (typeof key !== "string" || !key) return json({ error: { message: `${config.secret} is not configured on the Worker.` }, code: "provider_unconfigured" }, 503);
   const usageDate = localDate();
   try {
-    await env.DB.prepare("INSERT OR IGNORE INTO ai_request_usage(user_id,usage_date,request_id,request_type,created_at) VALUES(?,?,?,?,?)")
+    const reservation = await env.DB.prepare("INSERT OR IGNORE INTO ai_request_usage(user_id,usage_date,request_id,request_type,created_at) VALUES(?,?,?,?,?)")
       .bind(user.id, usageDate, requestId, wantsQuiz ? "quiz" : "chat", now()).run();
-    const existing = await env.DB.prepare("SELECT request_type FROM ai_request_usage WHERE user_id=? AND usage_date=? AND request_id=?")
-      .bind(user.id, usageDate, requestId).first<{ request_type: string }>();
-    if (existing) return json({ error: { message: "AI request ID has already been used." }, code: "duplicate_request" }, 409);
+    if (reservation.meta.changes === 0) return json({ error: { message: "AI request ID has already been used." }, code: "duplicate_request" }, 409);
   } catch {
     const requestType = wantsQuiz ? "quiz" : "chat";
     const usageCount = await env.DB.prepare("SELECT COUNT(*) AS count FROM ai_request_usage WHERE user_id=? AND usage_date=? AND request_type=?")
